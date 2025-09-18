@@ -51,22 +51,28 @@
     pad.setPointerCapture(e.pointerId);
     start = {x:e.clientX, y:e.clientY};
   });
-
+function sendToShortcut(hour) {
+  const name = encodeURIComponent("Clock Input");   // must match your Shortcut name
+  const text = encodeURIComponent(String(hour));    // the number to send
+  const url  = `shortcuts://run-shortcut?name=${name}&input=text&text=${text}`;
+  location.href = url; // jumps into Shortcuts
+}
   function finalize(e){
-    if(!start) return;
-    const dx = e.clientX - start.x, dy = e.clientY - start.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < MIN_DIST){
-      window.__clockNumber = "";
-      numEl.textContent = "—";
-    } else {
-      const hour = vectorToClock(dx, dy);
-      window.__clockNumber = String(hour);
-      numEl.textContent = window.__clockNumber;
-      // If you want one-and-done, uncomment the next line to auto-clear:
-      // setTimeout(()=>{ window.__clockNumber=""; numEl.textContent="—"; }, 800);
-    }
-    start = null;
+  if(!start) return;
+  const dx = e.clientX - start.x, dy = e.clientY - start.y;
+  if (Math.hypot(dx,dy) < MIN_DIST){
+    window.__clockNumber = "";
+    numEl.textContent = "—";
+  } else {
+    const hour = vectorToClock(dx,dy);
+    window.__clockNumber = String(hour);
+    numEl.textContent = window.__clockNumber;
+
+    // 🚀 send to Shortcuts
+    sendToShortcut(hour);
+  }
+  start = null;
+}
   }
 
   pad.addEventListener('pointerup', finalize);
