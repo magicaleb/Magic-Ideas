@@ -1,0 +1,74 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+  /* Lock layout & interaction */
+  html,body{
+    margin:0; height:100%; width:100%;
+    background:#0b0f1a; color:#e8f0ff;
+    font:600 20px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    overflow:hidden;                   /* no scrollbars */
+    overscroll-behavior:none;          /* no pull-to-refresh/bounce (iOS 15+) */
+    -webkit-overflow-scrolling:auto;   /* disable momentum scrolling */
+    touch-action:none;                 /* let JS consume swipes */
+    -webkit-user-select:none; user-select:none;  /* no selection */
+    -webkit-touch-callout:none;        /* no touch callout */
+  }
+  /* Fixed full-screen touch pad */
+  #pad{ position:fixed; inset:0; }
+  /* Minimal UI */
+  #ui{ position:fixed; left:0; right:0; top:18px; text-align:center; pointer-events:none; }
+  #num{ font-size:64px; }
+  #hint{ font-size:14px; opacity:.8; margin-top:6px; }
+</style>
+
+<div id="pad" aria-label="Swipe pad"></div>
+<div id="ui">
+  <div id="num">—</div>
+  <div id="hint">Swipe like a clock (1–12). Tap to clear.</div>
+</div>
+
+<script>
+  // Prevent any default scroll/zoom gestures (extra belt & suspenders for iOS)
+  addEventListener('touchmove', e => e.preventDefault(), {passive:false});
+  addEventListener('gesturestart', e => e.preventDefault());
+
+  // Result the Shortcut will poll via "Run JavaScript on Web Page"
+  window.__clockNumber = ""; // empty => nothing chosen yet
+
+  const MIN_DIST = 30; // px to count as a swipe
+  let start = null;
+  const numEl = document.getElementById('num');
+  const pad   = document.getElementById('pad');
+
+  function vectorToClock(dx, dy){
+    let deg = Math.atan2(dy, dx) * 180/Math.PI; if (deg < 0) deg += 360;
+    let rotated = (deg + 90) % 360;           // 0=up (12)
+    let sector  = Math.round(rotated/30) % 12; // 0..11
+    return ((sector + 11) % 12) + 1;          // 1..12
+  }
+
+  pad.addEventListener('pointerdown', e => {
+    pad.setPointerCapture(e.pointerId);
+    start = {x:e.clientX, y:e.clientY};
+  });
+
+  function finalize(e){
+    if(!start) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < MIN_DIST){
+      window.__clockNumber = "";
+      numEl.textContent = "—";
+    } else {
+      const hour = vectorToClock(dx, dy);
+      window.__clockNumber = String(hour);
+      numEl.textContent = window.__clockNumber;
+      // If you want one-and-done, uncomment the next line to auto-clear:
+      // setTimeout(()=>{ window.__clockNumber=""; numEl.textContent="—"; }, 800);
+    }
+    start = null;
+  }
+
+  pad.addEventListener('pointerup', finalize);
+  pad.addEventListener('pointercancel', ()=>{ start=null; });
+</script>
