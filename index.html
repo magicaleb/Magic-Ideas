@@ -1,17 +1,21 @@
 <!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Clock Swipe Pad</title>
 <style>
   /* Lock layout & interaction */
   html,body{
     margin:0; height:100%; width:100%;
     background:#0b0f1a; color:#e8f0ff;
     font:600 20px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    overflow:hidden;                   /* no scrollbars */
-    overscroll-behavior:none;          /* no pull-to-refresh/bounce (iOS 15+) */
-    -webkit-overflow-scrolling:auto;   /* disable momentum scrolling */
-    touch-action:none;                 /* let JS consume swipes */
-    -webkit-user-select:none; user-select:none;  /* no selection */
-    -webkit-touch-callout:none;        /* no touch callout */
+    overflow:hidden;
+    overscroll-behavior:none;
+    -webkit-overflow-scrolling:auto;
+    touch-action:none;
+    -webkit-user-select:none; user-select:none;
+    -webkit-touch-callout:none;
   }
   /* Fixed full-screen touch pad */
   #pad{ position:fixed; inset:0; }
@@ -20,6 +24,8 @@
   #num{ font-size:64px; }
   #hint{ font-size:14px; opacity:.8; margin-top:6px; }
 </style>
+</head>
+<body>
 
 <div id="pad" aria-label="Swipe pad"></div>
 <div id="ui">
@@ -28,53 +34,57 @@
 </div>
 
 <script>
-  // Prevent any default scroll/zoom gestures (extra belt & suspenders for iOS)
+  // Prevent default scroll/zoom on iOS
   addEventListener('touchmove', e => e.preventDefault(), {passive:false});
   addEventListener('gesturestart', e => e.preventDefault());
 
-  // Result the Shortcut will poll via "Run JavaScript on Web Page"
+  // Exposed value (optional)
   window.__clockNumber = ""; // empty => nothing chosen yet
 
-  const MIN_DIST = 30; // px to count as a swipe
+  const MIN_DIST = 30; // px threshold
   let start = null;
   const numEl = document.getElementById('num');
   const pad   = document.getElementById('pad');
 
   function vectorToClock(dx, dy){
     let deg = Math.atan2(dy, dx) * 180/Math.PI; if (deg < 0) deg += 360;
-    let rotated = (deg + 90) % 360;           // 0=up (12)
+    let rotated = (deg + 90) % 360;            // 0 = up (12)
     let sector  = Math.round(rotated/30) % 12; // 0..11
-    return ((sector + 11) % 12) + 1;          // 1..12
+    return ((sector + 11) % 12) + 1;           // 1..12
+  }
+
+  // Launch a Shortcut named "Clock Input" with the number as text
+  function sendToShortcut(hour) {
+    const name = encodeURIComponent("Clock Input");   // must match your Shortcut name
+    const text = encodeURIComponent(String(hour));    // the number to send
+    const url  = `shortcuts://run-shortcut?name=${name}&input=text&text=${text}`;
+    location.href = url; // requires user gesture (this runs on pointerup)
   }
 
   pad.addEventListener('pointerdown', e => {
     pad.setPointerCapture(e.pointerId);
     start = {x:e.clientX, y:e.clientY};
   });
-function sendToShortcut(hour) {
-  const name = encodeURIComponent("Clock Input");   // must match your Shortcut name
-  const text = encodeURIComponent(String(hour));    // the number to send
-  const url  = `shortcuts://run-shortcut?name=${name}&input=text&text=${text}`;
-  location.href = url; // jumps into Shortcuts
-}
-  function finalize(e){
-  if(!start) return;
-  const dx = e.clientX - start.x, dy = e.clientY - start.y;
-  if (Math.hypot(dx,dy) < MIN_DIST){
-    window.__clockNumber = "";
-    numEl.textContent = "—";
-  } else {
-    const hour = vectorToClock(dx,dy);
-    window.__clockNumber = String(hour);
-    numEl.textContent = window.__clockNumber;
 
-    // 🚀 send to Shortcuts
-    sendToShortcut(hour);
-  }
-  start = null;
-}
+  function finalize(e){
+    if(!start) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (Math.hypot(dx,dy) < MIN_DIST){
+      window.__clockNumber = "";
+      numEl.textContent = "—";
+    } else {
+      const hour = vectorToClock(dx,dy);
+      window.__clockNumber = String(hour);
+      numEl.textContent = window.__clockNumber;
+      // 🚀 send to Shortcuts
+      sendToShortcut(hour);
+    }
+    start = null;
   }
 
   pad.addEventListener('pointerup', finalize);
   pad.addEventListener('pointercancel', ()=>{ start=null; });
 </script>
+
+</body>
+</html>
