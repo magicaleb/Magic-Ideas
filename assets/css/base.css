@@ -6,6 +6,8 @@ html, body {
   overscroll-behavior: none; /* stop iOS bounce */
   touch-action: none;      /* disable zoom/scroll gestures */
 }
+input, select, textarea { font-size: 16px; }
+
 :root{
   --bg:#0b1020;
   --card:#121a33;
