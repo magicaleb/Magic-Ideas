@@ -1,18 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Swipe Input — Perform</title>
+  <title>Swipe — Perform</title>
   <link rel="stylesheet" href="../../assets/css/base.css">
 </head>
 <body>
   <div id="swipe-pad" class="pad">-</div>
 
-  <!-- use RELATIVE paths on GitHub Pages -->
-  <script src="../../assets/js/gestures.js"></script>
-  <script src="../../assets/js/swipe.js"></script>
+  <!-- RELATIVE paths + cache bust -->
+  <script src="../../assets/js/gestures.js?v=24"></script>
+  <script src="../../assets/js/swipe.js?v=24"></script>
   <script>
-    Swipe.start({ delay: 3 });
+    // fail-fast diagnostics
+    if (typeof Gestures === "undefined") {
+      document.getElementById('swipe-pad').textContent = 'ERR: gestures.js not loaded';
+    } else if (typeof Swipe === "undefined") {
+      document.getElementById('swipe-pad').textContent = 'ERR: swipe.js not loaded';
+    } else {
+      Swipe.start({ delay: 3 });
+    }
   </script>
 </body>
 </html>
