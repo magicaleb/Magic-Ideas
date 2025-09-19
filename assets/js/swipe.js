@@ -1,144 +1,143 @@
 /* =========================================================
-   SWIPE ENGINE (CLOCK-FACE NUMBER ENTRY)
-   Responsibilities:
-   - Convert swipe direction to clock-hour (12 sectors).
-   - Map hours to digits: 1–9 → 1..9, 12 → 0, 10/11 → ignored (MVP).
-   - Build a hidden multi-digit buffer.
-   - Auto-submit after inactivity timeout (config.delay).
-   - Double tap clears buffer (submits nothing).
-   - Two-finger down exits to Settings.
-   - Provide optional hooks: onSubmit(value), onClear().
-   Notes:
-   - All interaction is invisible. No text is rendered.
-   - Haptic confirmation after submission (vibrate fallback).
+   SWIPE ENGINE (CLOCK-FACE NUMBER ENTRY) — v1.1
+   - 12→0, 1..9→1..9
+   - 11 o’clock = SUBMIT NOW (runs inside gesture for iOS)
+   - 10 o’clock ignored
+   - Auto-submit after inactivity (config.delay)
+   - Double tap clears buffer
+   - Two-finger down exits to Settings
+   - Routing:
+       * clipboard (robust fallback)
+       * primary Shortcut with text input
+       * optional post-submit Shortcut (use for haptic)
    ========================================================= */
 
 const Swipe = (() => {
-  // ----- INTERNAL STATE -----
-  let buffer = "";     // accumulated digits as a string
-  let timer  = null;   // inactivity timer
+  let buffer = "";
+  let timer  = null;
 
-  // Attempt haptic: 200ms vibrate. iOS/Watch haptics may vary.
+  // iOS Safari/PWA rarely supports navigator.vibrate. Keep as best-effort.
   const hapticConfirm = () => {
-    if (navigator.vibrate) {
-      navigator.vibrate(200);
+    if (navigator.vibrate) navigator.vibrate(200);
+  };
+
+  // Robust clipboard: async API then execCommand fallback.
+  const copyText = async (text) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {}
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
     }
   };
 
-  // Convert generic screen angle to "clock degrees":
-  // - Incoming angle: atan2(dy, dx) in degrees, where
-  //     0   = right, +90 = down, -90 = up, +180/-180 = left
-  // - We want: 0 at 12 o'clock (up), increasing CLOCKWISE.
-  //   Transform steps:
-  //     degNorm = (angle + 360) % 360
-  //     shifted = (degNorm + 90) % 360  // move 0° to up
-  //     clockDeg = (360 - shifted) % 360 // flip to clockwise
+  // Angle (atan2 screen coords) → clock degrees (0 at 12, clockwise)
   const toClockDegrees = (angle) => {
     const degNorm  = (angle + 360) % 360;
     const shifted  = (degNorm + 90) % 360;
     const clockDeg = (360 - shifted) % 360;
-    return clockDeg; // 0 at 12 o'clock, grows clockwise
+    return clockDeg;
   };
 
-  // Map clock degrees (0..360) to hour 1..12
-  // - Divide circle into 12 x 30° sectors.
-  // - Add 15° half-sector for nearest-hour rounding.
+  // Clock degrees → hour 1..12 (nearest 30°)
   const clockDegToHour = (clockDeg) => {
-    const hour = Math.floor(((clockDeg + 15) % 360) / 30) + 1; // 1..12
-    return hour;
+    return Math.floor(((clockDeg + 15) % 360) / 30) + 1;
   };
 
-  // Map hour to digit. 12 → 0. 1..9 → 1..9. 10/11 → ignore in MVP.
-  const hourToDigit = (hour) => {
+  // 12→0, 1..9→digit, 11→SUBMIT, 10→ignored
+  const hourToDigitOrAction = (hour) => {
     if (hour === 12) return 0;
     if (hour >= 1 && hour <= 9) return hour;
-    return null; // 10 or 11 → unused for now
+    if (hour === 11) return 'SUBMIT';
+    return null;
   };
 
-  // Submit buffer:
-  // - Do nothing if empty.
-  // - Provide haptic.
-  // - Route per config (clipboard or Shortcut).
-  // - Clear buffer.
   const submit = async (config, hooks) => {
     if (!buffer) return;
 
     const result = buffer;
-    buffer = "";                 // clear internal state first to avoid repeats
-    clearTimeout(timer);         // cancel any pending timer
+    buffer = "";
+    clearTimeout(timer);
     timer = null;
 
-    hapticConfirm();             // tactile confirmation
+    try { hooks?.onSubmit?.(result); } catch {}
 
-    // Hook for instrumentation or alternative routing
-    if (hooks && typeof hooks.onSubmit === 'function') {
-      try { hooks.onSubmit(result); } catch {}
-    }
-
-    // Primary routing: clipboard OR Shortcut
+    // Primary routing
     try {
       if (config.clipboard) {
-        // Clipboard mode: silent and fast
-        await navigator.clipboard.writeText(result);
+        await copyText(result);
       } else if (config.shortcut) {
-        // Direct Shortcut launch with text input = result
         const url = `shortcuts://run-shortcut?name=${encodeURIComponent(config.shortcut)}&input=text&text=${encodeURIComponent(result)}`;
-        // Use location.href for reliability in A2HS contexts
         window.location.href = url;
       }
-    } catch {
-      // Swallow errors to keep surface silent
-    }
+    } catch {}
+
+    // Optional follow-up (use for device haptic via Shortcuts)
+    try {
+      if (config.postShortcut) {
+        const postUrl = `shortcuts://run-shortcut?name=${encodeURIComponent(config.postShortcut)}`;
+        setTimeout(() => { window.location.href = postUrl; }, 150);
+      }
+    } catch {}
+
+    hapticConfirm(); // best-effort fallback
   };
 
-  // Reset/extend inactivity timer after each digit
   const armTimer = (config, hooks) => {
     clearTimeout(timer);
     timer = setTimeout(() => submit(config, hooks), Math.max(1, config.delay || 3) * 1000);
   };
 
-  // Public API
   const api = {
-    // Start the engine with a config object:
-    // { delay:number, shortcut:string, clipboard:boolean }
-    // And optional hooks: { onSubmit(value), onClear() }
     start(config, hooks = {}) {
       buffer = "";
       clearTimeout(timer);
       timer = null;
 
-      // 1) One-finger swipe → digit
+      // One-finger swipe → digit/action
       Gestures.onSwipe((angle) => {
-        const clockDeg = toClockDegrees(angle);    // normalize to clock frame
-        const hour     = clockDegToHour(clockDeg); // 1..12
-        const digit    = hourToDigit(hour);        // null, 0..9
+        const hour       = clockDegToHour(toClockDegrees(angle));
+        const digitOrAct = hourToDigitOrAction(hour);
+        if (digitOrAct === null) return;
 
-        if (digit === null) {
-          // 10 or 11 o’clock → ignored by design in MVP
+        if (digitOrAct === 'SUBMIT') {
+          // Runs inside touchend → counts as a user gesture on iOS
+          submit(config, hooks);
           return;
         }
 
-        // Append digit and re-arm auto-submit
-        buffer += String(digit);
+        buffer += String(digitOrAct);
         armTimer(config, hooks);
       });
 
-      // 2) Double tap → clear buffer (send nothing)
+      // Double tap → clear buffer
       Gestures.onDoubleTap(() => {
         buffer = "";
         clearTimeout(timer);
         timer = null;
-        if (hooks && typeof hooks.onClear === 'function') {
-          try { hooks.onClear(); } catch {}
-        }
+        try { hooks?.onClear?.(); } catch {}
       });
 
-      // 3) Two-finger down → exit to Settings immediately
+      // Two-finger down → exit
       Gestures.onTwoFingerDown(() => {
         buffer = "";
         clearTimeout(timer);
         timer = null;
-        // Navigate back to the trick's Settings screen
         window.location.href = "settings.html";
       });
     }
