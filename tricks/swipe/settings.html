@@ -54,61 +54,48 @@
   </div>
 
   <script src="../../assets/js/storage.js"></script>
-  <script>
+<script>
   const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'' };
-    const $ = id => document.getElementById(id);
+  const $ = id => document.getElementById(id);
 
-    // hydrate
-    const cfg = Storage.load('swipe', defaults);
-    $('delay').value = cfg.delay;
-    $('shortcut').value = cfg.shortcut;
-    $('clipboard').checked = !!cfg.clipboard;
-    const postEl = $('postShortcut'); if(postEl) postEl.value = cfg.postShortcut || '';
-  // blackout removed
-  const fakeEl = $('fakeHomescreen'); if(fakeEl) fakeEl.checked = !!cfg.fakeHomescreen;
-  const imgEl = $('homescreenImage');
-  let pendingImageRead = false;
-  // no need to set file input value; show preview if desired (not required)
+  // Live state (not a fixed snapshot)
+  let state = Storage.load('swipe', defaults);
 
-    // persist
-    const save = (extra={}) => {
-      const base = {
-        delay: Math.max(1, +$('delay').value || defaults.delay),
-        shortcut: ($('shortcut').value || '').trim(),
-        clipboard: !!$('clipboard').checked,
-        postShortcut: (postEl ? (postEl.value || '').trim() : ''),
-        fakeHomescreen: !!(fakeEl && fakeEl.checked),
-        homescreenImage: (extra.homescreenImage !== undefined) ? extra.homescreenImage : (cfg.homescreenImage || '')
-      };
-      Storage.save('swipe', base);
-    };
+  // Hydrate controls
+  $('delay').value        = state.delay;
+  $('shortcut').value     = state.shortcut;
+  $('clipboard').checked  = !!state.clipboard;
+  const postEl = $('postShortcut'); if (postEl) postEl.value = state.postShortcut || '';
+  const fakeEl = $('fakeHomescreen'); if (fakeEl) fakeEl.checked = !!state.fakeHomescreen;
+  const imgEl  = $('homescreenImage');
 
-    // save while typing/toggling; also when tapping Perform
-    ['delay','shortcut','clipboard','postShortcut','fakeHomescreen'].forEach(id=>{
-      const el = $(id); if(!el) return;
-      el.addEventListener('input', ()=>save());
-      el.addEventListener('change', ()=>save());
+  // Persist helper: always write the current state
+  const persist = () => Storage.save('swipe', state);
+
+  // Wire inputs -> update state -> persist
+  $('delay').addEventListener('input',  () => { state.delay    = Math.max(1, +$('delay').value || defaults.delay); persist(); });
+  $('shortcut').addEventListener('input', () => { state.shortcut = ($('shortcut').value || '').trim(); persist(); });
+  $('clipboard').addEventListener('change', () => { state.clipboard = !!$('clipboard').checked; persist(); });
+  if (postEl) postEl.addEventListener('input', () => { state.postShortcut = (postEl.value || '').trim(); persist(); });
+  if (fakeEl) fakeEl.addEventListener('change', () => { state.fakeHomescreen = !!fakeEl.checked; persist(); });
+
+  // File → dataURL → update state.homescreenImage → persist
+  if (imgEl) {
+    imgEl.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => { state.homescreenImage = r.result; persist(); };
+      r.readAsDataURL(f);   // (JPEG/PNG under ~5–8 MB works in localStorage; use smaller if needed)
     });
-    document.getElementById('perform').addEventListener('click', e=>{
-      // intercept navigation so image save can finish
-      e.preventDefault(); save();
-      const go = ()=> { window.location.href = 'perform.html'; };
-      if(pendingImageRead){
-        const id = setInterval(()=>{ if(!pendingImageRead){ clearInterval(id); go(); } }, 150);
-      } else go();
-    });
+  }
 
-    // handle homescreen image upload -> store as data URL
-    if(imgEl){
-      imgEl.addEventListener('change', e=>{
-        const f = e.target.files && e.target.files[0];
-        if(!f) return;
-        const r = new FileReader();
-        pendingImageRead = true;
-        r.onload = () => { pendingImageRead = false; save({ homescreenImage: r.result }); };
-        r.readAsDataURL(f);
-      });
-    }
-  </script>
+  // Perform: save current state, then navigate
+  document.getElementById('perform').addEventListener('click', e => {
+    e.preventDefault();
+    persist();
+    window.location.href = 'perform.html';
+  });
+</script>
 </body>
 </html>
