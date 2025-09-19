@@ -71,3 +71,27 @@ html.fake-home, body.fake-home{
 .fake-home .perform-last-tiny{display:block;color:#fff;opacity:1;left:8px;transform:none;bottom:10px;font-size:0.95rem}
 .fake-home .perform-digits{font-size:0.8rem;color:#fff;position:fixed;right:12px;bottom:8px}
 .fake-home .perform-last-center{display:none}
+
+/* Full-bleed fake-home background and safe areas */
+html.fake-home, body.fake-home { background: transparent !important; }
+
+.fake-home {
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  background-color: transparent !important;
+  /* keep UI clear of the status bar & home indicator if you show any text */
+  /* padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom); */
+  
+}
+
+/* During Perform, ignore touches on all overlay UI */
+.perform-root * { pointer-events: none; }
+/* Push content below the iOS status bar/home indicator when used */
+.safe{
+  padding-top:    max(env(safe-area-inset-top), 0px);
+  padding-right:  max(env(safe-area-inset-right), 0px);
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  padding-left:   max(env(safe-area-inset-left), 0px);
+}
