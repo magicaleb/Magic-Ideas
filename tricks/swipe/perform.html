@@ -49,6 +49,30 @@
 
     // Paint digits in the main display
     const paintDigits = (val) => { digitsEl.textContent = (val || '—'); };
+    // flash helper
+    function flashDigit(){
+      try{
+        digitsEl.classList.remove('flash');
+        // force reflow
+        void digitsEl.offsetWidth;
+        digitsEl.classList.add('flash');
+      }catch(_){ }
+    }
+
+    // debug overlay element
+    const dbg = document.createElement('div'); dbg.className='gesture-debug'; dbg.id='gestureDebug'; dbg.textContent='gestures: idle'; document.body.appendChild(dbg);
+
+    // Direct instrumentation on performRoot to see if events arrive in the PWA
+    (function attachRootListeners(){
+      const rootEl = performRoot || document.body;
+      const upd = (s) => { try{ document.getElementById('gestureDebug').textContent = s; }catch(_){} };
+      rootEl.addEventListener('touchstart', e=>{ upd('touchstart: ' + (e.touches?e.touches.length:0)); }, {passive:true});
+      rootEl.addEventListener('touchmove', e=>{ upd('touchmove'); }, {passive:true});
+      rootEl.addEventListener('touchend', e=>{ upd('touchend'); }, {passive:true});
+      rootEl.addEventListener('pointerdown', e=>{ upd('pointerdown'); }, {passive:true});
+      rootEl.addEventListener('pointermove', e=>{ upd('pointermove'); }, {passive:true});
+      rootEl.addEventListener('pointerup', e=>{ upd('pointerup'); }, {passive:true});
+    })();
 
     // Fake-home background
     function applyFake(){
@@ -73,12 +97,13 @@
 
     // Start swipe engine with UI hooks
     window.__swipeHooks = Swipe.start(saved, {
-      onDigit(d, buffer){ paintDigits(buffer); },
-      onClear(){ paintDigits(''); toastMsg('Cleared'); },
+      onDigit(d, buffer){ paintDigits(buffer); if(d!=null){ flashDigit(); try{ document.getElementById('gestureDebug').textContent = `gestures: digit ${d} buffer:${buffer}` }catch(_){} } },
+      onClear(){ paintDigits(''); try{ document.getElementById('gestureDebug').textContent = 'gestures: cleared' }catch(_){}; toastMsg('Cleared'); },
       onSubmit(value, route){
         const v = value || 'none';
         lastEl.textContent = v;
         paintDigits('');
+        try{ document.getElementById('gestureDebug').textContent = `gestures: submit ${v} via ${route}` }catch(_){}
         if (route === 'clipboard') toastMsg('Copied to clipboard');
         else if (route === 'shortcut') toastMsg('Sent to Shortcut');
         else toastMsg('Submitted');
@@ -86,5 +111,6 @@
       onStatus(msg){ toastMsg(msg); }
     });
   </script>
-</body>
+  <div class="beta-watermark">Old</div>
+  </body>
 </html>
