@@ -38,6 +38,19 @@ button.xl{font-size:1.6rem;padding:20px;width:100%;border-radius:12px}
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 
+/* Temporary Beta Watermark */
+.beta-watermark {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 9999;
+  font-size: 2rem;
+  color: rgba(255,0,0,0.5);
+  pointer-events: none;
+  user-select: none;
+  font-family: sans-serif;
+}
+
 .pad{
   position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
   background:radial-gradient(115% 115% at 50% 0%, #16214b 0%, #0c132b 60%);
@@ -46,7 +59,24 @@ button.xl{font-size:1.6rem;padding:20px;width:100%;border-radius:12px}
 }
 
 /* Perform page minimal styles */
-.perform-root{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;background:#000;z-index:10}
+.perform-root {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  background: var(--bg);
+  z-index: 10;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 /* Full-bleed fake homescreen background */
 .fake-home {
   background-repeat: no-repeat;
@@ -59,11 +89,20 @@ button.xl{font-size:1.6rem;padding:20px;width:100%;border-radius:12px}
 html.fake-home, body.fake-home {
   background: transparent !important;
 }
+
+.perform-digits-wrap, .perform-digits, .perform-last-center, .perform-last-tiny, .perform-toast {
+  pointer-events: none;
+}
 .perform-digits-wrap{width:100%;display:flex;justify-content:center;margin-bottom:18vh}
-.perform-digits{font-size:4.2rem;letter-spacing:6px;color:rgba(200,200,200,0.35);font-variant-numeric:tabular-nums}
+.perform-digits{font-size:4.2rem;letter-spacing:6px;color:rgba(200,200,200,0.85);font-variant-numeric:tabular-nums}
 .perform-last-center{margin-bottom:6vh;display:flex;gap:8px;align-items:center;justify-content:center}
 .perform-last-tiny{position:fixed;left:8px;bottom:6px;color:rgba(200,200,200,0.18);font-size:0.8rem;display:none}
 .perform-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:8px;color:rgba(200,200,200,0.18);font-size:0.85rem;display:none}
+
+/* Remove unwanted gradients from perform page */
+.perform-root, .perform-digits-wrap, .perform-last-center {
+  background: none !important;
+}
 
 
 /* Fake homescreen mode */
@@ -74,6 +113,30 @@ html.fake-home, body.fake-home {
 
 /* Full-bleed fake-home background and safe areas */
 html.fake-home, body.fake-home { background: transparent !important; }
+
+/* Digit flash animation for perform screen */
+.perform-digits.flash {
+  animation: flash-digit 220ms ease-out;
+}
+@keyframes flash-digit {
+  0% { transform: scale(1.18); opacity: 0.95; }
+  40% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Debug overlay */
+.gesture-debug {
+  position: fixed;
+  left: 8px;
+  top: 8px;
+  z-index: 10001;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  pointer-events: none;
+}
 
 .fake-home {
   background-repeat: no-repeat;

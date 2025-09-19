@@ -8,45 +8,71 @@ const Gestures = (() => {
   const dist2 = (x1,y1,x2,y2)=>{const dx=x2-x1, dy=y2-y1; return dx*dx+dy*dy;};
   const norm = d => { let a=d%360; if(a>=180)a-=360; if(a<-180)a+=360; return a; };
 
-  function onSwipe(cb){
-    document.body.addEventListener('touchstart',e=>{
+  function onSwipe(cb, el=document.body){
+    // Prefer PointerEvents if available (unified and easier to prevent defaults)
+    if(window.PointerEvent){
+      let px=null, py=null;
+      el.addEventListener('pointerdown', e => {
+        try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
+        if(e.isPrimary){ px = e.clientX; py = e.clientY; }
+      }, {passive:false});
+      el.addEventListener('pointerup', e => {
+        try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
+        if(px==null||py==null) return;
+        const ex = e.clientX, ey = e.clientY;
+        if(dist2(px,py,ex,ey) < MIN_SWIPE_PX*MIN_SWIPE_PX){ px=py=null; return; }
+        const ang = norm(Math.atan2(ey-py, ex-px)*180/Math.PI);
+        try{ console.debug('[Gestures] pointer swipe angle', ang); }catch(_){ }
+        cb(ang);
+        px=py=null;
+      }, {passive:false});
+      return;
+    }
+
+    el.addEventListener('touchstart',e=>{
+      try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
+      try{ console.debug('[Gestures] touchstart', { touches: e.touches.length }); }catch(_){ }
       if(e.touches.length===1){ const t=e.touches[0]; sx=t.clientX; sy=t.clientY; }
-    },{passive:true});
-    document.body.addEventListener('touchend',e=>{
+    },{passive:false});
+    el.addEventListener('touchend',e=>{
+      try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
+      try{ console.debug('[Gestures] touchend', { changed: e.changedTouches.length }); }catch(_){ }
       if(sx==null||sy==null) return;
       const t=e.changedTouches[0], ex=t.clientX, ey=t.clientY;
       if(dist2(sx,sy,ex,ey)<MIN_SWIPE_PX*MIN_SWIPE_PX){ sx=sy=null; return; }
       const dx=ex-sx, dy=ey-sy;
-      cb(norm(Math.atan2(dy,dx)*180/Math.PI));
+      const ang = norm(Math.atan2(dy,dx)*180/Math.PI);
+      try{ console.debug('[Gestures] swipe angle', ang); }catch(_){ }
+      cb(ang);
       sx=sy=null;
-    },{passive:true});
+    },{passive:false});
   }
 
-  function onDoubleTap(cb){
-    // Only consider double-tap when it's a single-finger tap sequence.
-    document.body.addEventListener('touchend',e=>{
-      // ignore multi-touch events
+  function onDoubleTap(cb, el=document.body){
+    el.addEventListener('touchend',e=>{
+      try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
       try{
         if(e.changedTouches && e.changedTouches.length!==1) { return; }
         if(e.touches && e.touches.length>0) { return; }
       }catch(_){ /* ignore */ }
       const now=Date.now();
       if(now-lastTap<=DOUBLE_TAP_MS){ cb(); lastTap=0; } else lastTap=now;
-    },{passive:true});
+    },{passive:false});
   }
 
   // quick two-finger tap (used for Submit)
-  function onTwoFingerTap(cb){
-    document.body.addEventListener('touchstart',e=>{
+  function onTwoFingerTap(cb, el=document.body){
+    el.addEventListener('touchstart',e=>{
+      try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
       if(e.touches.length===2){
         twoStart = Date.now();
         twoStartPos = Array.from(e.touches).map(t=>({x:t.clientX,y:t.clientY}));
       }
-    },{passive:true});
-    document.body.addEventListener('touchend',e=>{
+    },{passive:false});
+    el.addEventListener('touchend',e=>{
+      try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
       if(!twoStart) return;
       const elapsed = Date.now()-twoStart;
-      // consider it a tap if short and didn't move much
       if(elapsed<=TWO_TAP_MS){
         let moved=false;
         for(let i=0;i<e.changedTouches.length;i++){
@@ -58,15 +84,16 @@ const Gestures = (() => {
         }
         if(!moved) cb();
       }
-      twoStart = 0; twoStartPos = null;
-    },{passive:true});
+      twoStart=0; twoStartPos=null;
+    },{passive:false});
   }
 
   function onTwoFingerDown(cb){
     document.body.addEventListener('touchstart',e=>{
+      try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
       if(e.touches.length===1){ t0=Date.now(); }
       else if(e.touches.length===2 && Date.now()-t0<=TWO_DOWN_MS){ cb(); t0=0; }
-    },{passive:true});
+    },{passive:false});
   }
 
   return { onSwipe, onDoubleTap, onTwoFingerDown, onTwoFingerTap };
