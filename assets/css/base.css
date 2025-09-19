@@ -1,0 +1,42 @@
+/* =========================================================
+   BASE MOBILE-ONLY STYLES
+   - Lock the app to a black, chrome-free surface.
+   - Disable scrolling, pull-to-refresh, and selection.
+   - Keep typography simple and readable.
+   ========================================================= */
+
+html, body {
+  margin: 0;                 /* remove default browser margins */
+  padding: 0;                /* remove default browser padding */
+  height: 100%;              /* allow full-viewport layouts */
+  background: #000;          /* pure black for stealth Perform screen */
+  color: #fff;               /* high contrast text for Settings pages */
+  font-family: -apple-system, system-ui, sans-serif; /* iOS-friendly font stack */
+
+  /* Prevent accidental interactions that reveal UI */
+  -webkit-user-select: none; /* no text selection on iOS Safari */
+  user-select: none;
+  touch-action: none;        /* disable default touch handling (scroll/zoom) */
+  overscroll-behavior: none; /* prevent pull-to-refresh bounce */
+}
+
+/* Simple, thumb-friendly controls on Settings pages */
+button, input {
+  font-size: 1.2em;          /* larger tap targets */
+  padding: 12px;
+  margin: 10px 0;
+  width: 100%;               /* full-width controls for easy tapping */
+  box-sizing: border-box;
+}
+
+/* Spacing for headings on Settings pages */
+h1, h2 {
+  margin: 16px 0 8px 0;
+}
+
+/* Content container for Settings screens */
+.container {
+  padding: 16px;
+  max-width: 560px;          /* keeps lines readable on larger phones */
+  margin: 0 auto;
+}

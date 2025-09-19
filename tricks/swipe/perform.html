@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Perform screen: black, chrome-free, gesture-only -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Swipe Input — Perform</title>
+  <link rel="stylesheet" href="../../assets/css/base.css">
+  <style>
+    /* Ensure total black surface and absorb all touches */
+    body { background:#000; height:100vh; width:100vw; }
+  </style>
+</head>
+<body>
+  <!-- NO VISIBLE UI ON PURPOSE.
+       - Entire screen is the "pad".
+       - Gestures.js listens to touch events on <body>.
+  -->
+
+  <!-- Utilities and engines -->
+  <script src="../../assets/js/storage.js"></script>
+  <script src="../../assets/js/gestures.js"></script>
+  <script src="../../assets/js/swipe.js"></script>
+
+  <script>
+    // Load per-trick config. Provide hard defaults in case storage is empty.
+    const config = Storage.load('swipe', { delay: 3, shortcut: '', clipboard: false });
+
+    // Start the Swipe engine with the config:
+    // - Direction-only digit mapping (clock face)
+    // - Multi-digit buffer with inactivity auto-submit
+    // - Double-tap to clear buffer
+    // - Two-finger swipe down to exit to Settings
+    Swipe.start(config, {
+      // Optional hooks you may extend later:
+      onSubmit: (value) => { /* reserved for logging or handoff variants */ },
+      onClear:  () => { /* reserved for custom feedback */ }
+    });
+  </script>
+</body>
+</html>

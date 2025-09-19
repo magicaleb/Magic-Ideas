@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Mobile viewport; this page is visible and can show text -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Swipe Input — Settings</title>
+  <link rel="stylesheet" href="../../assets/css/base.css">
+</head>
+<body>
+  <!-- SETTINGS UI
+       - Configure auto-submit delay
+       - Choose routing (clipboard vs Shortcut)
+       - Provide Shortcut name (for direct handoff)
+  -->
+  <div class="container">
+    <h2>Swipe Input — Settings</h2>
+
+    <!-- Auto-submit delay control:
+         After the last digit swipe, wait this many seconds, then submit. -->
+    <label for="delay">Auto-submit delay (seconds)</label>
+    <input id="delay" type="number" min="1" max="15" step="1" inputmode="numeric">
+
+    <!-- Optional direct Shortcut name:
+         If present and clipboard mode is OFF, submission calls this Shortcut
+         with the number as text input. -->
+    <label for="shortcut">Shortcut name (optional)</label>
+    <input id="shortcut" type="text" placeholder="e.g., CityList">
+
+    <!-- Clipboard toggle:
+         If ON, submission copies the result to clipboard instead of running a Shortcut. -->
+    <label>
+      <input id="clipboard" type="checkbox">
+      Copy result to clipboard
+    </label>
+
+    <!-- Begin performance mode (black screen, no chrome) -->
+    <a href="perform.html"><button>Perform</button></a>
+  </div>
+
+  <!-- Local storage helper -->
+  <script src="../../assets/js/storage.js"></script>
+  <script>
+    // ----- LOAD EXISTING SETTINGS OR FALL BACK TO DEFAULTS -----
+    const defaults = { delay: 3, shortcut: '', clipboard: false };
+    const config   = Storage.load('swipe', defaults);
+
+    // ----- WIRE UP DOM ELEMENTS -----
+    const delayEl     = document.getElementById('delay');
+    const shortcutEl  = document.getElementById('shortcut');
+    const clipboardEl = document.getElementById('clipboard');
+
+    // ----- HYDRATE UI FROM STORAGE -----
+    delayEl.value         = config.delay;
+    shortcutEl.value      = config.shortcut;
+    clipboardEl.checked   = config.clipboard;
+
+    // ----- SAVE ON CHANGE (SMALL + RELIABLE) -----
+    const save = () => {
+      Storage.save('swipe', {
+        delay: Math.max(1, +delayEl.value || defaults.delay), // guard bad input
+        shortcut: (shortcutEl.value || '').trim(),
+        clipboard: !!clipboardEl.checked
+      });
+    };
+    delayEl.addEventListener('change', save);
+    shortcutEl.addEventListener('change', save);
+    clipboardEl.addEventListener('change', save);
+  </script>
+</body>
+</html>
