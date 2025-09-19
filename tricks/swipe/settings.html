@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <title>Swipe Input — Settings</title>
   <link rel="stylesheet" href="../../assets/css/base.css">
 </head>
@@ -26,12 +26,12 @@
       </div>
 
       <div class="stack">
-        <label>After-submit Shortcut (optional) <span class="badge">use for haptic confirm</span></label>
+        <label>After-submit Shortcut (optional) <span class="badge">e.g., HapticConfirm</span></label>
         <input id="postShortcut" type="text" placeholder="e.g., HapticConfirm">
       </div>
 
       <div class="row" style="justify-content:flex-end">
-        <a href="perform.html"><button>Perform</button></a>
+        <a id="perform" href="perform.html"><button class="xl">Perform</button></a>
       </div>
     </div>
 
@@ -40,31 +40,30 @@
 
   <script src="../../assets/js/storage.js"></script>
   <script>
-    const defaults = { delay: 3, shortcut: '', clipboard: false, postShortcut: '' };
-    const config   = Storage.load('swipe', defaults);
+    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'' };
     const $ = id => document.getElementById(id);
 
-    $('delay').value        = config.delay;
-    $('shortcut').value     = config.shortcut;
-    $('clipboard').checked  = config.clipboard;
-    $('postShortcut').value = config.postShortcut || '';
+    // hydrate
+    const cfg = Storage.load('swipe', defaults);
+    $('delay').value = cfg.delay;
+    $('shortcut').value = cfg.shortcut;
+    $('clipboard').checked = cfg.clipboard;
+    $('postShortcut').value = cfg.postShortcut || '';
 
+    // persist
     const save = () => Storage.save('swipe', {
       delay: Math.max(1, +$('delay').value || defaults.delay),
       shortcut: ($('shortcut').value || '').trim(),
       clipboard: !!$('clipboard').checked,
       postShortcut: ($('postShortcut').value || '').trim()
     });
-    ['delay','shortcut','clipboard','postShortcut'].forEach(id => $(id).addEventListener('change', save));
+
+    // save while typing/toggling; also when tapping Perform
+    ['delay','shortcut','clipboard','postShortcut'].forEach(id=>{
+      $(id).addEventListener('input', save);
+      $(id).addEventListener('change', save);
+    });
+    document.getElementById('perform').addEventListener('click', save);
   </script>
 </body>
-<style>
-  button {
-    font-size: 1.6rem;
-    padding: 20px;
-    width: 100%;
-    margin-top: 12px;
-    border-radius: 12px;
-  }
-</style>
 </html>

@@ -1,89 +1,80 @@
-/* SWIPE ENGINE — clock mapping + settings-aware submit */
+/* SWIPE ENGINE (hooks API): start(config, hooks)
+   12→0; 1–9→digits; 11→Submit; 10 ignored.
+   Double-tap clears. Two-finger down exits to settings.
+*/
 const Swipe = (() => {
-  let buffer = "", timer = null;
+  const DEF = { delay: 3, shortcut: "", clipboard: false, postShortcut: "" };
 
-  // Load settings saved by settings.html
-  function loadConfig() {
-    const defaults = { delay: 3, shortcut: '', clipboard: false, postShortcut: '' };
-    const c = (typeof Storage !== 'undefined' && Storage.load)
-      ? Storage.load('swipe', defaults)
-      : defaults;
-    return {
-      delay: Math.max(1, +c.delay || 3),
-      shortcut: (c.shortcut || '').trim(),
-      clipboard: !!c.clipboard,
-      postShortcut: (c.postShortcut || '').trim()
-    };
-  }
+  const toCW = deg => ((deg + 90) % 360 + 360) % 360;       // up=0, CW+
+  const cwToHour = cw => ((Math.round(cw/30) % 12) || 12);   // 1..12
+  const hourMap = h => h===12 ? 0 : (h>=1&&h<=9 ? h : (h===11 ? "SUBMIT" : null));
 
-  // Screen angle (0=right, 90=down, -90=up) -> CW degrees with 0 at UP
-  function toClockCW(degScreen) {
-    return ((degScreen + 90) % 360 + 360) % 360; // 0 at up, increases clockwise
-  }
-  // Map CW degrees to nearest hour (1..12), with 0/360 -> 12
-  function cwToHour(cw) {
-    const h = Math.round(cw / 30) % 12;  // nearest sector
-    return h === 0 ? 12 : h;
-  }
-  function hourToDigitOrAction(h) {
-    if (h === 12) return 0;          // 12 o’clock = 0
-    if (h >= 1 && h <= 9) return h;  // 1..9 = digits
-    if (h === 11) return "SUBMIT";   // 11 o’clock = submit now
-    return null;                     // 10 ignored
-  }
-
-  async function copyText(text) {
-    try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; } } catch {}
-    try { const ta = document.createElement("textarea");
-      ta.value = text; ta.setAttribute("readonly",""); ta.style.position="fixed"; ta.style.opacity="0"; ta.style.left="-9999px";
-      document.body.appendChild(ta); ta.select(); const ok = document.execCommand("copy"); document.body.removeChild(ta); return ok;
+  async function copyText(text){
+    try { if(navigator.clipboard?.writeText){ await navigator.clipboard.writeText(text); return true; } } catch{}
+    try {
+      const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly','');
+      ta.style.position='fixed'; ta.style.opacity='0'; ta.style.left='-9999px';
+      document.body.appendChild(ta); ta.select(); const ok=document.execCommand('copy'); document.body.removeChild(ta); return ok;
     } catch { return false; }
   }
 
-  function show(val) { const el=document.getElementById("swipe-pad"); if (el) el.textContent = val || "-"; }
-
-  async function submit(config) {
-    if (!buffer) return;
-    const value = buffer;
-    buffer = ""; clearTimeout(timer); timer=null; show("-");
-
-    // Route 1: clipboard
-    if (config.clipboard) { await copyText(value); }
-
-    // Route 2: Shortcut with text input
-    if (config.shortcut) {
-      const url = `shortcuts://run-shortcut?name=${encodeURIComponent(config.shortcut)}&input=text&text=${encodeURIComponent(value)}`;
-      try { window.location.href = url; } catch {}
-    }
-
-    // Optional post-submit Shortcut (e.g., haptic confirm Shortcut)
-    if (config.postShortcut) {
-      setTimeout(() => {
-        try { window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(config.postShortcut)}`; } catch {}
-      }, 150);
-    }
+  function mergeConfig(arg={}){
+    let saved = DEF;
+    try { if(window.Storage?.load) saved = Storage.load('swipe', DEF) || DEF; } catch {}
+    return {
+      delay: Math.max(1, +('delay' in arg ? arg.delay : saved.delay) || DEF.delay),
+      shortcut: (('shortcut' in arg ? arg.shortcut : saved.shortcut) || "").trim(),
+      clipboard: !!('clipboard' in arg ? arg.clipboard : saved.clipboard),
+      postShortcut: (('postShortcut' in arg ? arg.postShortcut : saved.postShortcut) || "").trim(),
+    };
   }
 
-  function armTimer(config) { clearTimeout(timer); timer = setTimeout(() => submit(config), config.delay * 1000); }
+  function start(configArg={}, hooks={}){
+    const cfg = mergeConfig(configArg);
+    let buffer="", timer=null;
 
-  const api = {
-    start() {
-      const config = loadConfig();
-      show(buffer);
+    const call = (fn, ...a)=>{ try{ fn && fn(...a); }catch{} };
+    const paint = ()=> call(hooks.onDigit, null, buffer || "");
+    const arm   = ()=>{ clearTimeout(timer); timer=setTimeout(()=>submit(), cfg.delay*1000); };
 
-      Gestures.onSwipe((angleScreen) => {
-        const hour = cwToHour(toClockCW(angleScreen));
-        const d = hourToDigitOrAction(hour);
-        if (d === null) return;
-        if (d === "SUBMIT") { submit(config); return; }
-        buffer += String(d);
-        show(buffer);
-        armTimer(config);
-      });
+    async function submit(){
+      if(!buffer) return;
+      const value = buffer; buffer=""; clearTimeout(timer); timer=null; paint();
+      let route="none";
 
-      Gestures.onDoubleTap(() => { buffer=""; clearTimeout(timer); timer=null; show("-"); });
-      Gestures.onTwoFingerDown(() => { buffer=""; clearTimeout(timer); timer=null; window.location.href="settings.html"; });
+      if(cfg.clipboard){
+        const ok = await copyText(value);
+        route = ok ? "clipboard" : route;
+        if(!ok) call(hooks.onStatus,"Clipboard blocked");
+      }
+      if(cfg.shortcut){
+        const url = `shortcuts://run-shortcut?name=${encodeURIComponent(cfg.shortcut)}&input=text&text=${encodeURIComponent(value)}`;
+        route = "shortcut";
+        try{ window.location.href = url; }catch{}
+      }
+      if(cfg.postShortcut){
+        setTimeout(()=>{ try{ window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(cfg.postShortcut)}`; }catch{} }, 150);
+      }
+      call(hooks.onSubmit, value, route);
     }
-  };
-  return api;
+
+    function clearAll(){ buffer=""; clearTimeout(timer); timer=null; call(hooks.onClear); paint(); }
+
+    Gestures.onSwipe(angle=>{
+      const v = hourMap(cwToHour(toCW(angle)));
+      if(v===null) return;
+      if(v==="SUBMIT"){ submit(); return; }
+      buffer += String(v);
+      call(hooks.onDigit, v, buffer);
+      arm();
+    });
+
+    Gestures.onDoubleTap(()=> clearAll());
+    Gestures.onTwoFingerDown(()=>{ clearAll(); window.location.href='settings.html'; });
+
+    paint();
+    return { submitNow: ()=>submit(), clear: ()=>clearAll() };
+  }
+
+  return { start };
 })();
