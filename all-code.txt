@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- Viewport: mobile-first, respect iOS sensor housing (viewport-fit) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Magic Pad</title>
+  <link rel="stylesheet" href="assets/css/base.css">
+</head>
+<body>
+  <!-- SETTINGS-LIKE HOMEPAGE
+       - Minimal list of tricks.
+       - Expand later with more tricks.
+  -->
+  <div class="container">
+    <h1>Magic Pad</h1>
+
+    <!-- Single trick entry point for now -->
+    <a href="tricks/swipe/settings.html">
+      <button>Swipe Input</button>
+    </a>
+  </div>
+</body>
+</html>
+<!-- deploy bump -->
+/* =========================================================
+   GESTURE CAPTURE (TOUCH-ONLY)
+   - One-finger swipes → angle callback
+   - Double-tap → clear
+   - Two-finger down → exit
+   - Includes angleToClockHour() for 12-sector mapping
+   ========================================================= */
+
+const Gestures = (() => {
+  // ----- Tuning -----
+  const MIN_SWIPE_PX = 30;
+  const DOUBLE_TAP_MS = 300;
+  const TWO_DOWN_MS   = 150;
+
+  // ----- State -----
+  let startX = null, startY = null;
+  let lastTapTime = 0;
+  let firstTwoDownTime = 0;
+
+  const dist2 = (x1, y1, x2, y2) => {
+    const dx = x2 - x1, dy = y2 - y1;
+    return dx*dx + dy*dy;
+  };
+
+  // Normalize to [-180, 180)
+  const normDeg = d => {
+    let a = d % 360;
+    if (a >= 180) a -= 360;
+    if (a < -180) a += 360;
+    return a;
+  };
+
+  // Screen angle (0=right, 90=down, -90=up) -> clock hour (12 at up, CW)
+  function angleToClockHour(screenDeg){
+    // shift so 0° = up, increase clockwise
+    const shifted = ( (screenDeg + 90) % 360 + 360 ) % 360; // [0,360)
+    return Math.floor( (shifted + 15) / 30 ) + 1;           // 1..12
+  }
+
+  const api = {
+    onSwipe(cb){
+      document.body.addEventListener('touchstart', e => {
+        if (e.touches.length === 1){
+          const t = e.touches[0];
+          startX = t.clientX; startY = t.clientY;
+        }
+      }, { passive: true });
+
+      document.body.addEventListener('touchend', e => {
+        if (startX == null || startY == null) return;
+        const t = e.changedTouches[0];
+        const endX = t.clientX, endY = t.clientY;
+
+        if (dist2(startX,startY,endX,endY) < MIN_SWIPE_PX*MIN_SWIPE_PX){
+          startX = startY = null; return;
+        }
+
+        const dx = endX - startX, dy = endY - startY;
+        const deg = normDeg(Math.atan2(dy, dx) * 180 / Math.PI);
+        cb(deg);
+        startX = startY = null;
+      }, { passive: true });
+    },
+
+    onDoubleTap(cb){
+      document.body.addEventListener('touchend', () => {
+        const now = Date.now();
+        if (now - lastTapTime <= DOUBLE_TAP_MS){ cb(); lastTapTime = 0; }
+        else lastTapTime = now;
+      }, { passive: true });
+    },
+
+    onTwoFingerDown(cb){
+      document.body.addEventListener('touchstart', e => {
+        if (e.touches.length === 1){
+          firstTwoDownTime = Date.now();
+        } else if (e.touches.length === 2){
+          if (Date.now() - firstTwoDownTime <= TWO_DOWN_MS){ cb(); firstTwoDownTime = 0; }
+        }
+      }, { passive: true });
+    },
+
+    angleToClockHour, // ← expose for swipe.js
+  };
+
+  return api;
+})();
+/* SWIPE ENGINE — clock mapping + settings-aware submit */
+const Swipe = (() => {
+  let buffer = "", timer = null;
+
+  // Load settings saved by settings.html
+  function loadConfig() {
+    const defaults = { delay: 3, shortcut: '', clipboard: false, postShortcut: '' };
+    const c = (typeof Storage !== 'undefined' && Storage.load)
+      ? Storage.load('swipe', defaults)
+      : defaults;
+    return {
+      delay: Math.max(1, +c.delay || 3),
+      shortcut: (c.shortcut || '').trim(),
+      clipboard: !!c.clipboard,
+      postShortcut: (c.postShortcut || '').trim()
+    };
+  }
+
+  // Screen angle (0=right, 90=down, -90=up) -> CW degrees with 0 at UP
+  function toClockCW(degScreen) {
+    return ((degScreen + 90) % 360 + 360) % 360; // 0 at up, increases clockwise
+  }
+  // Map CW degrees to nearest hour (1..12), with 0/360 -> 12
+  function cwToHour(cw) {
+    const h = Math.round(cw / 30) % 12;  // nearest sector
+    return h === 0 ? 12 : h;
+  }
+  function hourToDigitOrAction(h) {
+    if (h === 12) return 0;          // 12 o’clock = 0
+    if (h >= 1 && h <= 9) return h;  // 1..9 = digits
+    if (h === 11) return "SUBMIT";   // 11 o’clock = submit now
+    return null;                     // 10 ignored
+  }
+
+  async function copyText(text) {
+    try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; } } catch {}
+    try { const ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly",""); ta.style.position="fixed"; ta.style.opacity="0"; ta.style.left="-9999px";
+      document.body.appendChild(ta); ta.select(); const ok = document.execCommand("copy"); document.body.removeChild(ta); return ok;
+    } catch { return false; }
+  }
+
+  function show(val) { const el=document.getElementById("swipe-pad"); if (el) el.textContent = val || "-"; }
+
+  async function submit(config) {
+    if (!buffer) return;
+    const value = buffer;
+    buffer = ""; clearTimeout(timer); timer=null; show("-");
+
+    // Route 1: clipboard
+    if (config.clipboard) { await copyText(value); }
+
+    // Route 2: Shortcut with text input
+    if (config.shortcut) {
+      const url = `shortcuts://run-shortcut?name=${encodeURIComponent(config.shortcut)}&input=text&text=${encodeURIComponent(value)}`;
+      try { window.location.href = url; } catch {}
+    }
+
+    // Optional post-submit Shortcut (e.g., haptic confirm Shortcut)
+    if (config.postShortcut) {
+      setTimeout(() => {
+        try { window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(config.postShortcut)}`; } catch {}
+      }, 150);
+    }
+  }
+
+  function armTimer(config) { clearTimeout(timer); timer = setTimeout(() => submit(config), config.delay * 1000); }
+
+  const api = {
+    start() {
+      const config = loadConfig();
+      show(buffer);
+
+      Gestures.onSwipe((angleScreen) => {
+        const hour = cwToHour(toClockCW(angleScreen));
+        const d = hourToDigitOrAction(hour);
+        if (d === null) return;
+        if (d === "SUBMIT") { submit(config); return; }
+        buffer += String(d);
+        show(buffer);
+        armTimer(config);
+      });
+
+      Gestures.onDoubleTap(() => { buffer=""; clearTimeout(timer); timer=null; show("-"); });
+      Gestures.onTwoFingerDown(() => { buffer=""; clearTimeout(timer); timer=null; window.location.href="settings.html"; });
+    }
+  };
+  return api;
+})();/* =========================================================
+   STORAGE HELPER
+   - Tiny wrapper around localStorage with JSON parsing.
+   - Namespaces keys with "mpad." to avoid collisions.
+   ========================================================= */
+
+const Storage = {
+  // Load JSON under "mpad.<key>". If not present or invalid, return defaults.
+  load: (key, defaults) => {
+    try {
+      const raw = localStorage.getItem('mpad.' + key);
+      return raw ? JSON.parse(raw) : defaults;
+    } catch (e) {
+      return defaults;
+    }
+  },
+
+  // Save JSON under "mpad.<key>".
+  save: (key, obj) => {
+    try {
+      localStorage.setItem('mpad.' + key, JSON.stringify(obj));
+    } catch (e) {
+      // Storage can fail if quota exceeded or in private mode.
+      // Intentionally silent to avoid on-screen tells.
+    }
+  }
+};
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;        /* stop scrolling */
+  overscroll-behavior: none; /* stop iOS bounce */
+  touch-action: none;      /* disable zoom/scroll gestures */
+}
+input, select, textarea { font-size: 16px; }
+
+:root{
+  --bg:#0b1020;
+  --card:#121a33;
+  --muted:#8ea0c7;
+  --text:#eef2ff;
+  --accent:#6ee7b7;
+  --accent2:#60a5fa;
+  --danger:#f87171;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:inherit;text-decoration:none}
+.container{max-width:640px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid #1f2a53;border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.row{display:flex;gap:12px;align-items:center}
+.stack{display:grid;gap:12px}
+h1,h2{margin:0 0 12px 0;font-weight:700}
+label{font-size:.95rem;color:var(--muted)}
+input[type="text"],input[type="number"]{
+  width:100%;padding:14px 16px;border-radius:12px;border:1px solid #26325f;background:#0f1630;color:var(--text)
+}
+button{
+  border:0;border-radius:12px;padding:14px 16px;background:linear-gradient(90deg,var(--accent2),var(--accent));
+  color:#05111b;font-weight:700;cursor:pointer
+}
+button.ghost{background:#1b254a;color:var(--text);border:1px solid #2a386c}
+button.danger{background:var(--danger);color:#160e0e}
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;background:#1f2a53;color:var(--muted);font-size:.8rem}
+.display{
+  display:flex;align-items:center;justify-content:center;
+  height:40vh;min-height:260px;border-radius:20px;background:radial-gradient(115% 115% at 50% 0%, #16214b 0%, #0c132b 60%);border:1px solid #1f2a53
+}
+.digits{font-variant-numeric:tabular-nums;letter-spacing:.02em;font-size:64px;font-weight:800}
+.legend{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.legend .item{padding:10px;border-radius:10px;background:#0f1733;border:1px solid #1f2a53;text-align:center;font-size:.85rem;color:var(--muted)}
+.toast{
+  position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+  background:#0f1733;border:1px solid #2a386c;color:var(--text);
+  padding:10px 14px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+.pad{
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(115% 115% at 50% 0%, #16214b 0%, #0c132b 60%);
+  color: #eef2ff;
+  font-family: ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 64px;
+  font-weight: 800;
+  user-select: none;
+  -webkit-user-select: none;
+}<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Swipe Input — Settings</title>
+  <link rel="stylesheet" href="../../assets/css/base.css">
+</head>
+<body>
+  <div class="container stack">
+    <h2>Swipe Input — Settings</h2>
+
+    <div class="card stack">
+      <div class="stack">
+        <label>Auto-submit delay (seconds)</label>
+        <input id="delay" type="number" min="1" max="15" step="1" inputmode="numeric">
+      </div>
+
+      <div class="stack">
+        <label>Shortcut name (optional) <span class="badge">sends number as text</span></label>
+        <input id="shortcut" type="text" placeholder="e.g., CityList">
+      </div>
+
+      <div class="row">
+        <input id="clipboard" type="checkbox" style="width:auto">
+        <label for="clipboard">Copy result to clipboard</label>
+      </div>
+
+      <div class="stack">
+        <label>After-submit Shortcut (optional) <span class="badge">use for haptic confirm</span></label>
+        <input id="postShortcut" type="text" placeholder="e.g., HapticConfirm">
+      </div>
+
+      <div class="row" style="justify-content:flex-end">
+        <a href="perform.html"><button>Perform</button></a>
+      </div>
+    </div>
+
+    <p class="badge">Tip: 11-o’clock swipe = Submit now</p>
+  </div>
+
+  <script src="../../assets/js/storage.js"></script>
+  <script>
+    const defaults = { delay: 3, shortcut: '', clipboard: false, postShortcut: '' };
+    const config   = Storage.load('swipe', defaults);
+    const $ = id => document.getElementById(id);
+
+    $('delay').value        = config.delay;
+    $('shortcut').value     = config.shortcut;
+    $('clipboard').checked  = config.clipboard;
+    $('postShortcut').value = config.postShortcut || '';
+
+    const save = () => Storage.save('swipe', {
+      delay: Math.max(1, +$('delay').value || defaults.delay),
+      shortcut: ($('shortcut').value || '').trim(),
+      clipboard: !!$('clipboard').checked,
+      postShortcut: ($('postShortcut').value || '').trim()
+    });
+    ['delay','shortcut','clipboard','postShortcut'].forEach(id => $(id).addEventListener('change', save));
+  </script>
+</body>
+<style>
+  button {
+    font-size: 1.6rem;
+    padding: 20px;
+    width: 100%;
+    margin-top: 12px;
+    border-radius: 12px;
+  }
+</style>
+</html><!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Swipe — Perform</title>
+  <link rel="stylesheet" href="../../assets/css/base.css">
+</head>
+<body>
+  <div id="swipe-pad" class="pad">-</div>
+
+  <!-- RELATIVE paths + cache bust -->
+<script src="../../assets/js/gestures.js?v=26"></script>
+<script src="../../assets/js/swipe.js?v=26"></script>
+<script>
+  // fail-fast diagnostics
+  if (typeof Gestures === "undefined") {
+    document.getElementById('swipe-pad').textContent = 'ERR: gestures.js not loaded';
+  } else if (typeof Swipe === "undefined") {
+    document.getElementById('swipe-pad').textContent = 'ERR: swipe.js not loaded';
+  } else {
+    Swipe.start();   <!-- ✅ no arguments -->
+  }
+</script>
+</body>
+</html>

@@ -31,7 +31,7 @@
       </div>
 
       <div class="row" style="justify-content:flex-end">
-        <a href="perform.html"><button>Perform</button></a>
+        <a id="perform" href="perform.html"><button>Perform</button></a>
       </div>
     </div>
 
@@ -39,23 +39,33 @@
   </div>
 
   <script src="../../assets/js/storage.js"></script>
-  <script>
-    const defaults = { delay: 3, shortcut: '', clipboard: false, postShortcut: '' };
-    const config   = Storage.load('swipe', defaults);
-    const $ = id => document.getElementById(id);
+<script>
+  const defaults = { delay: 3, shortcut: '', clipboard: false, postShortcut: '' };
+  const $ = id => document.getElementById(id);
 
-    $('delay').value        = config.delay;
-    $('shortcut').value     = config.shortcut;
-    $('clipboard').checked  = config.clipboard;
-    $('postShortcut').value = config.postShortcut || '';
+  // hydrate
+  const cfg = Storage.load('swipe', defaults);
+  $('delay').value = cfg.delay;
+  $('shortcut').value = cfg.shortcut;
+  $('clipboard').checked = cfg.clipboard;
+  $('postShortcut').value = cfg.postShortcut || '';
 
-    const save = () => Storage.save('swipe', {
-      delay: Math.max(1, +$('delay').value || defaults.delay),
-      shortcut: ($('shortcut').value || '').trim(),
-      clipboard: !!$('clipboard').checked,
-      postShortcut: ($('postShortcut').value || '').trim()
-    });
-    ['delay','shortcut','clipboard','postShortcut'].forEach(id => $(id).addEventListener('change', save));
-  </script>
+  // persist
+  const save = () => Storage.save('swipe', {
+    delay: Math.max(1, +$('delay').value || defaults.delay),
+    shortcut: ($('shortcut').value || '').trim(),
+    clipboard: !!$('clipboard').checked,
+    postShortcut: ($('postShortcut').value || '').trim()
+  });
+
+  // save while typing/toggling (no blur needed)
+  ['delay','shortcut','clipboard','postShortcut'].forEach(id => {
+    $(id).addEventListener('input',  save);
+    $(id).addEventListener('change', save);
+  });
+
+  // guarantee save if user taps Perform immediately
+  document.getElementById('perform').addEventListener('click', save);
+</script>
 </body>
 </html>
