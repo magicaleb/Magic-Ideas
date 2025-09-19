@@ -5,7 +5,7 @@ const Swipe = (() => {
   // Load settings saved by settings.html
   function loadConfig() {
     try {
-      const c = JSON.parse(localStorage.getItem("mpad.tricks.swipe") || "{}");
+      const c = JSON.parse(localStorage.getItem("swipe") || "{}");
       return {
         delay: Math.max(1, +c.delay || 3),
         shortcut: (c.shortcut || "").trim(),
