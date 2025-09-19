@@ -6,51 +6,56 @@
   <link rel="stylesheet" href="../../assets/css/base.css">
 </head>
 <body>
-  <div class="container">
+  <div class="container stack">
     <h2>Swipe Input — Settings</h2>
 
-    <label for="delay">Auto-submit delay (seconds)</label>
-    <input id="delay" type="number" min="1" max="15" step="1" inputmode="numeric">
+    <div class="card stack">
+      <div class="stack">
+        <label>Auto-submit delay (seconds)</label>
+        <input id="delay" type="number" min="1" max="15" step="1" inputmode="numeric">
+      </div>
 
-    <label for="shortcut">Shortcut name (optional)</label>
-    <input id="shortcut" type="text" placeholder="e.g., CityList">
+      <div class="stack">
+        <label>Shortcut name (optional) <span class="badge">sends number as text</span></label>
+        <input id="shortcut" type="text" placeholder="e.g., CityList">
+      </div>
 
-    <label>
-      <input id="clipboard" type="checkbox">
-      Copy result to clipboard
-    </label>
+      <div class="row">
+        <input id="clipboard" type="checkbox" style="width:auto">
+        <label for="clipboard">Copy result to clipboard</label>
+      </div>
 
-    <!-- NEW: After-submit Shortcut (use this for haptic confirm, etc.) -->
-    <label for="postShortcut">After-submit Shortcut (optional)</label>
-    <input id="postShortcut" type="text" placeholder="e.g., HapticConfirm">
+      <div class="stack">
+        <label>After-submit Shortcut (optional) <span class="badge">use for haptic confirm</span></label>
+        <input id="postShortcut" type="text" placeholder="e.g., HapticConfirm">
+      </div>
 
-    <a href="perform.html"><button>Perform</button></a>
+      <div class="row" style="justify-content:flex-end">
+        <a href="perform.html"><button>Perform</button></a>
+      </div>
+    </div>
+
+    <p class="badge">Tip: 11-o’clock swipe = Submit now</p>
   </div>
 
   <script src="../../assets/js/storage.js"></script>
   <script>
     const defaults = { delay: 3, shortcut: '', clipboard: false, postShortcut: '' };
     const config   = Storage.load('swipe', defaults);
+    const $ = id => document.getElementById(id);
 
-    const delayEl        = document.getElementById('delay');
-    const shortcutEl     = document.getElementById('shortcut');
-    const clipboardEl    = document.getElementById('clipboard');
-    const postShortcutEl = document.getElementById('postShortcut');
+    $('delay').value        = config.delay;
+    $('shortcut').value     = config.shortcut;
+    $('clipboard').checked  = config.clipboard;
+    $('postShortcut').value = config.postShortcut || '';
 
-    delayEl.value        = config.delay;
-    shortcutEl.value     = config.shortcut;
-    clipboardEl.checked  = config.clipboard;
-    postShortcutEl.value = config.postShortcut || '';
-
-    const save = () => {
-      Storage.save('swipe', {
-        delay: Math.max(1, +delayEl.value || defaults.delay),
-        shortcut: (shortcutEl.value || '').trim(),
-        clipboard: !!clipboardEl.checked,
-        postShortcut: (postShortcutEl.value || '').trim()
-      });
-    };
-    [delayEl, shortcutEl, clipboardEl, postShortcutEl].forEach(el => el.addEventListener('change', save));
+    const save = () => Storage.save('swipe', {
+      delay: Math.max(1, +$('delay').value || defaults.delay),
+      shortcut: ($('shortcut').value || '').trim(),
+      clipboard: !!$('clipboard').checked,
+      postShortcut: ($('postShortcut').value || '').trim()
+    });
+    ['delay','shortcut','clipboard','postShortcut'].forEach(id => $(id).addEventListener('change', save));
   </script>
 </body>
 </html>
