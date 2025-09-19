@@ -1,4 +1,4 @@
-html, body { margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none; touch-action:none; }
+html, body { margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none; }
 input, select, textarea { font-size:16px; }
 
 :root{
@@ -46,9 +46,9 @@ button.xl{font-size:1.6rem;padding:20px;width:100%;border-radius:12px}
 }
 
 /* Perform page minimal styles */
-.perform-root{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;background:#000}
-/* Full-bleed fake homescreen */
-.fake-home{
+.perform-root{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;background:#000;z-index:10}
+/* Full-bleed fake homescreen background */
+.fake-home {
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover;
@@ -56,14 +56,14 @@ button.xl{font-size:1.6rem;padding:20px;width:100%;border-radius:12px}
 }
 
 /* Ensure nothing behind shows through when faking home */
-html.fake-home, body.fake-home{
+html.fake-home, body.fake-home {
   background: transparent !important;
 }
-.perform-digits-wrap{width:100%;display:flex;justify-content:center;pointer-events:none;margin-bottom:18vh}
+.perform-digits-wrap{width:100%;display:flex;justify-content:center;margin-bottom:18vh}
 .perform-digits{font-size:4.2rem;letter-spacing:6px;color:rgba(200,200,200,0.35);font-variant-numeric:tabular-nums}
 .perform-last-center{margin-bottom:6vh;display:flex;gap:8px;align-items:center;justify-content:center}
-.perform-last-tiny{position:fixed;left:8px;bottom:6px;color:rgba(200,200,200,0.18);font-size:0.8rem;pointer-events:none;display:none}
-.perform-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:8px;color:rgba(200,200,200,0.18);font-size:0.85rem;pointer-events:none;display:none}
+.perform-last-tiny{position:fixed;left:8px;bottom:6px;color:rgba(200,200,200,0.18);font-size:0.8rem;display:none}
+.perform-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:8px;color:rgba(200,200,200,0.18);font-size:0.85rem;display:none}
 
 
 /* Fake homescreen mode */
@@ -86,12 +86,4 @@ html.fake-home, body.fake-home { background: transparent !important; }
   
 }
 
-/* During Perform, ignore touches on all overlay UI */
-.perform-root * { pointer-events: none; }
-/* Push content below the iOS status bar/home indicator when used */
-.safe{
-  padding-top:    max(env(safe-area-inset-top), 0px);
-  padding-right:  max(env(safe-area-inset-right), 0px);
-  padding-bottom: max(env(safe-area-inset-bottom), 0px);
-  padding-left:   max(env(safe-area-inset-left), 0px);
-}
+/* No safe-area or pointer-events rules to interfere with layout or input */
