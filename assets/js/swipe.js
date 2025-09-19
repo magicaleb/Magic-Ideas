@@ -1,89 +1,60 @@
-/* SWIPE ENGINE — visible UI hooks + reliable routing */
-/* =========================================================
-   SWIPE ENGINE (CLOCK-FACE NUMBER ENTRY) — v1.1
-   - 12→0, 1..9→1..9
-   - 11 o’clock = SUBMIT NOW (runs inside gesture for iOS)
-   - 10 o’clock ignored
-   - Auto-submit after inactivity (config.delay)
-   - Double tap clears buffer
-   - Two-finger down exits to Settings
-   - Routing:
-       * clipboard (robust fallback)
-       * primary Shortcut with text input
-       * optional post-submit Shortcut (use for haptic)
-   ========================================================= */
+/* ===================================================
+   SWIPE ENGINE (Clock-face digit input)
+   =================================================== */
 
 const Swipe = (() => {
-  let buffer = "", timer = null;
+  let buffer = "";   // digits user has swiped
+  let timer = null;  // inactivity timer
 
-  const copyText = async (text) => {
-    try { if (navigator.clipboard?.writeText){ await navigator.clipboard.writeText(text); return true; } } catch{}
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; ta.style.left='-9999px';
-      document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); document.body.removeChild(ta); return ok;
-    } catch { return false; }
-  };
+  function toDigit(hour) {
+    // Convert 12-clock positions to digits 1–9
+    if (hour >= 1 && hour <= 9) return hour;
+    return null; // 10, 11, 12 ignored
+  }
 
-  const toClockDegrees = (angle) => { const n=(angle+360)%360, s=(n+90)%360; return (360-s)%360; };
-  const clockDegToHour = (deg) => Math.floor(((deg+15)%360)/30)+1;
-  const hourToDigitOrAction = (h) => (h===12?0:(h>=1&&h<=9?h:(h===11?'SUBMIT':null)));
+  function submit(config, hooks) {
+    const field = document.getElementById("swipe-pad");
+    if (field) {
+      field.innerText = buffer || "-";
+    }
+    if (hooks?.onSubmit) hooks.onSubmit(buffer);
+    buffer = "";
+  }
 
-  const submit = async (config, hooks) => {
-    if (!buffer) return;
-    const value = buffer;
-    buffer=""; clearTimeout(timer); timer=null;
-
-    let route = 'none';
-    try {
-      if (config.clipboard) {
-        const ok = await copyText(value);
-        route = ok ? 'clipboard' : 'none';
-        if (!ok) hooks?.onStatus?.('Clipboard blocked');
-      } else if (config.shortcut) {
-        const url = `shortcuts://run-shortcut?name=${encodeURIComponent(config.shortcut)}&input=text&text=${encodeURIComponent(value)}`;
-        route = 'shortcut';
-        window.location.href = url;
-      }
-    } catch {}
-
-    try {
-      if (config.postShortcut) {
-        setTimeout(()=>{ window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(config.postShortcut)}`; }, 150);
-      }
-    } catch {}
-
-    try { hooks?.onSubmit?.(value, route); } catch {}
-  };
-
-  const armTimer = (config, hooks) => { clearTimeout(timer); timer=setTimeout(()=>submit(config, hooks), Math.max(1, config.delay||3)*1000); };
+  function armTimer(config, hooks) {
+    clearTimeout(timer);
+    timer = setTimeout(() => submit(config, hooks), config.delay * 1000);
+  }
 
   const api = {
-    start(config, hooks={}){
-      buffer=""; clearTimeout(timer); timer=null;
+    start(config = { delay: 3 }, hooks = {}) {
+      Gestures.onSwipe(angle => {
+        const hour = Gestures.angleToClockHour(angle);
+        const digit = toDigit(hour);
+        if (!digit) return;
 
-      const submitNow = ()=> submit(config, hooks);
-      const clearNow  = ()=>{ buffer=""; clearTimeout(timer); timer=null; hooks?.onClear?.(); };
+        buffer += String(digit);
+        const field = document.getElementById("swipe-pad");
+        if (field) field.innerText = buffer;
 
-      Gestures.onSwipe((angle)=>{
-        const h = clockDegToHour(toClockDegrees(angle));
-        const digitOrAct = hourToDigitOrAction(h);
-        if (digitOrAct===null) return;
-        if (digitOrAct==='SUBMIT'){ submitNow(); return; }
-        buffer += String(digitOrAct);
-        hooks?.onDigit?.(digitOrAct, buffer);
         armTimer(config, hooks);
       });
 
-      Gestures.onDoubleTap(clearNow);
-
-      Gestures.onTwoFingerDown(()=>{
-        buffer=""; clearTimeout(timer); timer=null;
-        window.location.href="settings.html";
+      // Clear buffer with double tap
+      Gestures.onDoubleTap(() => {
+        buffer = "";
+        const field = document.getElementById("swipe-pad");
+        if (field) field.innerText = "-";
+        clearTimeout(timer);
+        timer = null;
       });
 
-      return { submitNow, clear: clearNow };
+      // Exit with two-finger down
+      Gestures.onTwoFingerDown(() => {
+        window.location.href = "settings.html";
+      });
     }
   };
+
   return api;
 })();

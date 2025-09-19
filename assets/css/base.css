@@ -1,3 +1,11 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;        /* stop scrolling */
+  overscroll-behavior: none; /* stop iOS bounce */
+  touch-action: none;      /* disable zoom/scroll gestures */
+}
 :root{
   --bg:#0b1020;
   --card:#121a33;
