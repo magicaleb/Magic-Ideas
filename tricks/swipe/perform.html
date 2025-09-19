@@ -3,6 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Swipe Input — Perform</title>
+  
   <title>Swipe Input — Perform</title>
   <link rel="stylesheet" href="../../assets/css/base.css?v=28">
 </head>
@@ -50,15 +55,22 @@
 
     // Fake-home background
     function applyFake(){
-      const cfg2 = Storage.load('swipe', { fakeHomescreen:false, homescreenImage:'' });
-      if (cfg2.fakeHomescreen && cfg2.homescreenImage) {
-        performRoot.classList.add('fake-home');
-        performRoot.style.backgroundImage = `url(${cfg2.homescreenImage})`;
-      } else {
-        performRoot.classList.remove('fake-home');
-        performRoot.style.backgroundImage = '';
-      }
-    }
+  const cfg2 = Storage.load('swipe', { fakeHomescreen:false, homescreenImage:'' });
+  if(cfg2.fakeHomescreen && cfg2.homescreenImage){
+    performRoot.classList.add('fake-home');
+    performRoot.style.backgroundImage = `url(${cfg2.homescreenImage})`;
+    document.documentElement.classList.add('fake-home');
+    document.body.classList.add('fake-home');
+    const lastVal = (lastEl.textContent && lastEl.textContent !== 'none') ? lastEl.textContent : '';
+    if(lastTiny){ lastTiny.textContent = lastVal; lastTiny.style.display = lastVal ? 'block' : 'none'; }
+  } else {
+    performRoot.classList.remove('fake-home');
+    performRoot.style.backgroundImage = '';
+    document.documentElement.classList.remove('fake-home');
+    document.body.classList.remove('fake-home');
+    if(lastTiny) lastTiny.style.display='none';
+  }
+}
     applyFake();
     window.addEventListener('focus', applyFake);
 
