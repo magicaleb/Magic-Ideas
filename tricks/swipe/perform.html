@@ -7,16 +7,26 @@
   <link rel="stylesheet" href="../../assets/css/base.css">
 </head>
 <body>
-  <!-- Full-screen swipe surface -->
-  <div id="swipe-pad" class="pad">-</div>
+  <!-- Full-screen pad. Swipe anywhere. No extra UI. -->
+  <div id="swipe-pad" class="pad">—</div>
 
-  <!-- Minimal boot -->
+  <!-- Scripts: order matters -->
+  <script src="../../assets/js/storage.js?v=2"></script>
   <script src="../../assets/js/gestures.js?v=2"></script>
   <script src="../../assets/js/swipe.js?v=2"></script>
   <script>
-    // No UI hooks. Engine handles: digits show in #swipe-pad, double-tap clears,
-    // two-finger down returns to settings, 11-o’clock submits now.
-    Swipe.start();
+    // Fail-fast message if a script is missing
+    const pad = document.getElementById('swipe-pad');
+    if (!window.Gestures) { pad.textContent = 'ERR: gestures.js not loaded'; }
+    else if (!window.Swipe) { pad.textContent = 'ERR: swipe.js not loaded'; }
+    else {
+      // Minimal hooks to show digits in the center. No other UI.
+      window.__swipeHooks = Swipe.start({}, {
+        onDigit(_d, buffer){ pad.textContent = buffer || '—'; },
+        onClear(){ pad.textContent = '—'; },
+        onSubmit(){ pad.textContent = '—'; }
+      });
+    }
   </script>
 </body>
 </html>
