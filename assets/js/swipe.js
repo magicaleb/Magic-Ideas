@@ -1,75 +1,136 @@
-/* SWIPE ENGINE — visible UI hooks + reliable routing */
+/* ===================================================
+   SWIPE ENGINE (hooks API)
+   - start(config, hooks)
+   - 12→0, 1–9→digits, 11→Submit, 10 ignored
+   - Double-tap: clear • Two-finger down: back to settings
+   - Uses Gestures.* events (touch-only)
+   =================================================== */
 const Swipe = (() => {
-  let buffer = "", timer = null;
+  // ---- defaults + config loading ----
+  const DEF = { delay: 3, shortcut: "", clipboard: false, postShortcut: "" };
 
-  const copyText = async (text) => {
-    try { if (navigator.clipboard?.writeText){ await navigator.clipboard.writeText(text); return true; } } catch{}
+  function mergeConfig(arg = {}) {
+    // Prefer Storage helper if present, else DEF
+    let saved = DEF;
     try {
-      const ta = document.createElement('textarea');
-      ta.value = text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0'; ta.style.left='-9999px';
-      document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); document.body.removeChild(ta); return ok;
+      if (window.Storage && typeof Storage.load === "function") {
+        saved = Storage.load("swipe", DEF) || DEF;
+      }
+    } catch {}
+    const cfg = {
+      delay: Math.max(1, +("delay" in arg ? arg.delay : saved.delay) || DEF.delay),
+      shortcut: (("shortcut" in arg ? arg.shortcut : saved.shortcut) || "").trim(),
+      clipboard: !!("clipboard" in arg ? arg.clipboard : saved.clipboard),
+      postShortcut: (("postShortcut" in arg ? arg.postShortcut : saved.postShortcut) || "").trim()
+    };
+    return cfg;
+  }
+
+  // ---- angle → hour → digit/action ----
+  // Screen angles: 0=right, 90=down, -90=up. We want CW with 0 at UP.
+  const toClockCW = deg => ((deg + 90) % 360 + 360) % 360;          // 0..359, up=0
+  const cwToHour  = cw  => ((Math.round(cw / 30) % 12) || 12);      // nearest hour 1..12
+  function hourToDigitOrAction(h){
+    if (h === 12) return 0;                // 12→0
+    if (h >= 1 && h <= 9) return h;        // 1..9→digits
+    if (h === 11) return "SUBMIT";         // 11→submit now
+    return null;                           // 10 ignored
+  }
+
+  // ---- helpers ----
+  async function copyText(text){
+    try {
+      if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
+    } catch {}
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly","");
+      ta.style.position="fixed"; ta.style.opacity="0"; ta.style.left="-9999px";
+      document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
     } catch { return false; }
-  };
+  }
 
-  const toClockDegrees = (angle) => { const n=(angle+360)%360, s=(n+90)%360; return (360-s)%360; };
-  const clockDegToHour = (deg) => Math.floor(((deg+15)%360)/30)+1;
-  const hourToDigitOrAction = (h) => (h===12?0:(h>=1&&h<=9?h:(h===11?'SUBMIT':null)));
+  // ---- engine ----
+  function start(configArg = {}, hooks = {}){
+    const cfg = mergeConfig(configArg);
+    let buffer = "";
+    let timer  = null;
 
-  const submit = async (config, hooks) => {
-    if (!buffer) return;
-    const value = buffer;
-    buffer=""; clearTimeout(timer); timer=null;
+    const call = (fn, ...a) => { try { fn && fn(...a); } catch{} };
+    const arm  = () => { clearTimeout(timer); timer = setTimeout(() => submit(), cfg.delay * 1000); };
+    const show = () => call(hooks.onDigit, null, buffer || "");     // UI drives from buffer only
 
-    let route = 'none';
-    try {
-      if (config.clipboard) {
+    async function submit(){
+      if (!buffer) return;
+      const value = buffer;
+      buffer = "";
+      clearTimeout(timer); timer = null;
+      show();
+
+      // Decide primary route string for UI
+      let route = "none";
+
+      // Clipboard (optional)
+      if (cfg.clipboard) {
         const ok = await copyText(value);
-        route = ok ? 'clipboard' : 'none';
-        if (!ok) hooks?.onStatus?.('Clipboard blocked');
-      } else if (config.shortcut) {
-        const url = `shortcuts://run-shortcut?name=${encodeURIComponent(config.shortcut)}&input=text&text=${encodeURIComponent(value)}`;
-        route = 'shortcut';
-        window.location.href = url;
+        route = ok ? "clipboard" : route;
+        if (!ok) call(hooks.onStatus, "Clipboard blocked");
       }
-    } catch {}
 
-    try {
-      if (config.postShortcut) {
-        setTimeout(()=>{ window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(config.postShortcut)}`; }, 150);
+      // Shortcut (optional)
+      if (cfg.shortcut) {
+        const url = `shortcuts://run-shortcut?name=${encodeURIComponent(cfg.shortcut)}&input=text&text=${encodeURIComponent(value)}`;
+        route = "shortcut";     // prefer showing this if both happen
+        try { window.location.href = url; } catch {}
       }
-    } catch {}
 
-    try { hooks?.onSubmit?.(value, route); } catch {}
-  };
+      // Post-submit Shortcut (optional)
+      if (cfg.postShortcut) {
+        setTimeout(() => {
+          try { window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(cfg.postShortcut)}`; } catch {}
+        }, 150);
+      }
 
-  const armTimer = (config, hooks) => { clearTimeout(timer); timer=setTimeout(()=>submit(config, hooks), Math.max(1, config.delay||3)*1000); };
-
-  const api = {
-    start(config, hooks={}){
-      buffer=""; clearTimeout(timer); timer=null;
-
-      const submitNow = ()=> submit(config, hooks);
-      const clearNow  = ()=>{ buffer=""; clearTimeout(timer); timer=null; hooks?.onClear?.(); };
-
-      Gestures.onSwipe((angle)=>{
-        const h = clockDegToHour(toClockDegrees(angle));
-        const digitOrAct = hourToDigitOrAction(h);
-        if (digitOrAct===null) return;
-        if (digitOrAct==='SUBMIT'){ submitNow(); return; }
-        buffer += String(digitOrAct);
-        hooks?.onDigit?.(digitOrAct, buffer);
-        armTimer(config, hooks);
-      });
-
-      Gestures.onDoubleTap(clearNow);
-
-      Gestures.onTwoFingerDown(()=>{
-        buffer=""; clearTimeout(timer); timer=null;
-        window.location.href="settings.html";
-      });
-
-      return { submitNow, clear: clearNow };
+      call(hooks.onSubmit, value, route);
     }
-  };
-  return api;
+
+    function clearAll(){
+      buffer = "";
+      clearTimeout(timer); timer = null;
+      call(hooks.onClear);
+      show();
+    }
+
+    // ---- wire gestures ----
+    Gestures.onSwipe((angleScreen) => {
+      const hour = cwToHour(toClockCW(angleScreen));
+      const v = hourToDigitOrAction(hour);
+      if (v === null) return;           // ignore 10
+      if (v === "SUBMIT") { submit(); return; }
+
+      buffer += String(v);
+      call(hooks.onDigit, v, buffer);
+      arm();
+    });
+
+    Gestures.onDoubleTap(() => { clearAll(); });
+    Gestures.onTwoFingerDown(() => {
+      clearAll();
+      window.location.href = "settings.html";
+    });
+
+    // initial paint for UIs that show "—" vs buffer
+    show();
+
+    // expose minimal controls for UI buttons
+    return {
+      submitNow: () => submit(),
+      clear: () => clearAll()
+    };
+  }
+
+  return { start };
 })();

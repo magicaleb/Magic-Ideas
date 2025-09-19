@@ -1,136 +1,69 @@
-/* ===================================================
-   SWIPE ENGINE (hooks API)
-   - start(config, hooks)
-   - 12→0, 1–9→digits, 11→Submit, 10 ignored
-   - Double-tap: clear • Two-finger down: back to settings
-   - Uses Gestures.* events (touch-only)
-   =================================================== */
-const Swipe = (() => {
-  // ---- defaults + config loading ----
-  const DEF = { delay: 3, shortcut: "", clipboard: false, postShortcut: "" };
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Swipe Input — Perform</title>
+  <link rel="stylesheet" href="../../assets/css/base.css">
+</head>
+<body>
+  <div class="container stack">
+    <div class="row" style="justify-content:space-between;">
+      <a href="settings.html"><button class="ghost">← Settings</button></a>
+      <div class="badge">12→0 • 1–9→digits • 11→Submit</div>
+    </div>
 
-  function mergeConfig(arg = {}) {
-    // Prefer Storage helper if present, else DEF
-    let saved = DEF;
-    try {
-      if (window.Storage && typeof Storage.load === "function") {
-        saved = Storage.load("swipe", DEF) || DEF;
-      }
-    } catch {}
-    const cfg = {
-      delay: Math.max(1, +("delay" in arg ? arg.delay : saved.delay) || DEF.delay),
-      shortcut: (("shortcut" in arg ? arg.shortcut : saved.shortcut) || "").trim(),
-      clipboard: !!("clipboard" in arg ? arg.clipboard : saved.clipboard),
-      postShortcut: (("postShortcut" in arg ? arg.postShortcut : saved.postShortcut) || "").trim()
+    <div class="display">
+      <div class="digits" id="digits">—</div>
+    </div>
+
+    <div class="card stack">
+      <div class="legend">
+        <div class="item">Double-tap → Clear</div>
+        <div class="item">Two-finger down → Exit</div>
+        <div class="item">11-o’clock → Submit now</div>
+      </div>
+      <div class="row" style="justify-content:space-between;margin-top:8px">
+        <button id="clearBtn" class="ghost">Clear</button>
+        <button id="submitBtn">Submit now</button>
+      </div>
+      <div class="row" style="gap:8px">
+        <div class="badge">Last submitted:</div>
+        <div id="last" class="badge" style="background:#0f1733;color:#cde6ff">none</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Saved</div>
+
+  <script src="../../assets/js/storage.js"></script>
+  <script src="../../assets/js/gestures.js"></script>
+  <script src="../../assets/js/swipe.js"></script>
+  <script>
+    const config = Storage.load('swipe', { delay:3, shortcut:'', clipboard:false, postShortcut:'' });
+    const digitsEl = document.getElementById('digits');
+    const lastEl   = document.getElementById('last');
+    const toast    = document.getElementById('toast');
+
+    const showToast = (msg) => {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(()=>toast.classList.remove('show'), 1200);
     };
-    return cfg;
-  }
 
-  // ---- angle → hour → digit/action ----
-  // Screen angles: 0=right, 90=down, -90=up. We want CW with 0 at UP.
-  const toClockCW = deg => ((deg + 90) % 360 + 360) % 360;          // 0..359, up=0
-  const cwToHour  = cw  => ((Math.round(cw / 30) % 12) || 12);      // nearest hour 1..12
-  function hourToDigitOrAction(h){
-    if (h === 12) return 0;                // 12→0
-    if (h >= 1 && h <= 9) return h;        // 1..9→digits
-    if (h === 11) return "SUBMIT";         // 11→submit now
-    return null;                           // 10 ignored
-  }
+    document.getElementById('clearBtn').onclick  = () => { window.__swipeHooks?.clear(); };
+    document.getElementById('submitBtn').onclick = () => { window.__swipeHooks?.submitNow(); };
 
-  // ---- helpers ----
-  async function copyText(text){
-    try {
-      if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
-    } catch {}
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = text; ta.setAttribute("readonly","");
-      ta.style.position="fixed"; ta.style.opacity="0"; ta.style.left="-9999px";
-      document.body.appendChild(ta); ta.select();
-      const ok = document.execCommand("copy");
-      document.body.removeChild(ta);
-      return ok;
-    } catch { return false; }
-  }
-
-  // ---- engine ----
-  function start(configArg = {}, hooks = {}){
-    const cfg = mergeConfig(configArg);
-    let buffer = "";
-    let timer  = null;
-
-    const call = (fn, ...a) => { try { fn && fn(...a); } catch{} };
-    const arm  = () => { clearTimeout(timer); timer = setTimeout(() => submit(), cfg.delay * 1000); };
-    const show = () => call(hooks.onDigit, null, buffer || "");     // UI drives from buffer only
-
-    async function submit(){
-      if (!buffer) return;
-      const value = buffer;
-      buffer = "";
-      clearTimeout(timer); timer = null;
-      show();
-
-      // Decide primary route string for UI
-      let route = "none";
-
-      // Clipboard (optional)
-      if (cfg.clipboard) {
-        const ok = await copyText(value);
-        route = ok ? "clipboard" : route;
-        if (!ok) call(hooks.onStatus, "Clipboard blocked");
-      }
-
-      // Shortcut (optional)
-      if (cfg.shortcut) {
-        const url = `shortcuts://run-shortcut?name=${encodeURIComponent(cfg.shortcut)}&input=text&text=${encodeURIComponent(value)}`;
-        route = "shortcut";     // prefer showing this if both happen
-        try { window.location.href = url; } catch {}
-      }
-
-      // Post-submit Shortcut (optional)
-      if (cfg.postShortcut) {
-        setTimeout(() => {
-          try { window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(cfg.postShortcut)}`; } catch {}
-        }, 150);
-      }
-
-      call(hooks.onSubmit, value, route);
-    }
-
-    function clearAll(){
-      buffer = "";
-      clearTimeout(timer); timer = null;
-      call(hooks.onClear);
-      show();
-    }
-
-    // ---- wire gestures ----
-    Gestures.onSwipe((angleScreen) => {
-      const hour = cwToHour(toClockCW(angleScreen));
-      const v = hourToDigitOrAction(hour);
-      if (v === null) return;           // ignore 10
-      if (v === "SUBMIT") { submit(); return; }
-
-      buffer += String(v);
-      call(hooks.onDigit, v, buffer);
-      arm();
+    window.__swipeHooks = Swipe.start(config, {
+      onDigit(d, buffer){ digitsEl.textContent = buffer || '—'; },
+      onClear(){ digitsEl.textContent = '—'; showToast('Cleared'); },
+      onSubmit(value, route){
+        lastEl.textContent = value; digitsEl.textContent = '—';
+        if (route === 'clipboard') showToast('Copied to clipboard');
+        else if (route === 'shortcut') showToast('Sent to Shortcut');
+        else showToast('Submitted');
+      },
+      onStatus(msg){ showToast(msg); }
     });
-
-    Gestures.onDoubleTap(() => { clearAll(); });
-    Gestures.onTwoFingerDown(() => {
-      clearAll();
-      window.location.href = "settings.html";
-    });
-
-    // initial paint for UIs that show "—" vs buffer
-    show();
-
-    // expose minimal controls for UI buttons
-    return {
-      submitNow: () => submit(),
-      clear: () => clearAll()
-    };
-  }
-
-  return { start };
-})();
+  </script>
+</body>
+</html>
