@@ -40,9 +40,11 @@ const Swipe = (() => {
     show("-");
 
     // Clipboard path (simple, optional)
-    const ok = await copyText(value);
-    if (!ok) {
-      // no-op if blocked; UI still shows cleared state
+    if (config.clipboard) {
+      const ok = await copyText(value);
+      if (!ok) {
+        // no-op if blocked; UI still shows cleared state
+      }
     }
   }
 
