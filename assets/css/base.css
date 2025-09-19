@@ -47,3 +47,18 @@ button.danger{background:var(--danger);color:#160e0e}
   padding:10px 14px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+.pad{
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(115% 115% at 50% 0%, #16214b 0%, #0c132b 60%);
+  color: #eef2ff;
+  font-family: ui-sans-serif, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 64px;
+  font-weight: 800;
+  user-select: none;
+  -webkit-user-select: none;
+}
