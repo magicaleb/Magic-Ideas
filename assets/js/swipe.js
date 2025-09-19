@@ -4,15 +4,16 @@ const Swipe = (() => {
 
   // Load settings saved by settings.html
   function loadConfig() {
-    try {
-      const c = JSON.parse(localStorage.getItem("swipe") || "{}");
-      return {
-        delay: Math.max(1, +c.delay || 3),
-        shortcut: (c.shortcut || "").trim(),
-        clipboard: !!c.clipboard,
-        postShortcut: (c.postShortcut || "").trim()
-      };
-    } catch { return { delay:3, shortcut:"", clipboard:false, postShortcut:"" }; }
+    const defaults = { delay: 3, shortcut: '', clipboard: false, postShortcut: '' };
+    const c = (typeof Storage !== 'undefined' && Storage.load)
+      ? Storage.load('swipe', defaults)
+      : defaults;
+    return {
+      delay: Math.max(1, +c.delay || 3),
+      shortcut: (c.shortcut || '').trim(),
+      clipboard: !!c.clipboard,
+      postShortcut: (c.postShortcut || '').trim()
+    };
   }
 
   // Screen angle (0=right, 90=down, -90=up) -> CW degrees with 0 at UP
