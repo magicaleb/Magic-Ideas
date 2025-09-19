@@ -9,61 +9,106 @@
   <div class="container stack">
     <h2>Swipe Input — Settings</h2>
 
-    <div class="card stack">
-      <div class="stack">
-        <label>Auto-submit delay (seconds)</label>
-        <input id="delay" type="number" min="1" max="15" step="1" inputmode="numeric">
+    <div class="card stack" style="gap:12px;font-size:1.05rem">
+      <div class="stack" style="gap:6px">
+        <label style="font-size:1.05rem">Auto-submit delay (seconds)</label>
+        <!-- spin picker: native number input with step arrows; styled by base.css -->
+        <input id="delay" type="number" min="1" max="60" step="1" inputmode="numeric" style="width:6.5rem;padding:8px;font-size:1rem">
       </div>
 
-      <div class="stack">
-        <label>Shortcut name (optional) <span class="badge">sends number as text</span></label>
-        <input id="shortcut" type="text" placeholder="e.g., CityList">
+      <div class="stack" style="gap:6px">
+        <label style="font-size:1.05rem">Enter name of Shortcut to auto-run after input</label>
+        <input id="shortcut" type="text" placeholder="e.g., City List" style="padding:8px;font-size:1rem">
       </div>
 
-      <div class="row">
+      <div class="row" style="align-items:center;gap:8px">
         <input id="clipboard" type="checkbox" style="width:auto">
-        <label for="clipboard">Copy result to clipboard</label>
+        <label for="clipboard" style="font-size:1rem">Copy result to clipboard</label>
       </div>
 
-      <div class="stack">
-        <label>After-submit Shortcut (optional) <span class="badge">e.g., HapticConfirm</span></label>
-        <input id="postShortcut" type="text" placeholder="e.g., HapticConfirm">
+    
+
+      <div class="row" style="align-items:center;gap:8px">
+        <input id="fakeHomescreen" type="checkbox" style="width:auto">
+        <label for="fakeHomescreen" style="font-size:1rem">Fake Homescreen (show uploaded image on Perform)</label>
       </div>
 
-      <div class="row" style="justify-content:flex-end">
-        <a id="perform" href="perform.html"><button class="xl">Perform</button></a>
+      <div class="stack" style="gap:6px">
+        <label style="font-size:0.95rem">Upload Homescreen Image (optional)</label>
+  <input id="homescreenImage" type="file" accept="image/*">
+      </div>
+
+      <div class="row" style="justify-content:center;margin-top:6px">
+        <a id="perform" href="perform.html"><button class="xl" style="min-width:240px;padding:14px 22px;font-size:1.08rem">Perform</button></a>
       </div>
     </div>
 
-    <p class="badge">Tip: 11-o’clock swipe = Submit now</p>
+    <div style="margin-top:12px;padding:6px 10px;" class="card">
+      <div style="font-size:1rem;font-weight:600;margin-bottom:6px">Controls</div>
+      <div style="font-size:0.98rem;line-height:1.4">
+        <div>• Double-tap → Clear</div>
+        <div>• Two-finger down → Exit to Settings (only way to exit)</div>
+        <div>• Two-finger tap → Submit now</div>
+      </div>
+    </div>
   </div>
 
   <script src="../../assets/js/storage.js"></script>
   <script>
-    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'' };
+  const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'' };
     const $ = id => document.getElementById(id);
 
     // hydrate
     const cfg = Storage.load('swipe', defaults);
     $('delay').value = cfg.delay;
     $('shortcut').value = cfg.shortcut;
-    $('clipboard').checked = cfg.clipboard;
-    $('postShortcut').value = cfg.postShortcut || '';
+    $('clipboard').checked = !!cfg.clipboard;
+    const postEl = $('postShortcut'); if(postEl) postEl.value = cfg.postShortcut || '';
+  // blackout removed
+  const fakeEl = $('fakeHomescreen'); if(fakeEl) fakeEl.checked = !!cfg.fakeHomescreen;
+  const imgEl = $('homescreenImage');
+  let pendingImageRead = false;
+  // no need to set file input value; show preview if desired (not required)
 
     // persist
-    const save = () => Storage.save('swipe', {
-      delay: Math.max(1, +$('delay').value || defaults.delay),
-      shortcut: ($('shortcut').value || '').trim(),
-      clipboard: !!$('clipboard').checked,
-      postShortcut: ($('postShortcut').value || '').trim()
-    });
+    const save = (extra={}) => {
+      const base = {
+        delay: Math.max(1, +$('delay').value || defaults.delay),
+        shortcut: ($('shortcut').value || '').trim(),
+        clipboard: !!$('clipboard').checked,
+        postShortcut: (postEl ? (postEl.value || '').trim() : ''),
+        fakeHomescreen: !!(fakeEl && fakeEl.checked),
+        homescreenImage: (extra.homescreenImage !== undefined) ? extra.homescreenImage : (cfg.homescreenImage || '')
+      };
+      Storage.save('swipe', base);
+    };
 
     // save while typing/toggling; also when tapping Perform
-    ['delay','shortcut','clipboard','postShortcut'].forEach(id=>{
-      $(id).addEventListener('input', save);
-      $(id).addEventListener('change', save);
+    ['delay','shortcut','clipboard','postShortcut','fakeHomescreen'].forEach(id=>{
+      const el = $(id); if(!el) return;
+      el.addEventListener('input', ()=>save());
+      el.addEventListener('change', ()=>save());
     });
-    document.getElementById('perform').addEventListener('click', save);
+    document.getElementById('perform').addEventListener('click', e=>{
+      // intercept navigation so image save can finish
+      e.preventDefault(); save();
+      const go = ()=> { window.location.href = 'perform.html'; };
+      if(pendingImageRead){
+        const id = setInterval(()=>{ if(!pendingImageRead){ clearInterval(id); go(); } }, 150);
+      } else go();
+    });
+
+    // handle homescreen image upload -> store as data URL
+    if(imgEl){
+      imgEl.addEventListener('change', e=>{
+        const f = e.target.files && e.target.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        pendingImageRead = true;
+        r.onload = () => { pendingImageRead = false; save({ homescreenImage: r.result }); };
+        r.readAsDataURL(f);
+      });
+    }
   </script>
 </body>
 </html>

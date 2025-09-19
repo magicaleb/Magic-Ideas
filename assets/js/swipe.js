@@ -1,6 +1,6 @@
 /* SWIPE ENGINE (hooks API): start(config, hooks)
-   12→0; 1–9→digits; 11→Submit; 10 ignored.
-   Double-tap clears. Two-finger down exits to settings.
+  12→0; 1–9→digits; 11 ignored (use two-finger tap to submit); 10 ignored.
+  Double-tap clears. Two-finger down exits to settings. Two-finger tap submits.
 */
 const Swipe = (() => {
   const DEF = { delay: 3, shortcut: "", clipboard: false, postShortcut: "" };
@@ -34,7 +34,9 @@ const Swipe = (() => {
     let buffer="", timer=null;
 
     const call = (fn, ...a)=>{ try{ fn && fn(...a); }catch{} };
-    const paint = ()=> call(hooks.onDigit, null, buffer || "");
+    const paint = ()=>{
+      call(hooks.onDigit, null, buffer || '');
+    };
     const arm   = ()=>{ clearTimeout(timer); timer=setTimeout(()=>submit(), cfg.delay*1000); };
 
     async function submit(){
@@ -44,8 +46,8 @@ const Swipe = (() => {
 
       if(cfg.clipboard){
         const ok = await copyText(value);
-        route = ok ? "clipboard" : route;
-        if(!ok) call(hooks.onStatus,"Clipboard blocked");
+        if(ok) route = "clipboard";
+        else call(hooks.onStatus,"Clipboard blocked");
       }
       if(cfg.shortcut){
         const url = `shortcuts://run-shortcut?name=${encodeURIComponent(cfg.shortcut)}&input=text&text=${encodeURIComponent(value)}`;
@@ -60,10 +62,12 @@ const Swipe = (() => {
 
     function clearAll(){ buffer=""; clearTimeout(timer); timer=null; call(hooks.onClear); paint(); }
 
+    // swipe digits
     Gestures.onSwipe(angle=>{
       const v = hourMap(cwToHour(toCW(angle)));
       if(v===null) return;
-      if(v==="SUBMIT"){ submit(); return; }
+      // 11 (SUBMIT) will be ignored for swipe; submission is via two-finger tap
+      if(v==="SUBMIT"){ return; }
       buffer += String(v);
       call(hooks.onDigit, v, buffer);
       arm();
@@ -71,6 +75,8 @@ const Swipe = (() => {
 
     Gestures.onDoubleTap(()=> clearAll());
     Gestures.onTwoFingerDown(()=>{ clearAll(); window.location.href='settings.html'; });
+    // new: two-finger tap for immediate submit
+    if(Gestures.onTwoFingerTap) Gestures.onTwoFingerTap(()=> submit());
 
     paint();
     return { submitNow: ()=>submit(), clear: ()=>clearAll() };
