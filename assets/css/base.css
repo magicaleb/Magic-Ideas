@@ -174,3 +174,18 @@ html.fake-home, body.fake-home { background: transparent !important; }
   /* Ensure it covers dynamic viewport heights used by some mobile browsers */
   min-height:100svh;
 }
+
+/* Absolute <img> used for fake homescreen: object-fit covers and doesn't block input */
+.fake-img{
+  position:fixed;
+  top: calc(0px - env(safe-area-inset-top));
+  left: calc(0px - env(safe-area-inset-left));
+  right: calc(0px - env(safe-area-inset-right));
+  bottom: calc(0px - env(safe-area-inset-bottom));
+  width: calc(100% + env(safe-area-inset-left) + env(safe-area-inset-right));
+  height: calc(100svh + env(safe-area-inset-top) + env(safe-area-inset-bottom));
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+  display: none;
+}

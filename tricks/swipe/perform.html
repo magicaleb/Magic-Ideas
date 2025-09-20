@@ -22,7 +22,7 @@
   </style>
 </head>
 <body>
-  <div id="fakeBg" class="fake-bg" aria-hidden="true"></div>
+  <img id="fakeImg" class="fake-img" aria-hidden="true" alt="" />
   <div id="root" class="perform-root" role="application">
     <div class="digits-wrap">
       <div id="digits" class="digits" aria-live="polite">—</div>
@@ -60,10 +60,10 @@
           // (like the dev forwarded port on an iPhone) from shifting content
           // up under the status bar.
             root.classList.add('fake-home');
-            // Apply image to the non-interactive fixed background element so
-            // it doesn't intercept gestures. Keep root on top with z-index.
-            const fakeBg = document.getElementById('fakeBg');
-            if(fakeBg){ fakeBg.style.backgroundImage = `url(${cfg.homescreenImage})`; }
+            // Apply image to the non-interactive fixed <img> so it doesn't
+            // intercept gestures. Keep root on top with z-index.
+            const fakeImg = document.getElementById('fakeImg');
+            if(fakeImg){ fakeImg.src = cfg.homescreenImage; fakeImg.style.display='block'; }
           const isStandalone = (window.navigator.standalone === true) || window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
           if(isStandalone){
             document.documentElement.classList.add('fake-home');
@@ -91,9 +91,9 @@
         };
         img.src = cfg.homescreenImage;
       } else {
-  root.classList.remove('fake-home');
-  const fakeBg = document.getElementById('fakeBg'); if(fakeBg){ fakeBg.style.backgroundImage = ''; }
-  fakeHint.style.display='none'; digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
+          root.classList.remove('fake-home');
+          const fakeImg = document.getElementById('fakeImg'); if(fakeImg){ fakeImg.src = ''; fakeImg.style.display='none'; }
+          fakeHint.style.display='none'; digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
         const isStandalone = (window.navigator.standalone === true) || window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
         if(isStandalone){
           document.documentElement.classList.remove('fake-home');
