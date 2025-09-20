@@ -4,10 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0b1020">
   <title>Swipe — Perform</title>
-  <link rel="stylesheet" href="../../assets/css/base.css?v=1">
+  <link rel="stylesheet" href="../../assets/css/base.css?v=2">
   <style>
     /* perform layout: full-bleed behind status bar, respect safe areas for content */
     .perform-root{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;background:var(--bg);touch-action:none;-webkit-user-select:none;user-select:none}
@@ -22,7 +23,7 @@
   </style>
 </head>
 <body>
-  <img id="fakeImg" class="fake-img" aria-hidden="true" alt="" />
+  <img id="fakeImg" class="fake-img" aria-hidden="true" alt="" role="presentation" draggable="false" ondragstart="return false" oncontextmenu="return false" />
   <div id="root" class="perform-root" role="application">
     <div class="digits-wrap">
       <div id="digits" class="digits" aria-live="polite">—</div>
@@ -57,9 +58,9 @@
       // Reset state
       if(!cfg.fakeHomescreen || !cfg.homescreenImage){
         if(fakeImg){ fakeImg.src = ''; fakeImg.style.display = 'none'; }
-          root.classList.remove('fake-home');
-          // Make the perform root transparent so the full-bleed image shows through
-          try{ root.style.background = 'transparent'; }catch(_){}
+        root.classList.remove('fake-home');
+        // Restore default background when fake BG is not active
+        try{ root.style.background = ''; }catch(_){}
         digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
         return;
       }
@@ -69,17 +70,20 @@
       loader.onload = ()=>{
         if(fakeImg){ fakeImg.src = cfg.homescreenImage; fakeImg.style.display = 'block'; }
         root.classList.add('fake-home');
+        // Make the perform root transparent so the image shows through
+        try{ root.style.background = 'transparent'; }catch(_){}
         digitsEl.style.fontSize='1.05rem';
         digitsEl.style.position='fixed';
         digitsEl.style.right='12px';
         digitsEl.style.bottom='calc(8px + env(safe-area-inset-bottom))';
-        digitsEl.style.pointerEvents='none';
-        lastEl.style.display='none';
+  digitsEl.style.pointerEvents='none';
+  // Keep last visible so any small labels or info attached to it remain visible
+  // lastEl.style.display='none';
       };
       loader.onerror = ()=>{
         if(fakeImg){ fakeImg.src = ''; fakeImg.style.display = 'none'; }
         root.classList.remove('fake-home');
-          try{ root.style.background = ''; }catch(_){}
+        try{ root.style.background = ''; }catch(_){ }
         digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
       };
       loader.src = cfg.homescreenImage;
@@ -124,6 +128,6 @@
     root.tabIndex = -1;
     root.focus();
   </script>
-  <div class="beta-watermark">Old</div>
+
   </body>
   </html>

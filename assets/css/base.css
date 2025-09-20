@@ -179,12 +179,15 @@ html.fake-home, body.fake-home { background: transparent !important; }
 .fake-img{
   position:fixed;
   inset: 0;
-  width: 100%;
-  height: 100svh; /* primary for modern mobile browsers */
-  /* fallback for other browsers */
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh; /* reliable iOS full viewport */
+  /* fallbacks / alternates */
+  min-width: 100%;
+  min-height: 100svh;
   object-fit: cover;
   z-index: 0;
   pointer-events: none;
   display: none;
 }
+/* id selector fallback in case custom class is lost */
+#fakeImg{ position:fixed; inset:0; width:100vw; height:100vh; object-fit:cover; pointer-events:none; }
