@@ -157,11 +157,17 @@ html.fake-home, body.fake-home { background: transparent !important; }
    It's pointer-events:none so it doesn't block gesture input on top layers. */
 .fake-bg{
   position:fixed;
-  inset:0;
+  /* Extend under safe-area insets so images are flush with rounded corners / home indicator */
+  top: calc(0px - env(safe-area-inset-top));
+  left: calc(0px - env(safe-area-inset-left));
+  right: calc(0px - env(safe-area-inset-right));
+  bottom: calc(0px - env(safe-area-inset-bottom));
   z-index:0;
   background-repeat:no-repeat;
   background-position:center center;
   background-size:cover;
   background-color:transparent !important;
   pointer-events:none;
+  /* Ensure it covers dynamic viewport heights used by some mobile browsers */
+  min-height:100svh;
 }
