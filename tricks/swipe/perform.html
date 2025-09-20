@@ -16,20 +16,20 @@
     .digits{font-size:4.4rem;letter-spacing:6px;color:rgba(255,255,255,0.95);font-weight:800}
     .last{position:fixed;bottom:calc(8px + env(safe-area-inset-bottom));left:12px;color:rgba(255,255,255,0.7);font-size:0.9rem}
     .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:14vh;background:#0f1733;border:1px solid #2a386c;color:var(--text);padding:8px 12px;border-radius:10px;display:none}
-    .fake-hint{position:fixed;right:12px;bottom:calc(8px + env(safe-area-inset-bottom));color:rgba(255,255,255,0.6);font-size:0.9rem}
-    .perform-root.fake-home{background-size:cover;background-position:center center;background-repeat:no-repeat}
     .flash{animation:flash 240ms ease}
     @keyframes flash{0%{transform:scale(1)}50%{transform:scale(0.96)}100%{transform:scale(1)}}
+    
+    /* Simplified fake homescreen background */
+    .fake-homescreen{position:fixed;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none;z-index:-1;display:none}
   </style>
 </head>
 <body>
-  <img id="fakeImg" class="fake-img" aria-hidden="true" alt="" role="presentation" draggable="false" ondragstart="return false" oncontextmenu="return false" />
+  <div id="fakeHomescreen" class="fake-homescreen"></div>
   <div id="root" class="perform-root" role="application">
     <div class="digits-wrap">
       <div id="digits" class="digits" aria-live="polite">—</div>
     </div>
   <div id="last" class="last">—</div>
-  <!-- fakeHint removed: background image is non-interactive and self-evident -->
     <div id="toast" class="toast" aria-hidden="true">Saved</div>
   </div>
 
@@ -42,55 +42,32 @@
     const digitsEl = document.getElementById('digits');
     const lastEl = document.getElementById('last');
     const toast = document.getElementById('toast');
-    const fakeHint = document.getElementById('fakeHint');
+    const fakeHomescreen = document.getElementById('fakeHomescreen');
 
     const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'' };
     let cfg = Storage.load('swipe', defaults);
 
     const showToast = (msg, ms=900)=>{ toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none', ms); };
 
-    // Robust fake homescreen: preload the stored DataURL and apply it to
-    // the non-interactive <img id="fakeImg"> so it visually fills the
-    // screen without affecting input.
-    function applyFake(){
-      cfg = Object.assign(cfg, Storage.load('swipe', {}));
-      const fakeImg = document.getElementById('fakeImg');
-      // Reset state
-      if(!cfg.fakeHomescreen || !cfg.homescreenImage){
-        if(fakeImg){ fakeImg.src = ''; fakeImg.style.display = 'none'; }
-        root.classList.remove('fake-home');
-        // Restore default background when fake BG is not active
-        try{ root.style.background = ''; }catch(_){}
-        digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
-        return;
+    // Simple fake homescreen implementation
+    function applyFakeHomescreen() {
+      if (cfg.fakeHomescreen && cfg.homescreenImage) {
+        // Set background image with cover sizing for iPhone wallpaper effect
+        fakeHomescreen.style.backgroundImage = `url(${cfg.homescreenImage})`;
+        fakeHomescreen.style.display = 'block';
+      } else {
+        // Hide fake homescreen
+        fakeHomescreen.style.display = 'none';
+        fakeHomescreen.style.backgroundImage = '';
       }
-
-      // Preload to ensure it's valid before showing
-      const loader = new Image();
-      loader.onload = ()=>{
-        if(fakeImg){ fakeImg.src = cfg.homescreenImage; fakeImg.style.display = 'block'; }
-        root.classList.add('fake-home');
-        // Make the perform root transparent so the image shows through
-        try{ root.style.background = 'transparent'; }catch(_){}
-        digitsEl.style.fontSize='1.05rem';
-        digitsEl.style.position='fixed';
-        digitsEl.style.right='12px';
-        digitsEl.style.bottom='calc(8px + env(safe-area-inset-bottom))';
-  digitsEl.style.pointerEvents='none';
-  // Keep last visible so any small labels or info attached to it remain visible
-  // lastEl.style.display='none';
-      };
-      loader.onerror = ()=>{
-        if(fakeImg){ fakeImg.src = ''; fakeImg.style.display = 'none'; }
-        root.classList.remove('fake-home');
-        try{ root.style.background = ''; }catch(_){ }
-        digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
-      };
-      loader.src = cfg.homescreenImage;
     }
 
-    applyFake();
-    window.addEventListener('focus', applyFake);
+    // Initialize and refresh on focus
+    applyFakeHomescreen();
+    window.addEventListener('focus', () => {
+      cfg = Storage.load('swipe', defaults);
+      applyFakeHomescreen();
+    });
 
     const paint = v => { digitsEl.textContent = (v || '—'); };
     const doFlash = ()=>{ digitsEl.classList.remove('flash'); void digitsEl.offsetWidth; digitsEl.classList.add('flash'); };
