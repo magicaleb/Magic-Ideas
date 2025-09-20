@@ -65,8 +65,6 @@ button.xl{font-size:1.6rem;padding:20px;width:100%;border-radius:12px}
   position: fixed;
   inset: 0;
   width: 100vw;
-  height: 100vh;
-  min-height: 100svh;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -146,13 +144,17 @@ html.fake-home, body.fake-home { background: transparent !important; }
   background-size: cover;
   background-color: transparent !important;
   /* keep UI clear of the status bar & home indicator if you show any text */
-  /* padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom); */
+  /* padding-top/bottom intentionally avoided to not alter visual height */
   
 }
 
 /* No safe-area or pointer-events rules to interfere with layout or input */
 
+/* Hide the small "Fake homescreen" label; we rely on non-interactive background element instead
+.fake-hint{ display:none !important; } UNCOMMENT IF IT DIDN'T WORK*/
+
+/* Full-bleed fixed background element used for fake homescreen image.
+   It's pointer-events:none so it doesn't block gesture input on top layers. */
 
 
 /* Absolute <img> used for fake homescreen: object-fit covers and doesn't block input */
@@ -160,11 +162,6 @@ html.fake-home, body.fake-home { background: transparent !important; }
   position:fixed;
   inset: 0;
   width: 100vw;
-  /* Layer multiple viewport units: the last supported wins */
-  height: 100vh;   /* baseline */
-  height: 100svh;  /* small viewport */
-  height: 100dvh;  /* dynamic viewport */
-  height: 100lvh;  /* large viewport (iOS PWAs often prefer this) */
   object-fit: cover;
   z-index: 0;
   pointer-events: none;
