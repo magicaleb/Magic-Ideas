@@ -20,7 +20,27 @@
     @keyframes flash{0%{transform:scale(1)}50%{transform:scale(0.96)}100%{transform:scale(1)}}
     
     /* Simplified fake homescreen background */
-    .fake-homescreen{position:fixed;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;pointer-events:none;z-index:-1;display:none}
+    .fake-homescreen{
+      position:fixed;
+      top:0;
+      left:0;
+      right:0;
+      bottom:0;
+      /* Extend beyond safe areas to cover entire screen */
+      margin-top:calc(-1 * env(safe-area-inset-top));
+      margin-left:calc(-1 * env(safe-area-inset-left));
+      margin-right:calc(-1 * env(safe-area-inset-right));
+      margin-bottom:calc(-1 * env(safe-area-inset-bottom));
+      background-size:cover;
+      background-position:center;
+      background-repeat:no-repeat;
+      pointer-events:none;
+      z-index:0;
+      display:none;
+    }
+    .perform-root{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;background:var(--bg);touch-action:none;-webkit-user-select:none;user-select:none;z-index:1}
+    /* When fake homescreen is active, make root background transparent */
+    .perform-root.fake-active{background:transparent}
   </style>
 </head>
 <body>
@@ -46,19 +66,33 @@
 
     const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'' };
     let cfg = Storage.load('swipe', defaults);
+    
+    console.log('Initial config loaded:', cfg);
 
     const showToast = (msg, ms=900)=>{ toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none', ms); };
 
     // Simple fake homescreen implementation
     function applyFakeHomescreen() {
+      console.log('applyFakeHomescreen called');
+      console.log('cfg.fakeHomescreen:', cfg.fakeHomescreen);
+      console.log('cfg.homescreenImage:', cfg.homescreenImage ? 'Image data present' : 'No image data');
+      console.log('Image data starts with:', cfg.homescreenImage ? cfg.homescreenImage.substring(0, 50) : 'N/A');
+      
       if (cfg.fakeHomescreen && cfg.homescreenImage) {
         // Set background image with cover sizing for iPhone wallpaper effect
-        fakeHomescreen.style.backgroundImage = `url(${cfg.homescreenImage})`;
+        fakeHomescreen.style.backgroundImage = `url("${cfg.homescreenImage}")`;
         fakeHomescreen.style.display = 'block';
+        root.classList.add('fake-active'); // Make root background transparent
+        console.log('Fake homescreen enabled');
+        console.log('Background image set to:', fakeHomescreen.style.backgroundImage.substring(0, 100));
+        console.log('Element display:', fakeHomescreen.style.display);
+        console.log('Element computed styles:', window.getComputedStyle(fakeHomescreen).display);
       } else {
         // Hide fake homescreen
         fakeHomescreen.style.display = 'none';
         fakeHomescreen.style.backgroundImage = '';
+        root.classList.remove('fake-active'); // Restore root background
+        console.log('Fake homescreen disabled');
       }
     }
 
