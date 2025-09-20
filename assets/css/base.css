@@ -192,3 +192,7 @@ html.fake-home, body.fake-home { background: transparent !important; }
 }
 /* id selector fallback in case custom class is lost */
 #fakeImg{ position:fixed; inset:0; width:100vw; height:100vh; object-fit:cover; pointer-events:none; }
+
+/* When faking the homescreen, keep the perform root transparent and stacked above the background image.
+   Important: do NOT change positioning here (we keep position:fixed from .perform-root). */
+#root.fake-home { background: transparent !important; }
