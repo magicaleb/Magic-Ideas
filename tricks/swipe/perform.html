@@ -28,7 +28,7 @@
       <div id="digits" class="digits" aria-live="polite">—</div>
     </div>
   <div id="last" class="last">—</div>
-    <div id="fakeHint" class="fake-hint" aria-hidden="true" style="display:none">Fake homescreen</div>
+  <!-- fakeHint removed: background image is non-interactive and self-evident -->
     <div id="toast" class="toast" aria-hidden="true">Saved</div>
   </div>
 
@@ -48,58 +48,38 @@
 
     const showToast = (msg, ms=900)=>{ toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none', ms); };
 
-    // Robustly apply fake homescreen image (preload first)
+    // Robust fake homescreen: preload the stored DataURL and apply it to
+    // the non-interactive <img id="fakeImg"> so it visually fills the
+    // screen without affecting input.
     function applyFake(){
       cfg = Object.assign(cfg, Storage.load('swipe', {}));
-      if(cfg.fakeHomescreen && cfg.homescreenImage){
-        const img = new Image();
-        img.onload = ()=>{
-          // Always apply fake background to the perform root, but only apply
-          // full-bleed classes to <html> and <body> when the app is running
-          // as a standalone PWA. This prevents forwarded-port browser views
-          // (like the dev forwarded port on an iPhone) from shifting content
-          // up under the status bar.
-            root.classList.add('fake-home');
-            // Apply image to the non-interactive fixed <img> so it doesn't
-            // intercept gestures. Keep root on top with z-index.
-            const fakeImg = document.getElementById('fakeImg');
-            if(fakeImg){ fakeImg.src = cfg.homescreenImage; fakeImg.style.display='block'; }
-          const isStandalone = (window.navigator.standalone === true) || window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-          if(isStandalone){
-            document.documentElement.classList.add('fake-home');
-            document.body.classList.add('fake-home');
-          }
-          root.style.backgroundImage = `url(${cfg.homescreenImage})`;
-          fakeHint.style.display='block';
-          digitsEl.style.fontSize='1.05rem';
-          digitsEl.style.position='fixed';
-          digitsEl.style.right='12px';
-          digitsEl.style.bottom='calc(8px + env(safe-area-inset-bottom))';
-          digitsEl.style.pointerEvents='none';
-          lastEl.style.display='none';
-        };
-        img.onerror = ()=>{
-          root.classList.remove('fake-home');
-          const fakeBg = document.getElementById('fakeBg'); if(fakeBg){ fakeBg.style.backgroundImage = ''; }
-          fakeHint.style.display='none';
-          const isStandalone = (window.navigator.standalone === true) || window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-          if(isStandalone){
-            document.documentElement.classList.remove('fake-home');
-            document.body.classList.remove('fake-home');
-          }
-          digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
-        };
-        img.src = cfg.homescreenImage;
-      } else {
-          root.classList.remove('fake-home');
-          const fakeImg = document.getElementById('fakeImg'); if(fakeImg){ fakeImg.src = ''; fakeImg.style.display='none'; }
-          fakeHint.style.display='none'; digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
-        const isStandalone = (window.navigator.standalone === true) || window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-        if(isStandalone){
-          document.documentElement.classList.remove('fake-home');
-          document.body.classList.remove('fake-home');
-        }
+      const fakeImg = document.getElementById('fakeImg');
+      // Reset state
+      if(!cfg.fakeHomescreen || !cfg.homescreenImage){
+        if(fakeImg){ fakeImg.src = ''; fakeImg.style.display = 'none'; }
+        root.classList.remove('fake-home');
+        digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
+        return;
       }
+
+      // Preload to ensure it's valid before showing
+      const loader = new Image();
+      loader.onload = ()=>{
+        if(fakeImg){ fakeImg.src = cfg.homescreenImage; fakeImg.style.display = 'block'; }
+        root.classList.add('fake-home');
+        digitsEl.style.fontSize='1.05rem';
+        digitsEl.style.position='fixed';
+        digitsEl.style.right='12px';
+        digitsEl.style.bottom='calc(8px + env(safe-area-inset-bottom))';
+        digitsEl.style.pointerEvents='none';
+        lastEl.style.display='none';
+      };
+      loader.onerror = ()=>{
+        if(fakeImg){ fakeImg.src = ''; fakeImg.style.display = 'none'; }
+        root.classList.remove('fake-home');
+        digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
+      };
+      loader.src = cfg.homescreenImage;
     }
 
     applyFake();
