@@ -10,12 +10,48 @@ const Swipe = (() => {
   const hourMap = h => h===12 ? 0 : (h>=1&&h<=9 ? h : (h===11 ? "SUBMIT" : null));
 
   async function copyText(text){
-    try { if(navigator.clipboard?.writeText){ await navigator.clipboard.writeText(text); return true; } } catch{}
+    // Try navigator.clipboard first (preferred, async)
     try {
+      if(navigator.clipboard && typeof navigator.clipboard.writeText === 'function'){
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e){
+      try{ console.debug('[Swipe] navigator.clipboard.writeText failed', e); }catch(_){ }
+    }
+
+    // Fallback: textarea + execCommand
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      // Place off-screen but ensure it can be selected
+      ta.style.position = 'absolute';
+      ta.style.left = '-9999px';
+      ta.style.top = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      if (typeof ta.setSelectionRange === 'function') ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand && document.execCommand('copy');
+      document.body.removeChild(ta);
+      return !!ok;
+    } catch (e){
+      try{ console.debug('[Swipe] execCommand copy failed', e); }catch(_){ }
+      return false;
+    }
+  }
+
+  // Synchronous copy (execCommand) attempt — to be called inside user gesture handlers
+  function syncCopy(text){
+    try{
       const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly','');
-      ta.style.position='fixed'; ta.style.opacity='0'; ta.style.left='-9999px';
-      document.body.appendChild(ta); ta.select(); const ok=document.execCommand('copy'); document.body.removeChild(ta); return ok;
-    } catch { return false; }
+      ta.style.position='absolute'; ta.style.left='-9999px'; ta.style.top='0';
+      document.body.appendChild(ta);
+      ta.select(); if (typeof ta.setSelectionRange === 'function') ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand && document.execCommand('copy');
+      document.body.removeChild(ta);
+      return !!ok;
+    }catch(e){ try{ console.debug('[Swipe] syncCopy failed', e); }catch(_){} return false; }
   }
 
   function mergeConfig(arg={}){
@@ -35,48 +71,68 @@ const Swipe = (() => {
 
     const call = (fn, ...a)=>{ try{ fn && fn(...a); }catch{} };
     const paint = ()=>{
+      try{ console.debug('[Swipe] paint buffer', buffer); }catch(_){ }
       call(hooks.onDigit, null, buffer || '');
     };
-    const arm   = ()=>{ clearTimeout(timer); timer=setTimeout(()=>submit(), cfg.delay*1000); };
+  const arm   = ()=>{ clearTimeout(timer); timer=setTimeout(()=>submit(), cfg.delay*1000); debugArm(); };
+
+  function debugArm(){ try{ console.debug('[Swipe] arm timer (ms)', cfg.delay*1000, 'timerId', timer); }catch(_){} }
 
     async function submit(){
+      try{ console.debug('[Swipe] submit triggered, buffer=', buffer); }catch(_){ }
       if(!buffer) return;
       const value = buffer; buffer=""; clearTimeout(timer); timer=null; paint();
+      try{ console.debug('[Swipe] buffer cleared by submit'); }catch(_){ }
       let route="none";
 
+      // If clipboard is requested, attempt copy first and report route accordingly
       if(cfg.clipboard){
         const ok = await copyText(value);
         if(ok) route = "clipboard";
-        else call(hooks.onStatus,"Clipboard blocked");
+        else { route = 'clipboard-failed'; call(hooks.onStatus,"Clipboard blocked"); }
       }
+
+      // If a shortcut is configured, wait briefly after a successful clipboard write so the clipboard has time to populate
       if(cfg.shortcut){
         const url = `shortcuts://run-shortcut?name=${encodeURIComponent(cfg.shortcut)}&input=text&text=${encodeURIComponent(value)}`;
-        route = "shortcut";
-        try{ window.location.href = url; }catch{}
+        try{
+          const launch = ()=>{ try{ window.location.href = url; }catch{} };
+          if(route.indexOf && route.indexOf('clipboard') !== -1){
+            // wait 250ms to allow clipboard writes to complete in constrained PWAs
+            setTimeout(launch, 250);
+          } else {
+            launch();
+          }
+          route = route === 'clipboard' ? 'clipboard+shortcut' : 'shortcut';
+        }catch{}
       }
+
       if(cfg.postShortcut){
-        setTimeout(()=>{ try{ window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(cfg.postShortcut)}`; }catch{} }, 150);
+        setTimeout(()=>{ try{ window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(cfg.postShortcut)}`; }catch{} }, 250);
       }
+
       call(hooks.onSubmit, value, route);
     }
 
-    function clearAll(){ buffer=""; clearTimeout(timer); timer=null; call(hooks.onClear); paint(); }
+  function clearAll(){ try{ console.debug('[Swipe] clearAll called'); }catch(_){} buffer=""; clearTimeout(timer); timer=null; call(hooks.onClear); paint(); }
 
     // swipe digits
+    const root = document.getElementById('performRoot') || document.body;
     Gestures.onSwipe(angle=>{
       const v = hourMap(cwToHour(toCW(angle)));
       if(v===null) return;
-      // 11 (SUBMIT) will be ignored for swipe; submission is via two-finger tap
       if(v==="SUBMIT"){ return; }
       buffer += String(v);
       call(hooks.onDigit, v, buffer);
+      // Try a synchronous copy during the user gesture so clipboards that require a gesture succeed
+      try{ if(cfg.clipboard){ const ok = syncCopy(buffer); if(ok) call(hooks.onStatus,'Copied'); } }catch(_){ }
       arm();
-    });
+    }, root);
 
-    Gestures.onDoubleTap(()=> clearAll());
-    Gestures.onTwoFingerDown(()=>{ clearAll(); window.location.href='settings.html'; });
-    // new: two-finger tap for immediate submit
-    if(Gestures.onTwoFingerTap) Gestures.onTwoFingerTap(()=> submit());
+  // Use long-press to clear to avoid misclassifying quick taps during fast swipes
+  if (Gestures.onLongPress) Gestures.onLongPress(()=> clearAll(), root);
+    Gestures.onTwoFingerDown(()=>{ clearAll(); window.location.href='settings.html'; }, root);
+    if(Gestures.onTwoFingerTap) Gestures.onTwoFingerTap(()=> submit(), root);
 
     paint();
     return { submitNow: ()=>submit(), clear: ()=>clearAll() };

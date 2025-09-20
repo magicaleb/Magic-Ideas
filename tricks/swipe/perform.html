@@ -1,116 +1,137 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Swipe Input — Perform</title>
-  <link rel="stylesheet" href="../../assets/css/base.css?v=28">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0b1020">
+  <title>Swipe — Perform</title>
+  <link rel="stylesheet" href="../../assets/css/base.css?v=1">
+  <style>
+    /* perform layout: full-bleed behind status bar, respect safe areas for content */
+    .perform-root{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;background:var(--bg);touch-action:none;-webkit-user-select:none;user-select:none}
+    .digits-wrap{display:flex;align-items:center;justify-content:center;pointer-events:none}
+    .digits{font-size:4.4rem;letter-spacing:6px;color:rgba(255,255,255,0.95);font-weight:800}
+    .last{position:fixed;bottom:calc(8px + env(safe-area-inset-bottom));left:12px;color:rgba(255,255,255,0.7);font-size:0.9rem}
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:14vh;background:#0f1733;border:1px solid #2a386c;color:var(--text);padding:8px 12px;border-radius:10px;display:none}
+    .fake-hint{position:fixed;right:12px;bottom:calc(8px + env(safe-area-inset-bottom));color:rgba(255,255,255,0.6);font-size:0.9rem}
+    .perform-root.fake-home{background-size:cover;background-position:center center;background-repeat:no-repeat}
+    .flash{animation:flash 240ms ease}
+    @keyframes flash{0%{transform:scale(1)}50%{transform:scale(0.96)}100%{transform:scale(1)}}
+  </style>
 </head>
 <body>
-  <!-- Minimal Perform screen: full-screen surface + digits + last-submitted badge -->
-  <div id="performRoot" class="perform-root">
-    <div id="digitsWrap" class="perform-digits-wrap">
-      <div class="perform-digits" id="digits">—</div>
+  <div id="root" class="perform-root" role="application">
+    <div class="digits-wrap">
+      <div id="digits" class="digits" aria-live="polite">—</div>
     </div>
-
-    <div id="lastWrap">
-      <div id="centerLast" class="perform-last-center">
-        <div style="font-size:0.85rem;opacity:0.9">Last submitted:</div>
-        <div id="last" class="badge" style="background:#0f1733;color:#cde6ff">none</div>
-      </div>
-    </div>
+  <div id="last" class="last">—</div>
+    <div id="fakeHint" class="fake-hint" aria-hidden="true" style="display:none">Fake homescreen</div>
+    <div id="toast" class="toast" aria-hidden="true">Saved</div>
   </div>
 
-  <!-- small faint bottom-center toast used for status (cleared/submitted/copied) -->
-  <div id="toast" style="position:fixed;left:50%;transform:translateX(-50%);bottom:8px;color:rgba(200,200,200,0.22);font-size:0.85rem;pointer-events:none;display:none">Saved</div>
-
-  <script src="../../assets/js/storage.js?v=1"></script>
-  <script src="../../assets/js/gestures.js?v=1"></script>
-  <script src="../../assets/js/swipe.js?v=1"></script>
+  <script src="../../assets/js/storage.js"></script>
+  <script src="../../assets/js/gestures.js"></script>
+  <script src="../../assets/js/swipe.js"></script>
   <script>
-    // Load saved config (blackout removed; fields retained for compatibility)
-    const saved = Storage.load('swipe', { 
-      delay: 3, shortcut: '', clipboard: false, postShortcut: '',
-      fakeHomescreen: false, homescreenImage: ''
-    });
+    // Clean, final Perform page wiring — uses existing Storage, Gestures and Swipe modules.
+    const root = document.getElementById('root');
+    const digitsEl = document.getElementById('digits');
+    const lastEl = document.getElementById('last');
+    const toast = document.getElementById('toast');
+    const fakeHint = document.getElementById('fakeHint');
 
-    const performRoot = document.getElementById('performRoot');
-    const digitsEl    = document.getElementById('digits');
-    const lastEl      = document.getElementById('last');
-    const toast       = document.getElementById('toast');
+    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'' };
+    let cfg = Storage.load('swipe', defaults);
 
-    const toastMsg = msg => {
-      toast.textContent = msg;
-      toast.style.display = 'block';
-      setTimeout(() => toast.style.display = 'none', 1200);
-    };
+    const showToast = (msg, ms=900)=>{ toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none', ms); };
 
-    // Paint digits in the main display
-    const paintDigits = (val) => { digitsEl.textContent = (val || '—'); };
-    // flash helper
-    function flashDigit(){
-      try{
-        digitsEl.classList.remove('flash');
-        // force reflow
-        void digitsEl.offsetWidth;
-        digitsEl.classList.add('flash');
-      }catch(_){ }
+    // Robustly apply fake homescreen image (preload first)
+    function applyFake(){
+      cfg = Object.assign(cfg, Storage.load('swipe', {}));
+      if(cfg.fakeHomescreen && cfg.homescreenImage){
+        const img = new Image();
+        img.onload = ()=>{
+          // Always apply fake background to the perform root, but only apply
+          // full-bleed classes to <html> and <body> when the app is running
+          // as a standalone PWA. This prevents forwarded-port browser views
+          // (like the dev forwarded port on an iPhone) from shifting content
+          // up under the status bar.
+          root.classList.add('fake-home');
+          const isStandalone = (window.navigator.standalone === true) || window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+          if(isStandalone){
+            document.documentElement.classList.add('fake-home');
+            document.body.classList.add('fake-home');
+          }
+          root.style.backgroundImage = `url(${cfg.homescreenImage})`;
+          fakeHint.style.display='block';
+          digitsEl.style.fontSize='1.05rem';
+          digitsEl.style.position='fixed';
+          digitsEl.style.right='12px';
+          digitsEl.style.bottom='calc(8px + env(safe-area-inset-bottom))';
+          digitsEl.style.pointerEvents='none';
+          lastEl.style.display='none';
+        };
+        img.onerror = ()=>{
+          root.classList.remove('fake-home'); root.style.backgroundImage=''; fakeHint.style.display='none';
+          const isStandalone = (window.navigator.standalone === true) || window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+          if(isStandalone){
+            document.documentElement.classList.remove('fake-home');
+            document.body.classList.remove('fake-home');
+          }
+          digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
+        };
+        img.src = cfg.homescreenImage;
+      } else {
+        root.classList.remove('fake-home'); root.style.backgroundImage=''; fakeHint.style.display='none'; digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
+        const isStandalone = (window.navigator.standalone === true) || window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+        if(isStandalone){
+          document.documentElement.classList.remove('fake-home');
+          document.body.classList.remove('fake-home');
+        }
+      }
     }
 
-    // debug overlay element
-    const dbg = document.createElement('div'); dbg.className='gesture-debug'; dbg.id='gestureDebug'; dbg.textContent='gestures: idle'; document.body.appendChild(dbg);
-
-    // Direct instrumentation on performRoot to see if events arrive in the PWA
-    (function attachRootListeners(){
-      const rootEl = performRoot || document.body;
-      const upd = (s) => { try{ document.getElementById('gestureDebug').textContent = s; }catch(_){} };
-      rootEl.addEventListener('touchstart', e=>{ upd('touchstart: ' + (e.touches?e.touches.length:0)); }, {passive:true});
-      rootEl.addEventListener('touchmove', e=>{ upd('touchmove'); }, {passive:true});
-      rootEl.addEventListener('touchend', e=>{ upd('touchend'); }, {passive:true});
-      rootEl.addEventListener('pointerdown', e=>{ upd('pointerdown'); }, {passive:true});
-      rootEl.addEventListener('pointermove', e=>{ upd('pointermove'); }, {passive:true});
-      rootEl.addEventListener('pointerup', e=>{ upd('pointerup'); }, {passive:true});
-    })();
-
-    // Fake-home background
-    function applyFake(){
-  const cfg2 = Storage.load('swipe', { fakeHomescreen:false, homescreenImage:'' });
-  if(cfg2.fakeHomescreen && cfg2.homescreenImage){
-    performRoot.classList.add('fake-home');
-    performRoot.style.backgroundImage = `url(${cfg2.homescreenImage})`;
-    document.documentElement.classList.add('fake-home');
-    document.body.classList.add('fake-home');
-    const lastVal = (lastEl.textContent && lastEl.textContent !== 'none') ? lastEl.textContent : '';
-    if(lastTiny){ lastTiny.textContent = lastVal; lastTiny.style.display = lastVal ? 'block' : 'none'; }
-  } else {
-    performRoot.classList.remove('fake-home');
-    performRoot.style.backgroundImage = '';
-    document.documentElement.classList.remove('fake-home');
-    document.body.classList.remove('fake-home');
-    if(lastTiny) lastTiny.style.display='none';
-  }
-}
     applyFake();
     window.addEventListener('focus', applyFake);
 
-    // Start swipe engine with UI hooks
-    window.__swipeHooks = Swipe.start(saved, {
-      onDigit(d, buffer){ paintDigits(buffer); if(d!=null){ flashDigit(); try{ document.getElementById('gestureDebug').textContent = `gestures: digit ${d} buffer:${buffer}` }catch(_){} } },
-      onClear(){ paintDigits(''); try{ document.getElementById('gestureDebug').textContent = 'gestures: cleared' }catch(_){}; toastMsg('Cleared'); },
+    const paint = v => { digitsEl.textContent = (v || '—'); };
+    const doFlash = ()=>{ digitsEl.classList.remove('flash'); void digitsEl.offsetWidth; digitsEl.classList.add('flash'); };
+
+    // Start Swipe engine with minimal hooks
+    let lastSubmitted = '';
+
+    const hooks = {
+      onDigit(d, buffer){ paint(buffer); if(d!=null) doFlash(); },
+      onClear(){ paint(''); showToast('Cleared'); },
       onSubmit(value, route){
-        const v = value || 'none';
-        lastEl.textContent = v;
-        paintDigits('');
-        try{ document.getElementById('gestureDebug').textContent = `gestures: submit ${v} via ${route}` }catch(_){}
-        if (route === 'clipboard') toastMsg('Copied to clipboard');
-        else if (route === 'shortcut') toastMsg('Sent to Shortcut');
-        else toastMsg('Submitted');
+  lastSubmitted = value || '';
+  lastEl.textContent = (value || '—');
+        paint('');
+        // route can be 'clipboard', 'shortcut', 'clipboard+shortcut', 'clipboard-failed' or 'none'
+        if(route && route.indexOf('clipboard') !== -1 && route.indexOf('clipboard-failed') === -1) {
+          showToast('Copied to clipboard');
+        }
+        else if(route === 'clipboard-failed'){
+          showToast('Clipboard blocked');
+        }
+        else if(route && route.indexOf('shortcut') !== -1) showToast('Sent to Shortcut');
+        else showToast('Submitted');
       },
-      onStatus(msg){ toastMsg(msg); }
-    });
+      onStatus(msg){ showToast(msg); }
+    };
+
+    const swipe = Swipe.start(cfg, hooks);
+
+    // Ensure selection/zooming is reduced on mobile
+    document.documentElement.style.webkitTouchCallout='none';
+    document.documentElement.style.webkitUserSelect='none';
+
+    // Accessibility: focus root to allow PointerEvents to be captured
+    root.tabIndex = -1;
+    root.focus();
   </script>
   <div class="beta-watermark">Old</div>
   </body>
-</html>
+  </html>
