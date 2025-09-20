@@ -57,7 +57,9 @@
       // Reset state
       if(!cfg.fakeHomescreen || !cfg.homescreenImage){
         if(fakeImg){ fakeImg.src = ''; fakeImg.style.display = 'none'; }
-        root.classList.remove('fake-home');
+          root.classList.remove('fake-home');
+          // Make the perform root transparent so the full-bleed image shows through
+          try{ root.style.background = 'transparent'; }catch(_){}
         digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
         return;
       }
@@ -77,6 +79,7 @@
       loader.onerror = ()=>{
         if(fakeImg){ fakeImg.src = ''; fakeImg.style.display = 'none'; }
         root.classList.remove('fake-home');
+          try{ root.style.background = ''; }catch(_){}
         digitsEl.style.fontSize='4.4rem'; digitsEl.style.position='static'; lastEl.style.display='block';
       };
       loader.src = cfg.homescreenImage;
