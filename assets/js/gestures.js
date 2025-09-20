@@ -67,6 +67,27 @@ const Gestures = (() => {
   function onLongPress(cb, el=document.body, ms=600){
     let lpStart = 0, lpX = 0, lpY = 0, lpTimer = null;
     function clearLP(){ lpStart = 0; lpX = lpY = 0; if(lpTimer){ clearTimeout(lpTimer); lpTimer=null; } }
+
+    // PointerEvent path (preferred when available)
+    if(window.PointerEvent){
+      let pointerId = null;
+      el.addEventListener('pointerdown', e => {
+        if(e.isPrimary && e.pointerType !== 'mouse'){
+          pointerId = e.pointerId;
+          lpStart = Date.now(); lpX = e.clientX; lpY = e.clientY;
+          lpTimer = setTimeout(()=>{ cb(); clearLP(); pointerId = null; }, ms);
+        }
+      }, { passive:false });
+      el.addEventListener('pointermove', e => {
+        if(!pointerId || e.pointerId !== pointerId) return;
+        if(dist2(lpX, lpY, e.clientX, e.clientY) > (MIN_SWIPE_PX/2)*(MIN_SWIPE_PX/2)) { clearLP(); pointerId = null; }
+      }, { passive:false });
+      el.addEventListener('pointerup', e => { if(pointerId && e.pointerId === pointerId) clearLP(); pointerId = null; }, { passive:false });
+      el.addEventListener('pointercancel', e => { if(pointerId && e.pointerId === pointerId) clearLP(); pointerId = null; }, { passive:false });
+      return;
+    }
+
+    // Touch fallback
     el.addEventListener('touchstart', e => {
       try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
       if(e.touches.length !== 1) return;

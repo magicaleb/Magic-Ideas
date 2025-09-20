@@ -116,8 +116,9 @@ const Swipe = (() => {
 
   function clearAll(){ try{ console.debug('[Swipe] clearAll called'); }catch(_){} buffer=""; clearTimeout(timer); timer=null; call(hooks.onClear); paint(); }
 
-    // swipe digits
-    const root = document.getElementById('performRoot') || document.body;
+  // swipe digits
+  // The perform page uses id="root" for the main container — prefer that.
+  const root = document.getElementById('root') || document.getElementById('performRoot') || document.body;
     Gestures.onSwipe(angle=>{
       const v = hourMap(cwToHour(toCW(angle)));
       if(v===null) return;
