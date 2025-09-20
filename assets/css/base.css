@@ -180,10 +180,11 @@ html.fake-home, body.fake-home { background: transparent !important; }
   position:fixed;
   inset: 0;
   width: 100vw;
-  height: 100vh; /* reliable iOS full viewport */
-  /* fallbacks / alternates */
-  min-width: 100%;
-  min-height: 100svh;
+  /* Layer multiple viewport units: the last supported wins */
+  height: 100vh;   /* baseline */
+  height: 100svh;  /* small viewport */
+  height: 100dvh;  /* dynamic viewport */
+  height: 100lvh;  /* large viewport (iOS PWAs often prefer this) */
   object-fit: cover;
   z-index: 0;
   pointer-events: none;
