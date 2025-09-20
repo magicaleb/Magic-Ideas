@@ -153,6 +153,9 @@ html.fake-home, body.fake-home { background: transparent !important; }
 
 /* No safe-area or pointer-events rules to interfere with layout or input */
 
+/* Hide the small "Fake homescreen" label; we rely on non-interactive background element instead */
+.fake-hint{ display:none !important; }
+
 /* Full-bleed fixed background element used for fake homescreen image.
    It's pointer-events:none so it doesn't block gesture input on top layers. */
 .fake-bg{
