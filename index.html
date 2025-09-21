@@ -5,11 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
-    <title>Full Screen Background PWA</title>
+    <title>Background PWA</title>
     <style>
-        /* Reset and base styles for PWA */
         * {
             margin: 0;
             padding: 0;
@@ -17,33 +15,29 @@
         }
 
         html, body {
-            width: 100vw;
-            height: 100vh;
+            width: 100dvw;
+            height: 100dvh;
             overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             background: #000;
         }
 
-        /* Upload interface styling - shown initially */
         .upload-interface {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
             z-index: 1000;
         }
 
         .upload-container {
             text-align: center;
             padding: 2rem;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
+            background: color-mix(in srgb, white 10%, transparent);
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
         }
 
         .upload-container h1 {
@@ -53,80 +47,71 @@
             font-weight: 600;
         }
 
-        /* Hide the default file input */
         .file-input {
             position: absolute;
             opacity: 0;
             pointer-events: none;
         }
 
-        /* Custom upload button styling */
         .upload-button {
             display: inline-block;
             padding: 1rem 2rem;
-            background: #007AFF;
-            color: white;
+            background: white;
+            color: #007AFF;
             border-radius: 12px;
             cursor: pointer;
             font-weight: 600;
-            transition: all 0.3s ease;
+            transition: transform 0.2s ease;
             border: none;
             font-size: 1rem;
             margin-bottom: 1rem;
         }
 
-        .upload-button:hover {
-            background: #0056CC;
-            transform: translateY(-2px);
+        .upload-button:active {
+            transform: scale(0.95);
         }
 
         .clear-button {
             display: block;
-            padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.2);
+            padding: 0.75rem 1.5rem;
+            background: color-mix(in srgb, white 20%, transparent);
             color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid color-mix(in srgb, white 30%, transparent);
             border-radius: 8px;
             cursor: pointer;
             font-size: 0.9rem;
             margin: 0 auto;
+            transition: transform 0.2s ease;
         }
 
-        /* Background image container - full screen with safe area handling */
+        .clear-button:active {
+            transform: scale(0.95);
+        }
+
         .background-container {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            
-            /* Extend into safe areas for true edge-to-edge display */
-            margin-top: calc(-1 * env(safe-area-inset-top));
-            margin-left: calc(-1 * env(safe-area-inset-left));
-            margin-right: calc(-1 * env(safe-area-inset-right));
-            margin-bottom: calc(-1 * env(safe-area-inset-bottom));
-            
-            /* Background image properties */
+            inset: 0;
+            width: 100dvw;
+            height: 100dvh;
             background-size: cover;
-            background-position: center center;
+            background-position: center;
             background-repeat: no-repeat;
-            
-            /* Prevent any interaction with the background */
             pointer-events: none;
             user-select: none;
-            -webkit-user-select: none;
-            -webkit-touch-callout: none;
-            -webkit-user-drag: none;
             touch-action: none;
-            
-            /* Initially hidden */
             display: none;
             z-index: 1;
+        }
+
+        @media (display-mode: standalone) {
+            .background-container {
+                inset: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+                margin: calc(-1 * env(safe-area-inset-top, 0)) calc(-1 * env(safe-area-inset-right, 0)) calc(-1 * env(safe-area-inset-bottom, 0)) calc(-1 * env(safe-area-inset-left, 0));
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Initial upload interface - hidden after image is set -->
     <div id="uploadInterface" class="upload-interface">
         <div class="upload-container">
             <h1>Upload Background Image</h1>
@@ -137,97 +122,60 @@
         </div>
     </div>
 
-    <!-- Background image container - initially hidden -->
     <div id="backgroundContainer" class="background-container"></div>
 
     <script>
-        // DOM elements
         const uploadInterface = document.getElementById('uploadInterface');
         const backgroundContainer = document.getElementById('backgroundContainer');
         const imageUpload = document.getElementById('imageUpload');
         const clearButton = document.getElementById('clearButton');
-
-        // Local storage key for image data
         const STORAGE_KEY = 'pwa-background-image';
 
-        /**
-         * Load saved image from localStorage on app startup
-         */
         function loadSavedImage() {
             const savedImage = localStorage.getItem(STORAGE_KEY);
             if (savedImage) {
-                // Image exists in storage - display it immediately
                 displayBackgroundImage(savedImage);
                 hideUploadInterface();
             } else {
-                // No saved image - show upload interface
                 showUploadInterface();
             }
         }
 
-        /**
-         * Display the background image and hide all UI
-         * @param {string} imageDataUrl - Base64 encoded image data URL
-         */
         function displayBackgroundImage(imageDataUrl) {
-            // Set background image using CSS
             backgroundContainer.style.backgroundImage = `url("${imageDataUrl}")`;
             backgroundContainer.style.display = 'block';
         }
 
-        /**
-         * Hide the upload interface completely
-         */
         function hideUploadInterface() {
             uploadInterface.style.display = 'none';
         }
 
-        /**
-         * Show the upload interface
-         */
         function showUploadInterface() {
             uploadInterface.style.display = 'flex';
             backgroundContainer.style.display = 'none';
         }
 
-        /**
-         * Clear saved image and show upload interface
-         */
         function clearSavedImage() {
             localStorage.removeItem(STORAGE_KEY);
             showUploadInterface();
         }
 
-        /**
-         * Handle file selection and processing
-         * @param {Event} event - File input change event
-         */
         function handleImageUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            // Use FileReader to convert image to base64 data URL
             const reader = new FileReader();
             reader.onload = function(e) {
                 const imageDataUrl = e.target.result;
-                
-                // Save to localStorage for persistence
                 localStorage.setItem(STORAGE_KEY, imageDataUrl);
-                
-                // Display the image immediately
                 displayBackgroundImage(imageDataUrl);
                 hideUploadInterface();
             };
-            
-            // Read file as data URL (base64 encoded)
             reader.readAsDataURL(file);
         }
 
-        // Event listeners
         imageUpload.addEventListener('change', handleImageUpload);
         clearButton.addEventListener('click', clearSavedImage);
-
-        // Initialize app on page load
         document.addEventListener('DOMContentLoaded', loadSavedImage);
     </script>
 </body>
