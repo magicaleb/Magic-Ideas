@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,20 +14,22 @@
     html, body {
       margin: 0 !important;
       padding: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
+      width: 100dvw !important;
+      height: 100dvh !important;
       background: #0b1020 !important;
       overflow: hidden !important;
-      position: fixed !important;
-      inset: 0 !important;
+      overscroll-behavior: none !important;
+      touch-action: none !important;
     }
     
     /* Main container - simple and clean */
     .perform-root {
       position: fixed !important;
       inset: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
+      width: 100dvw !important;
+      height: 100dvh !important;
+      padding-bottom: env(safe-area-inset-bottom) !important;
+      margin-top: 1cm !important;
       display: flex !important;
       flex-direction: column !important;
       justify-content: center !important;
@@ -99,31 +101,27 @@
   </style>
 </head>
 <body>
-  <!-- Simple image element for fake homescreen -->
+  <!-- Fullscreen image for Fake Homescreen -->
   <img id="fakeHomescreenImg" style="
     position: fixed !important;
     inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
+    width: 100dvw !important;
+    height: 100dvh !important;
     object-fit: cover !important;
     pointer-events: none !important;
     z-index: 1 !important;
     display: none !important;
-  " alt="">
+    background: black !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+    margin-top: 1cm !important;
+  " alt="Homescreen Background">
   
   <div id="root" class="perform-root" role="application">
     <div class="digits-wrap">
       <div id="digits" class="digits" aria-live="polite">—</div>
     </div>
-  <div id="last" class="last">—</div>
+    <div id="last" class="last">—</div>
     <div id="toast" class="toast" aria-hidden="true">Saved</div>
-    
-    <!-- Debug info visible on screen -->
-    <div id="debug" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 5px; font-size: 12px; z-index: 999; border-radius: 4px;">
-      <div>Mode: <span id="debugMode">Loading...</span></div>
-      <div>Image: <span id="debugImage">Loading...</span></div>
-      <div>Display: <span id="debugDisplay">Loading...</span></div>
-    </div>
   </div>
 
   <script src="../../assets/js/storage.js"></script>
@@ -142,38 +140,29 @@
 
     const showToast = (msg, ms=900)=>{ toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none', ms); };
 
-    // Simple fake homescreen implementation with img element
+    // Best-practice Fake Homescreen implementation
     function applyFakeHomescreen() {
-      const debugMode = document.getElementById('debugMode');
-      const debugImage = document.getElementById('debugImage');
-      const debugDisplay = document.getElementById('debugDisplay');
-      
-      console.log('=== DEBUG INFO ===');
-      console.log('cfg.fakeHomescreen:', cfg.fakeHomescreen);
-      console.log('cfg.homescreenImage exists:', !!cfg.homescreenImage);
-      console.log('cfg.homescreenImage length:', cfg.homescreenImage ? cfg.homescreenImage.length : 0);
-      console.log('fakeHomescreenImg element:', fakeHomescreenImg);
-      
-      // Update debug display
-      debugMode.textContent = cfg.fakeHomescreen ? 'ON' : 'OFF';
-      debugImage.textContent = cfg.homescreenImage ? 'YES' : 'NO';
-      
       if (cfg.fakeHomescreen && cfg.homescreenImage) {
-        // Use img element instead of CSS background
         fakeHomescreenImg.src = cfg.homescreenImage;
         fakeHomescreenImg.style.display = 'block';
         root.classList.add('fake-active');
-        debugDisplay.textContent = 'ACTIVE';
-        console.log('✅ Fake homescreen img should be visible');
-        console.log('Image src set to:', cfg.homescreenImage.substring(0, 50) + '...');
       } else {
         fakeHomescreenImg.style.display = 'none';
         fakeHomescreenImg.src = '';
         root.classList.remove('fake-active');
-        debugDisplay.textContent = 'INACTIVE';
-        console.log('❌ Fake homescreen disabled');
       }
     }
+    // Prevent zoom/pan gestures globally
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    document.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
 
     // Initialize and refresh on focus
     applyFakeHomescreen();
