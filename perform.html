@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Magic Swipe - Perform</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0b1020;
+      color: #eef2ff;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      position: relative;
+    }
+    
+    /* Fake homescreen background image */
+    #homescreenBg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+      display: none;
+    }
+    
+    /* Main app container */
+    .app {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 2;
+      background: transparent;
+    }
+    
+    /* When fake homescreen is active, make app background transparent */
+    .app.fake-active {
+      background: transparent;
+    }
+    
+    /* Digital display */
+    .display {
+      font-size: 4rem;
+      font-weight: 800;
+      letter-spacing: 4px;
+      color: rgba(255, 255, 255, 0.95);
+      text-align: center;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+      user-select: none;
+      pointer-events: none;
+    }
+    
+    /* Flash animation for feedback */
+    .flash {
+      animation: flash 0.2s ease-in-out;
+    }
+    
+    @keyframes flash {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(0.95); }
+    }
+    
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 51, 0.9);
+      border: 1px solid #2a386c;
+      color: #eef2ff;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      z-index: 3;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .toast.show {
+      opacity: 1;
+    }
+    
+    /* Settings button */
+    .settings-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(27, 37, 74, 0.8);
+      border: 1px solid #2a386c;
+      color: #eef2ff;
+      border-radius: 20px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 4;
+      cursor: pointer;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Fake homescreen background -->
+  <img id="homescreenBg" alt="Homescreen Background">
+  
+  <!-- Main app -->
+  <div class="app" id="app">
+    <div class="display" id="display">—</div>
+  </div>
+  
+  <!-- Toast notification -->
+  <div class="toast" id="toast"></div>
+  
+  <!-- Settings button -->
+  <div class="settings-btn" onclick="location.href='settings.html'">⚙</div>
+
+  <script>
+    // Simple localStorage wrapper
+    const Storage = {
+      save: (key, data) => {
+        try {
+          localStorage.setItem(`magicswipe_${key}`, JSON.stringify(data));
+        } catch (e) {
+          console.error('Storage save failed:', e);
+        }
+      },
+      load: (key, defaultValue = null) => {
+        try {
+          const item = localStorage.getItem(`magicswipe_${key}`);
+          return item ? JSON.parse(item) : defaultValue;
+        } catch (e) {
+          console.error('Storage load failed:', e);
+          return defaultValue;
+        }
+      }
+    };
+    
+    // App state
+    let settings = {};
+    let currentBuffer = '';
+    let submitTimeout = null;
+    
+    // DOM elements
+    const display = document.getElementById('display');
+    const toast = document.getElementById('toast');
+    const app = document.getElementById('app');
+    const homescreenBg = document.getElementById('homescreenBg');
+    
+    // Swipe gesture recognition
+    let startX = 0, startY = 0;
+    let isSwipeActive = false;
+    
+    function initializeApp() {
+      // Load settings
+      settings = Storage.load('settings', {
+        delay: 3,
+        clipboard: false,
+        fakeHomescreen: false,
+        homescreenImage: ''
+      });
+      
+      // Apply fake homescreen if enabled
+      if (settings.fakeHomescreen && settings.homescreenImage) {
+        homescreenBg.src = settings.homescreenImage;
+        homescreenBg.style.display = 'block';
+        app.classList.add('fake-active');
+      } else {
+        homescreenBg.style.display = 'none';
+        app.classList.remove('fake-active');
+      }
+      
+      // Prevent zoom/pan gestures
+      document.addEventListener('touchstart', handleTouchStart, { passive: false });
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd, { passive: false });
+      
+      // Double tap to clear
+      let lastTap = 0;
+      document.addEventListener('touchend', (e) => {
+        const now = Date.now();
+        if (now - lastTap < 300) {
+          clearBuffer();
+        }
+        lastTap = now;
+      });
+    }
+    
+    function handleTouchStart(e) {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+        return;
+      }
+      
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      isSwipeActive = true;
+    }
+    
+    function handleTouchMove(e) {
+      if (e.touches.length > 1) {
+        e.preventDefault();
+        return;
+      }
+      
+      if (!isSwipeActive) return;
+      e.preventDefault();
+    }
+    
+    function handleTouchEnd(e) {
+      if (!isSwipeActive) return;
+      isSwipeActive = false;
+      
+      const touch = e.changedTouches[0];
+      const endX = touch.clientX;
+      const endY = touch.clientY;
+      
+      const deltaX = endX - startX;
+      const deltaY = endY - startY;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      
+      // Minimum swipe distance
+      if (distance < 50) return;
+      
+      // Calculate angle (0° = right, 90° = down, 180° = left, 270° = up)
+      let angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+      if (angle < 0) angle += 360;
+      
+      // Convert to clock hour (12 = up, 3 = right, 6 = down, 9 = left)
+      const hour = Math.round((450 - angle) / 30) % 12;
+      const clockHour = hour === 0 ? 12 : hour;
+      
+      // Map to digit (12 = 0, 1-9 = 1-9, 10-11 ignored)
+      if (clockHour === 12) {
+        addDigit(0);
+      } else if (clockHour >= 1 && clockHour <= 9) {
+        addDigit(clockHour);
+      }
+      // 10 and 11 are ignored per spec
+    }
+    
+    function addDigit(digit) {
+      currentBuffer += digit.toString();
+      updateDisplay(currentBuffer);
+      flashDisplay();
+      
+      // Auto-submit after delay
+      clearTimeout(submitTimeout);
+      submitTimeout = setTimeout(() => {
+        submitBuffer();
+      }, settings.delay * 1000);
+    }
+    
+    function clearBuffer() {
+      currentBuffer = '';
+      updateDisplay('—');
+      clearTimeout(submitTimeout);
+      showToast('Cleared');
+    }
+    
+    function submitBuffer() {
+      if (!currentBuffer) return;
+      
+      const value = currentBuffer;
+      currentBuffer = '';
+      updateDisplay('—');
+      
+      // Copy to clipboard if enabled
+      if (settings.clipboard) {
+        copyToClipboard(value);
+      } else {
+        showToast(`Submitted: ${value}`);
+      }
+    }
+    
+    function updateDisplay(text) {
+      display.textContent = text;
+    }
+    
+    function flashDisplay() {
+      display.classList.remove('flash');
+      void display.offsetWidth; // Force reflow
+      display.classList.add('flash');
+    }
+    
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2000);
+    }
+    
+    async function copyToClipboard(text) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          showToast('Copied to clipboard');
+        } else {
+          // Fallback
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+          showToast('Copied to clipboard');
+        }
+      } catch (err) {
+        showToast('Copy failed');
+      }
+    }
+    
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', initializeApp);
+    
+    // Refresh settings when page becomes visible
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        initializeApp();
+      }
+    });
+  </script>
+</body>
+</html>
