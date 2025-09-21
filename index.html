@@ -18,6 +18,7 @@
             <h1>Upload Background Image</h1>
             <input type="file" id="imageUpload" accept="image/*" class="file-input">
             <label for="imageUpload" class="upload-button">Choose Image</label>
+            <button id="clearStorage" class="clear-button">Clear Saved Image</button>
         </div>
     </div>
 
@@ -29,6 +30,7 @@
         const uploadInterface = document.getElementById('uploadInterface');
         const backgroundContainer = document.getElementById('backgroundContainer');
         const imageUpload = document.getElementById('imageUpload');
+        const clearStorage = document.getElementById('clearStorage');
 
         // Local storage key for image data
         const STORAGE_KEY = 'pwa-background-image';
@@ -38,6 +40,7 @@
          */
         function loadSavedImage() {
             const savedImage = localStorage.getItem(STORAGE_KEY);
+            console.log('Saved image found:', !!savedImage); // Debug log
             if (savedImage) {
                 // Image exists in storage - display it immediately
                 displayBackgroundImage(savedImage);
@@ -100,6 +103,11 @@
 
         // Event listeners
         imageUpload.addEventListener('change', handleImageUpload);
+        clearStorage.addEventListener('click', function() {
+            localStorage.removeItem(STORAGE_KEY);
+            showUploadInterface();
+            console.log('Storage cleared');
+        });
 
         // Initialize app on page load
         document.addEventListener('DOMContentLoaded', loadSavedImage);

@@ -67,11 +67,31 @@ body {
     transition: all 0.3s ease;
     border: none;
     font-size: 1rem;
+    margin-bottom: 1rem;
 }
 
 .upload-button:hover {
     background: #0056CC;
     transform: translateY(-2px);
+}
+
+/* Clear storage button */
+.clear-button {
+    display: block;
+    padding: 0.5rem 1rem;
+    background: #FF3B30;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
+    font-size: 0.9rem;
+    margin: 0 auto;
+}
+
+.clear-button:hover {
+    background: #D70015;
 }
 
 /* Background image container - full screen with safe area handling */
