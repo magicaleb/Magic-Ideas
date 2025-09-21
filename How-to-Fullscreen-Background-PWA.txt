@@ -1,0 +1,69 @@
+# How to Make a Fullscreen Background Image PWA (iOS)
+
+This guide describes the technical steps to create a Progressive Web App (PWA) that allows users to set a fullscreen background image on iPhone (iOS 18+), with zoom/pan prevention and no browser UI.
+
+## Key Steps
+
+1. **HTML Structure**
+   - Use a single `<input type="file">` for image upload.
+   - Add a button to trigger background change.
+
+2. **Viewport Meta Tag**
+   - Use:
+     `<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">`
+   - This disables zooming and ensures the app fills the screen.
+
+3. **Apple PWA Meta Tags**
+   - Enable standalone mode:
+     `<meta name="apple-mobile-web-app-capable" content="yes">`
+   - Set status bar style:
+     `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">`
+
+4. **CSS for Fullscreen**
+   - Set `width: 100vw; height: 100vh; margin: 0; padding: 0;` on `body`.
+   - Use `background-size: cover; background-position: center; background-repeat: no-repeat;` for the image.
+
+5. **Prevent Scrolling and Gestures**
+   - Add `overflow: hidden; overscroll-behavior: none; touch-action: none;` to `html, body`.
+   - In JS, block multi-touch events:
+     ```js
+     document.addEventListener('touchstart', (e) => {
+       if (e.touches.length > 1) e.preventDefault();
+     }, { passive: false });
+     document.addEventListener('touchmove', (e) => {
+       if (e.touches.length > 1) e.preventDefault();
+     }, { passive: false });
+     ```
+
+6. **Image Upload and Display**
+   - Use FileReader to convert the image to a data URL:
+     ```js
+     uploadBtn.addEventListener('click', () => {
+       const file = imageInput.files[0];
+       if (!file) return;
+       const reader = new FileReader();
+       reader.onload = function(e) {
+         body.style.background = 'black';
+         body.style.backgroundImage = `url('${e.target.result}')`;
+         body.style.backgroundSize = 'cover';
+         body.style.backgroundPosition = 'center';
+         body.style.backgroundRepeat = 'no-repeat';
+       };
+       reader.readAsDataURL(file);
+     });
+     ```
+
+7. **Manifest.json**
+   - Add a manifest for PWA installability (icon, name, display: standalone).
+
+8. **Add to Home Screen**
+   - In Safari, tap Share → "Add to Home Screen".
+   - Open from the home screen for true fullscreen experience.
+
+## Troubleshooting
+- If you see browser UI or scrolling, check meta tags and CSS.
+- If the old version appears, clear cache or re-add the PWA.
+
+---
+
+This file is a technical reference for Copilot and developers. For updates, always check the latest working branch and test on a real device.
