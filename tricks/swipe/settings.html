@@ -8,10 +8,46 @@
   <title>Swipe — Settings</title>
   <link rel="stylesheet" href="../../assets/css/base.css?v=1">
   <style>
-    .settings-root{position:fixed;inset:0;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom);display:flex;align-items:center;justify-content:center}
-    .settings-card{width:100%;max-width:640px}
-    .form-row{display:flex;gap:12px;align-items:center}
-    .small{font-size:0.95rem;color:var(--muted)}
+    /* PWA-first layout for settings */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      background: #0b1020 !important;
+      overflow: auto !important;
+      position: fixed !important;
+      inset: 0 !important;
+    }
+    
+    .settings-root {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      padding: 20px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      box-sizing: border-box !important;
+    }
+    
+    .settings-card {
+      width: 100% !important;
+      max-width: 480px !important;
+      margin: 0 auto !important;
+    }
+    
+    .form-row {
+      display: flex !important;
+      gap: 12px !important;
+      align-items: center !important;
+    }
+    
+    .small {
+      font-size: 0.95rem !important;
+      color: #8ea0c7 !important;
+    }
   </style>
 </head>
 <body>
