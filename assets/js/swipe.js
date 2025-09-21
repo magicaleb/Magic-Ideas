@@ -27,83 +27,78 @@ const Swipe = (() => {
       ta.setAttribute('readonly', '');
       ta.style.position = 'absolute';
       ta.style.left = '-9999px';
-      // COMPLETELY REWORKED CLIPBOARD FUNCTION - Simple and reliable
+      // MOBILE-FIRST CLIPBOARD - Simple and reliable
   async function copyText(text){
-    let success = false;
-    let method = 'unknown';
+    console.log('[Clipboard] Attempting to copy:', text);
     
-    // Method 1: Simple execCommand (most reliable on mobile)
+    // Method 1: Most reliable on mobile - execCommand with focus
+    try {
+      const input = document.createElement('input');
+      input.value = text;
+      input.style.position = 'fixed';
+      input.style.top = '0';
+      input.style.left = '0';
+      input.style.width = '1px';
+      input.style.height = '1px';
+      input.style.border = 'none';
+      input.style.outline = 'none';
+      input.style.background = 'transparent';
+      input.style.fontSize = '16px'; // Prevents zoom on iOS
+      input.readOnly = true;
+      
+      document.body.appendChild(input);
+      input.focus();
+      input.setSelectionRange(0, input.value.length);
+      
+      const success = document.execCommand('copy');
+      document.body.removeChild(input);
+      
+      if (success) {
+        console.log('[Clipboard] ✅ SUCCESS with input method');
+        return true;
+      }
+    } catch (err) {
+      console.log('[Clipboard] ❌ Input method failed:', err.message);
+    }
+
+    // Method 2: Textarea fallback
     try {
       const textarea = document.createElement('textarea');
       textarea.value = text;
       textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      textarea.style.left = '0';
       textarea.style.top = '0';
-      textarea.style.width = '1px';
-      textarea.style.height = '1px';
-      textarea.style.border = 'none';
-      textarea.style.outline = 'none';
-      textarea.style.boxShadow = 'none';
-      textarea.style.background = 'transparent';
+      textarea.style.left = '0';
+      textarea.style.opacity = '0';
+      textarea.style.pointerEvents = 'none';
+      textarea.readOnly = true;
       
       document.body.appendChild(textarea);
+      textarea.focus();
       textarea.select();
-      textarea.setSelectionRange(0, textarea.value.length);
       
-      success = document.execCommand('copy');
-      method = 'execCommand';
+      const success = document.execCommand('copy');
       document.body.removeChild(textarea);
       
       if (success) {
-        console.log('[Clipboard] Success with execCommand');
+        console.log('[Clipboard] ✅ SUCCESS with textarea method');
         return true;
       }
     } catch (err) {
-      console.log('[Clipboard] execCommand failed:', err.message);
+      console.log('[Clipboard] ❌ Textarea method failed:', err.message);
     }
 
-    // Method 2: Modern Clipboard API (fallback)
+    // Method 3: Modern API (often blocked on mobile)
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
-        console.log('[Clipboard] Success with modern API');
+        console.log('[Clipboard] ✅ SUCCESS with modern API');
         return true;
       }
     } catch (err) {
-      console.log('[Clipboard] Modern API failed:', err.message);
+      console.log('[Clipboard] ❌ Modern API failed:', err.message);
     }
 
-    // Method 3: iOS-specific workaround
-    try {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.contentEditable = true;
-      textarea.readOnly = false;
-      textarea.style.position = 'absolute';
-      textarea.style.left = '-9999px';
-      textarea.style.top = '0';
-      
-      document.body.appendChild(textarea);
-      
-      const range = document.createRange();
-      range.selectNodeContents(textarea);
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-      
-      success = document.execCommand('copy');
-      document.body.removeChild(textarea);
-      
-      if (success) {
-        console.log('[Clipboard] Success with iOS workaround');
-        return true;
-      }
-    } catch (err) {
-      console.log('[Clipboard] iOS workaround failed:', err.message);
-    }
-
-    console.log('[Clipboard] All methods failed');
+    console.log('[Clipboard] ❌ ALL METHODS FAILED');
     return false;
   }
 
@@ -121,19 +116,27 @@ const Swipe = (() => {
     }
   }
 
-  // Synchronous copy for immediate user gestures
+  // Synchronous copy for immediate user gestures - simplified
   function syncCopy(text){
+    console.log('[Clipboard] syncCopy attempting:', text);
     try{
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      textarea.style.left = '0';
-      textarea.style.top = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
+      const input = document.createElement('input');
+      input.value = text;
+      input.style.position = 'fixed';
+      input.style.top = '0';
+      input.style.left = '0';
+      input.style.opacity = '0';
+      input.style.fontSize = '16px'; // Prevents iOS zoom
+      input.readOnly = true;
+      
+      document.body.appendChild(input);
+      input.focus();
+      input.select();
+      input.setSelectionRange(0, input.value.length);
+      
       const success = document.execCommand('copy');
-      document.body.removeChild(textarea);
+      document.body.removeChild(input);
+      
       console.log('[Clipboard] syncCopy result:', success);
       return success;
     }catch(e){ 

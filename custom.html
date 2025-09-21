@@ -90,53 +90,59 @@
             position: fixed;
             bottom: 20px;
             left: 20px;
-            width: 80px;
-            height: 80px;
-            background: rgba(255,255,255,0.8);
-            border: 3px solid rgba(255,255,255,0.9);
-            border-radius: 50%;
+            width: 100px;
+            height: 100px;
+            background: rgba(255,255,255,0.95);
+            border: 4px solid #000;
+            border-radius: 20px;
             color: black;
-            font-size: 12px;
+            font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            z-index: 1000;
+            z-index: 1001;
             display: flex;
             align-items: center;
             justify-content: center;
             touch-action: manipulation;
             -webkit-touch-callout: none;
             -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
             user-select: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
-        .debug-toggle:active {
-            background: rgba(255,255,255,1);
-            transform: scale(0.95);
+        .debug-toggle:active, .debug-toggle:focus {
+            background: rgba(255,255,0,0.95);
+            transform: scale(0.9);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
         .back-button {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            width: 80px;
-            height: 80px;
-            background: rgba(255,0,0,0.8);
-            border: 3px solid rgba(255,0,0,0.9);
-            border-radius: 50%;
+            width: 100px;
+            height: 100px;
+            background: rgba(255,0,0,0.95);
+            border: 4px solid #000;
+            border-radius: 20px;
             color: white;
-            font-size: 12px;
+            font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            z-index: 1000;
+            z-index: 1001;
             display: none;
             align-items: center;
             justify-content: center;
             touch-action: manipulation;
             -webkit-touch-callout: none;
             -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
             user-select: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
         }
-        .back-button:active {
-            background: rgba(255,0,0,1);
-            transform: scale(0.95);
+        .back-button:active, .back-button:focus {
+            background: rgba(255,100,100,0.95);
+            transform: scale(0.9);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
         .back-button.show { display: flex; }
         .debug-overlay {
@@ -168,8 +174,8 @@
     
     <div class="perform-screen" id="performScreen">
         <div class="tiny-numbers" id="tinyNumbers"></div>
-        <button class="debug-toggle" onclick="toggleDebug()">DEBUG</button>
-        <button class="back-button" id="backButton" onclick="goBack()">BACK</button>
+        <div class="debug-toggle" id="debugToggle">DEBUG</div>
+        <div class="back-button" id="backButton">BACK</div>
         <div class="debug-overlay" id="debugOverlay">
             <div><strong>VERSION:</strong> v2.2 - Enhanced Debug + Clipboard Fix</div>
             <div><strong>Buffer:</strong> <span id="debugBuffer">""</span></div>
@@ -314,6 +320,39 @@
                 isPerformMode = true;
                 startSwipeEngine();
             }
+        });
+        
+        // Add mobile-friendly event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            const debugToggle = document.getElementById('debugToggle');
+            const backButton = document.getElementById('backButton');
+            
+            // Debug toggle with multiple event types for better mobile support
+            ['touchend', 'click'].forEach(eventType => {
+                debugToggle.addEventListener(eventType, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleDebug();
+                }, { passive: false });
+            });
+            
+            // Back button with multiple event types
+            ['touchend', 'click'].forEach(eventType => {
+                backButton.addEventListener(eventType, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    goBack();
+                }, { passive: false });
+            });
+            
+            // Prevent double-tap zoom on buttons
+            debugToggle.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+            
+            backButton.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+            }, { passive: false });
         });
     </script>
 </body>
