@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Magic Swipe</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0b1020;
+      color: #eef2ff;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: manipulation;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .card {
+      background: #121a33;
+      border: 1px solid #1f2a53;
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+    
+    h1 {
+      text-align: center;
+      margin-bottom: 24px;
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      color: #8ea0c7;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #26325f;
+      border-radius: 8px;
+      background: #0f1630;
+      color: #eef2ff;
+      font-size: 16px;
+    }
+    
+    input[type="checkbox"] {
+      width: auto;
+      margin-right: 8px;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    
+    button {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(90deg, #60a5fa, #6ee7b7);
+      color: #05111b;
+      font-weight: 700;
+      font-size: 1.1rem;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    
+    button:hover {
+      opacity: 0.9;
+    }
+    
+    .secondary {
+      background: #1b254a;
+      color: #eef2ff;
+      border: 1px solid #2a386c;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Magic Swipe Settings</h1>
+      
+      <div class="form-group">
+        <label for="delay">Auto-submit delay (seconds)</label>
+        <input type="number" id="delay" min="1" max="10" value="3">
+      </div>
+      
+      <div class="checkbox-group">
+        <input type="checkbox" id="clipboard">
+        <label for="clipboard">Copy to clipboard</label>
+      </div>
+      
+      <div class="checkbox-group">
+        <input type="checkbox" id="fakeHomescreen">
+        <label for="fakeHomescreen">Enable fake homescreen</label>
+      </div>
+      
+      <div class="form-group">
+        <label for="homescreenImage">Upload homescreen image</label>
+        <input type="file" id="homescreenImage" accept="image/*">
+      </div>
+      
+      <button onclick="saveSettings()">Save Settings</button>
+      <button class="secondary" onclick="location.href='perform.html'">Start Performing</button>
+    </div>
+  </div>
+
+  <script>
+    // Simple localStorage wrapper
+    const Storage = {
+      save: (key, data) => {
+        try {
+          localStorage.setItem(`magicswipe_${key}`, JSON.stringify(data));
+        } catch (e) {
+          console.error('Storage save failed:', e);
+        }
+      },
+      load: (key, defaultValue = null) => {
+        try {
+          const item = localStorage.getItem(`magicswipe_${key}`);
+          return item ? JSON.parse(item) : defaultValue;
+        } catch (e) {
+          console.error('Storage load failed:', e);
+          return defaultValue;
+        }
+      }
+    };
+    
+    // Load existing settings
+    function loadSettings() {
+      const settings = Storage.load('settings', {
+        delay: 3,
+        clipboard: false,
+        fakeHomescreen: false,
+        homescreenImage: ''
+      });
+      
+      document.getElementById('delay').value = settings.delay;
+      document.getElementById('clipboard').checked = settings.clipboard;
+      document.getElementById('fakeHomescreen').checked = settings.fakeHomescreen;
+    }
+    
+    // Save settings
+    function saveSettings() {
+      const settings = {
+        delay: parseInt(document.getElementById('delay').value) || 3,
+        clipboard: document.getElementById('clipboard').checked,
+        fakeHomescreen: document.getElementById('fakeHomescreen').checked,
+        homescreenImage: Storage.load('settings', {}).homescreenImage || ''
+      };
+      
+      Storage.save('settings', settings);
+      alert('Settings saved!');
+    }
+    
+    // Handle image upload
+    document.getElementById('homescreenImage').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const settings = Storage.load('settings', {});
+        settings.homescreenImage = event.target.result;
+        Storage.save('settings', settings);
+        alert('Image uploaded and saved!');
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    // Initialize
+    loadSettings();
+  </script>
+</body>
+</html>
