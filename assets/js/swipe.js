@@ -27,50 +27,83 @@ const Swipe = (() => {
       ta.setAttribute('readonly', '');
       ta.style.position = 'absolute';
       ta.style.left = '-9999px';
-      async function copyText(text){
-    // Try navigator.clipboard first (preferred, async)
+      // COMPLETELY REWORKED CLIPBOARD FUNCTION - Simple and reliable
+  async function copyText(text){
+    let success = false;
+    let method = 'unknown';
+    
+    // Method 1: Simple execCommand (most reliable on mobile)
     try {
-      if(navigator.clipboard && typeof navigator.clipboard.writeText === 'function'){
-        await navigator.clipboard.writeText(text);
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      textarea.style.left = '0';
+      textarea.style.top = '0';
+      textarea.style.width = '1px';
+      textarea.style.height = '1px';
+      textarea.style.border = 'none';
+      textarea.style.outline = 'none';
+      textarea.style.boxShadow = 'none';
+      textarea.style.background = 'transparent';
+      
+      document.body.appendChild(textarea);
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+      
+      success = document.execCommand('copy');
+      method = 'execCommand';
+      document.body.removeChild(textarea);
+      
+      if (success) {
+        console.log('[Clipboard] Success with execCommand');
         return true;
       }
-    } catch (e){
-      try{ console.debug('[Swipe] navigator.clipboard.writeText failed', e); }catch(_){ }
+    } catch (err) {
+      console.log('[Clipboard] execCommand failed:', err.message);
     }
 
-    // Fallback: textarea + execCommand with iOS-specific handling
+    // Method 2: Modern Clipboard API (fallback)
     try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'absolute';
-      ta.style.left = '-9999px';
-      ta.style.top = '-9999px';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      
-      // iOS-specific selection
-      if (navigator.userAgent.match(/ipad|iphone/i)) {
-        ta.contentEditable = true;
-        ta.readOnly = false;
-        const range = document.createRange();
-        range.selectNodeContents(ta);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
-        ta.setSelectionRange(0, 999999);
-      } else {
-        ta.focus();
-        ta.select();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        console.log('[Clipboard] Success with modern API');
+        return true;
       }
-      
-      const successful = document.execCommand('copy');
-      document.body.removeChild(ta);
-      return successful;
-    } catch (e){
-      try{ console.debug('[Swipe] textarea fallback failed', e); }catch(_){ }
+    } catch (err) {
+      console.log('[Clipboard] Modern API failed:', err.message);
     }
 
+    // Method 3: iOS-specific workaround
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.contentEditable = true;
+      textarea.readOnly = false;
+      textarea.style.position = 'absolute';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '0';
+      
+      document.body.appendChild(textarea);
+      
+      const range = document.createRange();
+      range.selectNodeContents(textarea);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      
+      if (success) {
+        console.log('[Clipboard] Success with iOS workaround');
+        return true;
+      }
+    } catch (err) {
+      console.log('[Clipboard] iOS workaround failed:', err.message);
+    }
+
+    console.log('[Clipboard] All methods failed');
     return false;
   }
 
@@ -88,17 +121,25 @@ const Swipe = (() => {
     }
   }
 
-  // Synchronous copy (execCommand) attempt — to be called inside user gesture handlers
+  // Synchronous copy for immediate user gestures
   function syncCopy(text){
     try{
-      const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly','');
-      ta.style.position='absolute'; ta.style.left='-9999px'; ta.style.top='0';
-      document.body.appendChild(ta);
-      ta.select(); if (typeof ta.setSelectionRange === 'function') ta.setSelectionRange(0, ta.value.length);
-      const ok = document.execCommand && document.execCommand('copy');
-      document.body.removeChild(ta);
-      return !!ok;
-    }catch(e){ try{ console.debug('[Swipe] syncCopy failed', e); }catch(_){} return false; }
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      textarea.style.left = '0';
+      textarea.style.top = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      console.log('[Clipboard] syncCopy result:', success);
+      return success;
+    }catch(e){ 
+      console.log('[Clipboard] syncCopy failed:', e.message);
+      return false; 
+    }
   }
 
   function mergeConfig(arg={}){

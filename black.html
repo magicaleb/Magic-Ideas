@@ -34,16 +34,165 @@
             transition: opacity 0.3s;
         }
         .numbers.show { opacity: 1; }
+        
+        /* Debug overlay */
+        .debug-overlay {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            color: #00ff00;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            border-radius: 4px;
+            z-index: 9999;
+            display: none;
+            line-height: 1.3;
+        }
+        .debug-overlay.show { display: block; }
+                .debug-toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.8);
+            border: 3px solid rgba(255,255,255,0.9);
+            border-radius: 50%;
+            color: black;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .debug-toggle:active {
+            background: rgba(255,255,255,1);
+            transform: scale(0.95);
+        }
+        .back-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            background: rgba(255,0,0,0.8);
+            border: 3px solid rgba(255,0,0,0.9);
+            border-radius: 50%;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .back-button:active {
+            background: rgba(255,0,0,1);
+            transform: scale(0.95);
+        }
+        .back-button.show { display: flex; }
+        .debug-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.9);
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            z-index: 999;
+            display: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .debug-overlay.show { display: block; }
     </style>
 </head>
 <body>
     <div class="container" id="root">
         <div class="numbers" id="numbers"></div>
+        <button class="debug-toggle" onclick="toggleDebug()">DEBUG</button>
+        <button class="back-button" id="backButton" onclick="goBack()">BACK</button>
+        <div class="debug-overlay" id="debugOverlay">
+            <div><strong>VERSION:</strong> v2.2 - Enhanced Debug + Clipboard Fix</div>
+            <div><strong>Buffer:</strong> <span id="debugBuffer">""</span></div>
+            <div><strong>Timer:</strong> <span id="debugTimer">none</span></div>
+            <div><strong>Swipe Count:</strong> <span id="debugSwipeCount">0</span></div>
+            <div><strong>Clipboard Status:</strong> <span id="debugClipboard">ready</span></div>
+            <div><strong>Last Copy:</strong> <span id="debugLastCopy">none</span></div>
+            <div><strong>Copy Attempts:</strong> <span id="debugCopyAttempts">0</span></div>
+            <div><strong>Copy Success:</strong> <span id="debugCopySuccess">0</span></div>
+            <div><strong>Environment:</strong> <span id="debugEnvironment">loading...</span></div>
+            <div><strong>Permissions:</strong> <span id="debugPermissions">checking...</span></div>
+            <div><strong>Secure Context:</strong> <span id="debugSecure">unknown</span></div>
+        </div>
     </div>
     <script src="assets/js/storage.js"></script>
     <script src="assets/js/gestures.js"></script>
     <script src="assets/js/swipe.js"></script>
     <script>
+        let debugVisible = false;
+        let swipeCount = 0;
+        let copyAttempts = 0;
+        let copySuccesses = 0;
+        
+        function toggleDebug() {
+            debugVisible = !debugVisible;
+            document.getElementById('debugOverlay').classList.toggle('show', debugVisible);
+            document.getElementById('backButton').classList.toggle('show', debugVisible);
+            if (debugVisible) {
+                updateEnvironmentInfo();
+            }
+        }
+        
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+        
+        function updateDebug(key, value) {
+            const el = document.getElementById(`debug${key}`);
+            if (el) el.textContent = value;
+        }
+        
+        function updateEnvironmentInfo() {
+            // Update environment info
+            const userAgent = navigator.userAgent.includes('iPhone') ? 'iPhone' : 
+                            navigator.userAgent.includes('iPad') ? 'iPad' : 
+                            navigator.userAgent.includes('Safari') ? 'Safari' : 'Desktop';
+            updateDebug('Environment', userAgent);
+            
+            // Check secure context
+            const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
+            updateDebug('Secure', isSecure ? 'Yes' : 'No');
+            
+            // Check clipboard permissions
+            if (navigator.permissions) {
+                navigator.permissions.query({name: 'clipboard-write'}).then(result => {
+                    updateDebug('Permissions', result.state);
+                }).catch(() => {
+                    updateDebug('Permissions', 'unavailable');
+                });
+            } else {
+                updateDebug('Permissions', 'not supported');
+            }
+        }
+        
         function showNumbers(text) {
             const el = document.getElementById('numbers');
             el.textContent = text;
@@ -52,25 +201,39 @@
             } else {
                 el.classList.add('show');
             }
+            updateDebug('Buffer', `"${text}"`);
         }
         
-        // Start the swipe engine
+        // Start the swipe engine with 1-second delay
         Swipe.start({
-            delay: 3,
+            delay: 1,  // Changed from 3 to 1 second
             clipboard: true
         }, {
             onDigit: (digit, buffer) => {
+                swipeCount++;
                 showNumbers(buffer);
+                updateDebug('Timer', 'armed (1s)');
+                updateDebug('SwipeCount', swipeCount);
             },
             onSubmit: (value, route) => {
                 console.log('Submitted:', value, 'via:', route);
-                // Numbers will disappear when buffer is cleared and onClear is called
+                copyAttempts++;
+                if (route.includes('clipboard') && !route.includes('failed')) {
+                    copySuccesses++;
+                }
+                updateDebug('LastCopy', value);
+                updateDebug('Clipboard', route);
+                updateDebug('Timer', 'none');
+                updateDebug('CopyAttempts', copyAttempts);
+                updateDebug('CopySuccess', copySuccesses);
             },
             onClear: () => {
                 showNumbers('');
+                updateDebug('Timer', 'none');
             },
             onStatus: (message) => {
                 console.log('Status:', message);
+                updateDebug('Clipboard', message.toLowerCase());
             }
         });
     </script>
