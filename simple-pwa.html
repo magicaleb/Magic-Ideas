@@ -2,52 +2,27 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Image Background</title>
+    <title>Color Tap</title>
 </head>
 <body style="margin:0; padding:0; width:100vw; height:100vh; background:red; display:flex; align-items:center; justify-content:center; font-family:system-ui;">
     
-    <div style="text-align: center;">
-        <input type="file" id="imageInput" accept="image/*" style="margin-bottom: 15px; padding: 10px; font-size: 16px; background: white; border-radius: 8px;">
-        <br>
-        <button id="uploadBtn" style="padding: 15px 30px; font-size: 18px; border: none; border-radius: 8px; background: white; color: black; cursor: pointer;">
-            Set as Background
-        </button>
-    </div>
+    <button id="colorButton" style="padding:20px 40px; font-size:24px; border:none; border-radius:12px; background:white; color:black; cursor:pointer;">
+        Tap to Change Color
+    </button>
 
     <script>
         const body = document.body;
-        const imageInput = document.getElementById('imageInput');
-        const uploadBtn = document.getElementById('uploadBtn');
+        const button = document.getElementById('colorButton');
         
-        // Prevent zoom/pan gestures
-        document.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 1) {
-                e.preventDefault();
-            }
-        }, { passive: false });
+        const colors = ['red', 'blue', 'green', 'purple', 'orange', 'pink', 'yellow', 'cyan'];
+        let currentIndex = 0;
         
-        document.addEventListener('touchmove', (e) => {
-            if (e.touches.length > 1) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-        
-        uploadBtn.addEventListener('click', () => {
-            const file = imageInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    body.style.backgroundImage = `url(${e.target.result})`;
-                    body.style.backgroundSize = 'cover';
-                    body.style.backgroundPosition = 'center';
-                    body.style.backgroundRepeat = 'no-repeat';
-                    body.style.backgroundColor = 'black'; // Fallback color
-                };
-                reader.readAsDataURL(file);
-            }
+        button.addEventListener('click', () => {
+            currentIndex = (currentIndex + 1) % colors.length;
+            body.style.background = colors[currentIndex];
         });
     </script>
 
