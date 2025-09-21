@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Image Background</title>
 </head>
-<body style="margin:0; padding:0; width:100vw; height:100vh; background:red; display:flex; align-items:center; justify-content:center; font-family:system-ui; overflow:hidden; position:fixed; top:0; left:0; right:0; bottom:0;">
+<body style="margin:0; padding:0; width:100vw; height:100vh; background:red; display:flex; align-items:center; justify-content:center; font-family:system-ui;">
     
     <div style="text-align: center;">
         <input type="file" id="imageInput" accept="image/*" style="margin-bottom: 15px; padding: 10px; font-size: 16px; background: white; border-radius: 8px;">
@@ -33,23 +33,7 @@
             if (e.touches.length > 1) {
                 e.preventDefault();
             }
-            // Prevent all scrolling
-            e.preventDefault();
         }, { passive: false });
-        
-        // Prevent scrolling on desktop
-        document.addEventListener('wheel', (e) => {
-            e.preventDefault();
-        }, { passive: false });
-        
-        // Prevent scrolling with keyboard
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
-                e.key === 'PageUp' || e.key === 'PageDown' ||
-                e.key === 'Home' || e.key === 'End' || e.key === ' ') {
-                e.preventDefault();
-            }
-        });
         
         uploadBtn.addEventListener('click', () => {
             const file = imageInput.files[0];
