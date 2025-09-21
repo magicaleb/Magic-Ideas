@@ -8,8 +8,122 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
     <title>Full Screen Background PWA</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="manifest" href="manifest.json">
+    <style>
+        /* Reset and base styles for PWA */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+        }
+
+        /* Upload interface styling - shown initially */
+        .upload-interface {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 1000;
+        }
+
+        .upload-container {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .upload-container h1 {
+            color: white;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* Hide the default file input */
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Custom upload button styling */
+        .upload-button {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: #007AFF;
+            color: white;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .upload-button:hover {
+            background: #0056CC;
+            transform: translateY(-2px);
+        }
+
+        .clear-button {
+            display: block;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin: 0 auto;
+        }
+
+        /* Background image container - full screen with safe area handling */
+        .background-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            
+            /* Extend into safe areas for true edge-to-edge display */
+            margin-top: calc(-1 * env(safe-area-inset-top));
+            margin-left: calc(-1 * env(safe-area-inset-left));
+            margin-right: calc(-1 * env(safe-area-inset-right));
+            margin-bottom: calc(-1 * env(safe-area-inset-bottom));
+            
+            /* Background image properties */
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            
+            /* Prevent any interaction with the background */
+            pointer-events: none;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+            touch-action: none;
+            
+            /* Initially hidden */
+            display: none;
+            z-index: 1;
+        }
+    </style>
 </head>
 <body>
     <!-- Initial upload interface - hidden after image is set -->
@@ -18,7 +132,8 @@
             <h1>Upload Background Image</h1>
             <input type="file" id="imageUpload" accept="image/*" class="file-input">
             <label for="imageUpload" class="upload-button">Choose Image</label>
-            <button id="clearStorage" class="clear-button">Clear Saved Image</button>
+            <br>
+            <button id="clearButton" class="clear-button">Clear Saved Image</button>
         </div>
     </div>
 
@@ -30,7 +145,7 @@
         const uploadInterface = document.getElementById('uploadInterface');
         const backgroundContainer = document.getElementById('backgroundContainer');
         const imageUpload = document.getElementById('imageUpload');
-        const clearStorage = document.getElementById('clearStorage');
+        const clearButton = document.getElementById('clearButton');
 
         // Local storage key for image data
         const STORAGE_KEY = 'pwa-background-image';
@@ -40,7 +155,6 @@
          */
         function loadSavedImage() {
             const savedImage = localStorage.getItem(STORAGE_KEY);
-            console.log('Saved image found:', !!savedImage); // Debug log
             if (savedImage) {
                 // Image exists in storage - display it immediately
                 displayBackgroundImage(savedImage);
@@ -77,6 +191,14 @@
         }
 
         /**
+         * Clear saved image and show upload interface
+         */
+        function clearSavedImage() {
+            localStorage.removeItem(STORAGE_KEY);
+            showUploadInterface();
+        }
+
+        /**
          * Handle file selection and processing
          * @param {Event} event - File input change event
          */
@@ -103,11 +225,7 @@
 
         // Event listeners
         imageUpload.addEventListener('change', handleImageUpload);
-        clearStorage.addEventListener('click', function() {
-            localStorage.removeItem(STORAGE_KEY);
-            showUploadInterface();
-            console.log('Storage cleared');
-        });
+        clearButton.addEventListener('click', clearSavedImage);
 
         // Initialize app on page load
         document.addEventListener('DOMContentLoaded', loadSavedImage);
