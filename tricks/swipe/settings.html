@@ -75,8 +75,18 @@
         <label class="small">Upload homescreen image (optional)</label>
         <input id="homescreenImage" type="file" accept="image/*">
 
+        <!-- Background Time! Feature -->
+        <div class="row" style="align-items:center;gap:8px;margin-top:16px;padding:16px;border:2px solid #60a5fa;border-radius:12px">
+          <input id="backgroundTime" type="checkbox">
+          <label for="backgroundTime" class="small" style="color:#60a5fa;font-weight:bold">🧪 Background Time! (Test Mode)</label>
+        </div>
+        
+        <label class="small">Upload test background image</label>
+        <input id="backgroundTestImage" type="file" accept="image/*">
+
         <div style="display:flex;gap:12px;justify-content:center;margin-top:8px">
           <button id="save" class="ghost">Save</button>
+          <button id="backgroundSandbox" class="xl" style="background:#60a5fa;display:none">Background Sandbox</button>
           <a id="performLink" href="perform.html"><button id="performButton" class="xl">Perform</button></a>
         </div>
       </div>
@@ -101,6 +111,34 @@
     $('shortcut').addEventListener('input', ()=>{ state.shortcut = ($('shortcut').value||'').trim(); persist(); });
     $('clipboard').addEventListener('change', ()=>{ state.clipboard = !!$('clipboard').checked; persist(); });
     $('fakeHomescreen').addEventListener('change', ()=>{ state.fakeHomescreen = !!$('fakeHomescreen').checked; persist(); });
+
+    // Background Time! feature
+    const backgroundTimeCheckbox = $('backgroundTime');
+    const backgroundSandboxButton = $('backgroundSandbox');
+    const backgroundTestImageInput = $('backgroundTestImage');
+    
+    backgroundTimeCheckbox.addEventListener('change', () => {
+      if (backgroundTimeCheckbox.checked) {
+        backgroundSandboxButton.style.display = 'block';
+      } else {
+        backgroundSandboxButton.style.display = 'none';
+      }
+    });
+    
+    backgroundTestImageInput.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        localStorage.setItem('backgroundTestImage', r.result);
+        alert('Background test image saved!');
+      };
+      r.readAsDataURL(f);
+    });
+    
+    backgroundSandboxButton.addEventListener('click', () => {
+      window.location.href = '../../background-sandbox.html';
+    });
 
     const imgEl = $('homescreenImage');
     if(imgEl){
