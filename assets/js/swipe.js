@@ -172,17 +172,27 @@ const Swipe = (() => {
     async function submit(){
       try{ console.debug('[Swipe] submit triggered, buffer=', buffer); }catch(_){ }
       if(!buffer) return;
-      const value = buffer; buffer=""; clearTimeout(timer); timer=null; paint();
+      
+      const value = buffer; // Save the value BEFORE clearing
+      console.log('[Clipboard] Saving value to copy:', value);
+      
+      // Clear display and timer first
+      clearTimeout(timer); timer=null; 
+      buffer=""; // Clear buffer AFTER saving value
+      paint(); // Update display to show empty
       try{ console.debug('[Swipe] buffer cleared by submit'); }catch(_){ }
+      
       let route="none";
 
-      // If clipboard is requested, try synchronous copy first for better mobile compatibility
+      // If clipboard is requested, try to copy the SAVED value
       if(cfg.clipboard){
+        console.log('[Clipboard] Attempting to copy saved value:', value);
         // Try synchronous copy first (better for mobile)
         let ok = syncCopy(value);
         if(ok) {
           route = "clipboard";
           call(hooks.onStatus,"Copied");
+          console.log('[Clipboard] ✅ SUCCESS with syncCopy');
         } else {
           // Fallback to async copy
           try {
@@ -190,14 +200,16 @@ const Swipe = (() => {
             if(ok) {
               route = "clipboard";
               call(hooks.onStatus,"Copied");
+              console.log('[Clipboard] ✅ SUCCESS with async copyText');
             } else {
               route = 'clipboard-failed'; 
               call(hooks.onStatus,"Clipboard blocked");
+              console.log('[Clipboard] ❌ FAILED - Both methods failed');
             }
           } catch(err) {
             route = 'clipboard-failed'; 
             call(hooks.onStatus,"Clipboard error");
-            console.log('[Swipe] Async clipboard failed:', err.message);
+            console.log('[Clipboard] ❌ ERROR:', err.message);
           }
         }
       }
