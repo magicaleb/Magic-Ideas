@@ -17,15 +17,6 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            background: #222;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: background-image 0.3s;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
         }
         
         #backgroundImage {
@@ -37,41 +28,10 @@
             object-fit: cover;
             z-index: 1;
         }
-        .uploader {
-            background: rgba(0,0,0,0.7);
-            padding: 2em;
-            border-radius: 1em;
-            box-shadow: 0 2px 16px rgba(0,0,0,0.2);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1em;
-            z-index: 2;
-        }
-        .uploader input[type="file"] {
-            font-size: 1em;
-        }
-        .uploader button {
-            padding: 0.5em 1.5em;
-            font-size: 1em;
-            border: none;
-            border-radius: 0.5em;
-            background: #4caf50;
-            color: #fff;
-            cursor: pointer;
-        }
-        .uploader button:active {
-            background: #388e3c;
-        }
     </style>
 </head>
 <body>
     <img id="backgroundImage" alt="Background">
-    <div class="uploader" id="uploader">
-        <label for="bgfile">Upload background image:</label>
-        <input type="file" id="bgfile" accept="image/*">
-        <button id="setbg">Set as Background</button>
-    </div>
     
     <script>
         // Get image from localStorage
@@ -81,23 +41,6 @@
         } else {
             document.body.innerHTML = '<div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 24px;">No image found</div>';
         }
-        
-        const fileInput = document.getElementById('bgfile');
-        const setBgBtn = document.getElementById('setbg');
-        const uploader = document.getElementById('uploader');
-        let imageDataUrl = null;
-        
-        setBgBtn.onclick = function() {
-            const file = fileInput.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                imageDataUrl = e.target.result;
-                document.body.style.backgroundImage = `url('${imageDataUrl}')`;
-                uploader.style.display = 'none';
-            };
-            reader.readAsDataURL(file);
-        };
     </script>
 </body>
 </html>

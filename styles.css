@@ -1,0 +1,149 @@
+/* Global reset and PWA-specific styling */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    
+    /* PWA-specific: Extend to full screen including safe areas */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Upload interface - shown initially or when no saved image */
+.upload-interface {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    z-index: 100;
+    
+    /* Extend beyond safe areas for full coverage */
+    margin: calc(-1 * env(safe-area-inset-top)) calc(-1 * env(safe-area-inset-right)) calc(-1 * env(safe-area-inset-bottom)) calc(-1 * env(safe-area-inset-left));
+}
+
+.upload-container {
+    text-align: center;
+    color: white;
+    padding: 2rem;
+}
+
+.upload-container h1 {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    font-weight: 300;
+}
+
+/* Hide the actual file input */
+.file-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Style the label as a button */
+.upload-button {
+    display: inline-block;
+    padding: 1rem 2rem;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50px;
+    color: white;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.upload-button:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+/* Background container - displays the uploaded image */
+.background-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: none;
+    
+    /* Extend beyond safe areas for full edge-to-edge coverage */
+    margin: calc(-1 * env(safe-area-inset-top)) calc(-1 * env(safe-area-inset-right)) calc(-1 * env(safe-area-inset-bottom)) calc(-1 * env(safe-area-inset-left));
+    
+    /* Background image properties for full-screen display */
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    
+    /* Prevent any interaction with the background */
+    pointer-events: none;
+    
+    /* Prevent context menus or image saving on long press */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    
+    /* Prevent image dragging */
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-drag: none;
+}
+
+/* Additional iOS-specific styles to prevent image interaction */
+.background-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Prevent zoom and scroll behaviors in PWA */
+body {
+    touch-action: none;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    overscroll-behavior: none;
+}
+
+/* Hide any potential scrollbars */
+::-webkit-scrollbar {
+    display: none;
+}
+
+/* Ensure full coverage on different screen orientations */
+@media screen and (orientation: landscape) {
+    .background-container,
+    .upload-interface {
+        width: 100vh;
+        height: 100vw;
+    }
+}
+
+/* Additional safety for iOS notch handling */
+@supports (padding: max(0px)) {
+    .background-container,
+    .upload-interface {
+        padding: max(env(safe-area-inset-top), 0px) max(env(safe-area-inset-right), 0px) max(env(safe-area-inset-bottom), 0px) max(env(safe-area-inset-left), 0px);
+        margin: calc(-1 * max(env(safe-area-inset-top), 0px)) calc(-1 * max(env(safe-area-inset-right), 0px)) calc(-1 * max(env(safe-area-inset-bottom), 0px)) calc(-1 * max(env(safe-area-inset-left), 0px));
+    }
+}

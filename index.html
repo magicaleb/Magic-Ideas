@@ -1,22 +1,108 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#0b1020">
-  <title>Magic Pad</title>
-  <link rel="stylesheet" href="assets/css/base.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <title>Full Screen Background PWA</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <div class="safe">
-    <div class="container">
-      <h1>Magic Pad</h1>
-      <a href="tricks/swipe/settings.html"><button class="xl">Swipe Input</button></a>
+    <!-- Initial upload interface - hidden after image is set -->
+    <div id="uploadInterface" class="upload-interface">
+        <div class="upload-container">
+            <h1>Upload Background Image</h1>
+            <input type="file" id="imageUpload" accept="image/*" class="file-input">
+            <label for="imageUpload" class="upload-button">Choose Image</label>
+        </div>
     </div>
-  </div>
-  </div>
-  <div class="beta-watermark">Newest</div>
+
+    <!-- Background image container - initially hidden -->
+    <div id="backgroundContainer" class="background-container"></div>
+
+    <script>
+        // DOM elements
+        const uploadInterface = document.getElementById('uploadInterface');
+        const backgroundContainer = document.getElementById('backgroundContainer');
+        const imageUpload = document.getElementById('imageUpload');
+
+        // Local storage key for image data
+        const STORAGE_KEY = 'pwa-background-image';
+
+        /**
+         * Load saved image from localStorage on app startup
+         */
+        function loadSavedImage() {
+            const savedImage = localStorage.getItem(STORAGE_KEY);
+            if (savedImage) {
+                // Image exists in storage - display it immediately
+                displayBackgroundImage(savedImage);
+                hideUploadInterface();
+            } else {
+                // No saved image - show upload interface
+                showUploadInterface();
+            }
+        }
+
+        /**
+         * Display the background image and hide all UI
+         * @param {string} imageDataUrl - Base64 encoded image data URL
+         */
+        function displayBackgroundImage(imageDataUrl) {
+            // Set background image using CSS
+            backgroundContainer.style.backgroundImage = `url("${imageDataUrl}")`;
+            backgroundContainer.style.display = 'block';
+        }
+
+        /**
+         * Hide the upload interface completely
+         */
+        function hideUploadInterface() {
+            uploadInterface.style.display = 'none';
+        }
+
+        /**
+         * Show the upload interface
+         */
+        function showUploadInterface() {
+            uploadInterface.style.display = 'flex';
+            backgroundContainer.style.display = 'none';
+        }
+
+        /**
+         * Handle file selection and processing
+         * @param {Event} event - File input change event
+         */
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Use FileReader to convert image to base64 data URL
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageDataUrl = e.target.result;
+                
+                // Save to localStorage for persistence
+                localStorage.setItem(STORAGE_KEY, imageDataUrl);
+                
+                // Display the image immediately
+                displayBackgroundImage(imageDataUrl);
+                hideUploadInterface();
+            };
+            
+            // Read file as data URL (base64 encoded)
+            reader.readAsDataURL(file);
+        }
+
+        // Event listeners
+        imageUpload.addEventListener('change', handleImageUpload);
+
+        // Initialize app on page load
+        document.addEventListener('DOMContentLoaded', loadSavedImage);
+    </script>
 </body>
 </html>
