@@ -176,11 +176,30 @@ const Swipe = (() => {
       try{ console.debug('[Swipe] buffer cleared by submit'); }catch(_){ }
       let route="none";
 
-      // If clipboard is requested, attempt copy first and report route accordingly
+      // If clipboard is requested, try synchronous copy first for better mobile compatibility
       if(cfg.clipboard){
-        const ok = await copyText(value);
-        if(ok) route = "clipboard";
-        else { route = 'clipboard-failed'; call(hooks.onStatus,"Clipboard blocked"); }
+        // Try synchronous copy first (better for mobile)
+        let ok = syncCopy(value);
+        if(ok) {
+          route = "clipboard";
+          call(hooks.onStatus,"Copied");
+        } else {
+          // Fallback to async copy
+          try {
+            ok = await copyText(value);
+            if(ok) {
+              route = "clipboard";
+              call(hooks.onStatus,"Copied");
+            } else {
+              route = 'clipboard-failed'; 
+              call(hooks.onStatus,"Clipboard blocked");
+            }
+          } catch(err) {
+            route = 'clipboard-failed'; 
+            call(hooks.onStatus,"Clipboard error");
+            console.log('[Swipe] Async clipboard failed:', err.message);
+          }
+        }
       }
 
       // If a shortcut is configured, wait briefly after a successful clipboard write so the clipboard has time to populate
@@ -216,8 +235,6 @@ const Swipe = (() => {
       if(v==="SUBMIT"){ return; }
       buffer += String(v);
       call(hooks.onDigit, v, buffer);
-      // Try a synchronous copy during the user gesture so clipboards that require a gesture succeed
-      try{ if(cfg.clipboard){ const ok = syncCopy(buffer); if(ok) call(hooks.onStatus,'Copied'); } }catch(_){ }
       arm();
     }, root);
 

@@ -198,6 +198,9 @@
         let swipeEngine = null;
         let isPerformMode = false;
         let debugVisible = false;
+        let swipeCount = 0;
+        let copyAttempts = 0;
+        let copySuccesses = 0;
         
         function toggleDebug() {
             debugVisible = !debugVisible;
@@ -271,14 +274,22 @@
                 clipboard: true
             }, {
                 onDigit: (digit, buffer) => {
+                    swipeCount++;
                     showTinyNumbers(buffer);
                     updateDebug('Timer', 'armed (1s)');
+                    updateDebug('SwipeCount', swipeCount);
                 },
                 onSubmit: (value, route) => {
                     console.log('Submitted:', value, 'via:', route);
+                    copyAttempts++;
+                    if (route.includes('clipboard') && !route.includes('failed')) {
+                        copySuccesses++;
+                    }
                     updateDebug('LastCopy', value);
                     updateDebug('Clipboard', route);
                     updateDebug('Timer', 'none');
+                    updateDebug('CopyAttempts', copyAttempts);
+                    updateDebug('CopySuccess', copySuccesses);
                 },
                 onClear: () => {
                     showTinyNumbers('');
