@@ -102,10 +102,11 @@
         function showTinyNumbers(text) {
             const el = document.getElementById('tinyNumbers');
             el.textContent = text;
-            el.classList.add('show');
-            setTimeout(() => {
+            if (text === '') {
                 el.classList.remove('show');
-            }, 1500);
+            } else {
+                el.classList.add('show');
+            }
         }
         
         function startSwipeEngine() {
@@ -120,6 +121,7 @@
                 },
                 onSubmit: (value, route) => {
                     console.log('Submitted:', value, 'via:', route);
+                    // Numbers will disappear when buffer is cleared and onClear is called
                 },
                 onClear: () => {
                     showTinyNumbers('');

@@ -47,10 +47,11 @@
         function showNumbers(text) {
             const el = document.getElementById('numbers');
             el.textContent = text;
-            el.classList.add('show');
-            setTimeout(() => {
+            if (text === '') {
                 el.classList.remove('show');
-            }, 1500);
+            } else {
+                el.classList.add('show');
+            }
         }
         
         // Start the swipe engine
@@ -63,6 +64,7 @@
             },
             onSubmit: (value, route) => {
                 console.log('Submitted:', value, 'via:', route);
+                // Numbers will disappear when buffer is cleared and onClear is called
             },
             onClear: () => {
                 showNumbers('');

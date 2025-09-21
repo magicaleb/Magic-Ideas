@@ -20,14 +20,61 @@ const Swipe = (() => {
       try{ console.debug('[Swipe] navigator.clipboard.writeText failed', e); }catch(_){ }
     }
 
-    // Fallback: textarea + execCommand
+    // Fallback: textarea + execCommand with iOS-specific handling
     try {
       const ta = document.createElement('textarea');
       ta.value = text;
       ta.setAttribute('readonly', '');
-      // Place off-screen but ensure it can be selected
       ta.style.position = 'absolute';
       ta.style.left = '-9999px';
+      async function copyText(text){
+    // Try navigator.clipboard first (preferred, async)
+    try {
+      if(navigator.clipboard && typeof navigator.clipboard.writeText === 'function'){
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e){
+      try{ console.debug('[Swipe] navigator.clipboard.writeText failed', e); }catch(_){ }
+    }
+
+    // Fallback: textarea + execCommand with iOS-specific handling
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'absolute';
+      ta.style.left = '-9999px';
+      ta.style.top = '-9999px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      
+      // iOS-specific selection
+      if (navigator.userAgent.match(/ipad|iphone/i)) {
+        ta.contentEditable = true;
+        ta.readOnly = false;
+        const range = document.createRange();
+        range.selectNodeContents(ta);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        ta.setSelectionRange(0, 999999);
+      } else {
+        ta.focus();
+        ta.select();
+      }
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return successful;
+    } catch (e){
+      try{ console.debug('[Swipe] textarea fallback failed', e); }catch(_){ }
+    }
+
+    return false;
+  }
+
+  // syncCopy: simpler version that tries to work during gesture events
       ta.style.top = '0';
       document.body.appendChild(ta);
       ta.select();
