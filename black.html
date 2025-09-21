@@ -51,30 +51,45 @@
             el.classList.add('show');
             setTimeout(() => {
                 el.classList.remove('show');
-                if (text !== '') {
-                    copyToClipboard(text);
-                    sequence = '';
-                }
+                setTimeout(() => {
+                    if (text !== '') {
+                        copyToClipboard(text);
+                        sequence = '';
+                    }
+                }, 100);
             }, 1500);
         }
         
         function copyToClipboard(text) {
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(text);
-            } else {
-                const textarea = document.createElement('textarea');
-                textarea.value = text;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text);
+                } else {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    textarea.style.position = 'fixed';
+                    textarea.style.left = '-999px';
+                    document.body.appendChild(textarea);
+                    textarea.focus();
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                }
+            } catch (err) {
+                console.log('Copy failed:', err);
             }
         }
         
         function getClockDigit(angle) {
-            const normalizedAngle = ((angle + 360) % 360);
-            const hour = Math.round(normalizedAngle / 30) % 12;
-            return hour === 0 ? 0 : (hour <= 9 ? hour : null);
+            // Convert angle to 12-hour clock position
+            // 0° (right) = 3 o'clock, 90° (down) = 6 o'clock, etc.
+            let clockAngle = (90 - angle + 360) % 360;
+            let hour = Math.round(clockAngle / 30) % 12;
+            
+            // Map to digits: 12 o'clock = 0, 1 o'clock = 1, etc.
+            if (hour === 0) return 0; // 12 o'clock
+            if (hour >= 1 && hour <= 9) return hour;
+            return null; // 10 and 11 o'clock not used
         }
         
         document.addEventListener('touchstart', (e) => {
