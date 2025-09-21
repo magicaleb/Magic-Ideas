@@ -1,4 +1,4 @@
-/* Global reset and PWA-specific styling */
+/* Reset and base styles for PWA */
 * {
     margin: 0;
     padding: 0;
@@ -6,16 +6,20 @@
 }
 
 html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    /* Use viewport units that include safe areas */
     width: 100vw;
     height: 100vh;
-    overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    
-    /* PWA-specific: Extend to full screen including safe areas */
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
-/* Upload interface - shown initially or when no saved image */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #000;
+}
+
+/* Upload interface styling - shown initially */
 .upload-interface {
     position: fixed;
     top: 0;
@@ -26,124 +30,99 @@ html, body {
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    z-index: 100;
-    
-    /* Extend beyond safe areas for full coverage */
-    margin: calc(-1 * env(safe-area-inset-top)) calc(-1 * env(safe-area-inset-right)) calc(-1 * env(safe-area-inset-bottom)) calc(-1 * env(safe-area-inset-left));
+    z-index: 1000;
 }
 
 .upload-container {
     text-align: center;
-    color: white;
     padding: 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
 }
 
 .upload-container h1 {
-    font-size: 2rem;
+    color: white;
     margin-bottom: 2rem;
-    font-weight: 300;
+    font-size: 1.5rem;
+    font-weight: 600;
 }
 
-/* Hide the actual file input */
+/* Hide the default file input */
 .file-input {
     position: absolute;
     opacity: 0;
     pointer-events: none;
 }
 
-/* Style the label as a button */
+/* Custom upload button styling */
 .upload-button {
     display: inline-block;
     padding: 1rem 2rem;
-    background: rgba(255, 255, 255, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50px;
+    background: #007AFF;
     color: white;
-    font-size: 1.1rem;
+    border-radius: 12px;
     cursor: pointer;
+    font-weight: 600;
     transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
+    border: none;
+    font-size: 1rem;
 }
 
 .upload-button:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.5);
+    background: #0056CC;
     transform: translateY(-2px);
 }
 
-/* Background container - displays the uploaded image */
+/* Background image container - full screen with safe area handling */
 .background-container {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    display: none;
     
-    /* Extend beyond safe areas for full edge-to-edge coverage */
-    margin: calc(-1 * env(safe-area-inset-top)) calc(-1 * env(safe-area-inset-right)) calc(-1 * env(safe-area-inset-bottom)) calc(-1 * env(safe-area-inset-left));
+    /* Extend into safe areas for true edge-to-edge display */
+    margin-top: calc(-1 * env(safe-area-inset-top));
+    margin-left: calc(-1 * env(safe-area-inset-left));
+    margin-right: calc(-1 * env(safe-area-inset-right));
+    margin-bottom: calc(-1 * env(safe-area-inset-bottom));
     
-    /* Background image properties for full-screen display */
+    /* Add padding to compensate for the negative margins */
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    
+    /* Background image properties */
     background-size: cover;
-    background-position: center;
+    background-position: center center;
     background-repeat: no-repeat;
     
     /* Prevent any interaction with the background */
     pointer-events: none;
-    
-    /* Prevent context menus or image saving on long press */
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
     user-select: none;
-    
-    /* Prevent image dragging */
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
     -webkit-user-drag: none;
-    -khtml-user-drag: none;
-    -moz-user-drag: none;
-    -o-user-drag: none;
-    user-drag: none;
+    
+    /* Prevent touch actions that might trigger native UI */
+    touch-action: none;
+    -webkit-touch-callout: none;
+    
+    /* Initially hidden */
+    display: none;
+    z-index: 1;
 }
 
-/* Additional iOS-specific styles to prevent image interaction */
+/* Prevent image context menu and selection on long press */
 .background-container::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
     pointer-events: none;
-    z-index: 1;
-}
-
-/* Prevent zoom and scroll behaviors in PWA */
-body {
-    touch-action: none;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
-    overscroll-behavior: none;
-}
-
-/* Hide any potential scrollbars */
-::-webkit-scrollbar {
-    display: none;
-}
-
-/* Ensure full coverage on different screen orientations */
-@media screen and (orientation: landscape) {
-    .background-container,
-    .upload-interface {
-        width: 100vh;
-        height: 100vw;
-    }
-}
-
-/* Additional safety for iOS notch handling */
-@supports (padding: max(0px)) {
-    .background-container,
-    .upload-interface {
-        padding: max(env(safe-area-inset-top), 0px) max(env(safe-area-inset-right), 0px) max(env(safe-area-inset-bottom), 0px) max(env(safe-area-inset-left), 0px);
-        margin: calc(-1 * max(env(safe-area-inset-top), 0px)) calc(-1 * max(env(safe-area-inset-right), 0px)) calc(-1 * max(env(safe-area-inset-bottom), 0px)) calc(-1 * max(env(safe-area-inset-left), 0px));
-    }
 }
