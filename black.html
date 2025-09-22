@@ -136,7 +136,7 @@
         <div class="debug-toggle" id="debugToggle">DEBUG</div>
         <div class="back-button" id="backButton">BACK</div>
         <div class="debug-overlay" id="debugOverlay">
-            <div><strong>VERSION:</strong> v2.4 - Copy BEFORE Clear Fix</div>
+            <div><strong>VERSION:</strong> v2.5 - Ultra Simple Clipboard Test</div>
             <div><strong>Buffer:</strong> <span id="debugBuffer">""</span></div>
             <div><strong>Timer:</strong> <span id="debugTimer">none</span></div>
             <div><strong>Swipe Count:</strong> <span id="debugSwipeCount">0</span></div>
@@ -147,6 +147,9 @@
             <div><strong>Environment:</strong> <span id="debugEnvironment">loading...</span></div>
             <div><strong>Permissions:</strong> <span id="debugPermissions">checking...</span></div>
             <div><strong>Secure Context:</strong> <span id="debugSecure">unknown</span></div>
+            <div style="margin-top: 10px;">
+                <button onclick="testClipboard()" style="background: yellow; color: black; padding: 5px; border: none; border-radius: 3px;">TEST COPY "123"</button>
+            </div>
         </div>
     </div>
     <script src="assets/js/storage.js"></script>
@@ -196,6 +199,39 @@
                 });
             } else {
                 updateDebug('Permissions', 'not supported');
+            }
+        }
+        
+        function testClipboard() {
+            console.log('=== MANUAL CLIPBOARD TEST ===');
+            
+            // Test the simpleCopy function directly
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = '123';
+                textArea.style.position = 'absolute';
+                textArea.style.left = '-1000px';
+                textArea.style.top = '-1000px';
+                
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                console.log('Manual test result:', successful);
+                if (successful) {
+                    updateDebug('Clipboard', 'Manual test SUCCESS');
+                    alert('✅ Clipboard test SUCCESS! Try pasting "123"');
+                } else {
+                    updateDebug('Clipboard', 'Manual test FAILED');
+                    alert('❌ Clipboard test FAILED');
+                }
+            } catch(err) {
+                console.log('Manual test error:', err);
+                updateDebug('Clipboard', 'Manual test ERROR');
+                alert('❌ Clipboard test ERROR: ' + err.message);
             }
         }
         

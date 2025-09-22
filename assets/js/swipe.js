@@ -27,78 +27,69 @@ const Swipe = (() => {
       ta.setAttribute('readonly', '');
       ta.style.position = 'absolute';
       ta.style.left = '-9999px';
-      // MOBILE-FIRST CLIPBOARD - Simple and reliable
-  async function copyText(text){
-    console.log('[Clipboard] Attempting to copy:', text);
+      // ULTRA-SIMPLE CLIPBOARD - No fancy stuff, just what works
+  function simpleCopy(text) {
+    console.log('=== SIMPLE COPY ATTEMPT ===');
+    console.log('Text to copy:', text);
     
-    // Method 1: Most reliable on mobile - execCommand with focus
+    // Method 1: Most basic approach
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'absolute';
+      textArea.style.left = '-1000px';
+      textArea.style.top = '-1000px';
+      textArea.style.width = '2em';
+      textArea.style.height = '2em';
+      textArea.style.padding = '0';
+      textArea.style.border = 'none';
+      textArea.style.outline = 'none';
+      textArea.style.boxShadow = 'none';
+      textArea.style.background = 'transparent';
+      
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      console.log('execCommand result:', successful);
+      if (successful) {
+        console.log('✅ SUCCESS: Text copied with execCommand');
+        return true;
+      }
+    } catch (err) {
+      console.log('❌ execCommand failed:', err);
+    }
+    
+    // Method 2: Try with input instead
     try {
       const input = document.createElement('input');
+      input.type = 'text';
       input.value = text;
-      input.style.position = 'fixed';
-      input.style.top = '0';
-      input.style.left = '0';
-      input.style.width = '1px';
-      input.style.height = '1px';
-      input.style.border = 'none';
-      input.style.outline = 'none';
-      input.style.background = 'transparent';
-      input.style.fontSize = '16px'; // Prevents zoom on iOS
-      input.readOnly = true;
+      input.style.position = 'absolute';
+      input.style.left = '-1000px';
+      input.style.top = '-1000px';
       
       document.body.appendChild(input);
       input.focus();
+      input.select();
       input.setSelectionRange(0, input.value.length);
       
-      const success = document.execCommand('copy');
+      const successful = document.execCommand('copy');
       document.body.removeChild(input);
       
-      if (success) {
-        console.log('[Clipboard] ✅ SUCCESS with input method');
+      console.log('input execCommand result:', successful);
+      if (successful) {
+        console.log('✅ SUCCESS: Text copied with input');
         return true;
       }
     } catch (err) {
-      console.log('[Clipboard] ❌ Input method failed:', err.message);
+      console.log('❌ input method failed:', err);
     }
-
-    // Method 2: Textarea fallback
-    try {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.top = '0';
-      textarea.style.left = '0';
-      textarea.style.opacity = '0';
-      textarea.style.pointerEvents = 'none';
-      textarea.readOnly = true;
-      
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      
-      const success = document.execCommand('copy');
-      document.body.removeChild(textarea);
-      
-      if (success) {
-        console.log('[Clipboard] ✅ SUCCESS with textarea method');
-        return true;
-      }
-    } catch (err) {
-      console.log('[Clipboard] ❌ Textarea method failed:', err.message);
-    }
-
-    // Method 3: Modern API (often blocked on mobile)
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        console.log('[Clipboard] ✅ SUCCESS with modern API');
-        return true;
-      }
-    } catch (err) {
-      console.log('[Clipboard] ❌ Modern API failed:', err.message);
-    }
-
-    console.log('[Clipboard] ❌ ALL METHODS FAILED');
+    
+    console.log('❌ ALL METHODS FAILED');
     return false;
   }
 
@@ -186,30 +177,33 @@ const Swipe = (() => {
 
       // If clipboard is requested, try to copy the SAVED value
       if(cfg.clipboard){
-        console.log('[Clipboard] Attempting to copy saved value:', value);
-        // Try synchronous copy first (better for mobile)
-        let ok = syncCopy(value);
-        if(ok) {
+        console.log('=== CLIPBOARD COPY ATTEMPT ===');
+        console.log('Saved value to copy:', value);
+        console.log('Value type:', typeof value);
+        console.log('Value length:', value.length);
+        
+        // Use our ultra-simple copy function
+        const success = simpleCopy(value);
+        
+        if(success) {
           route = "clipboard";
           call(hooks.onStatus,"Copied");
-          console.log('[Clipboard] ✅ SUCCESS with syncCopy');
+          console.log('🎉 CLIPBOARD SUCCESS!');
         } else {
-          // Fallback to async copy
+          route = 'clipboard-failed'; 
+          call(hooks.onStatus,"Clipboard failed");
+          console.log('💥 CLIPBOARD FAILED!');
+          
+          // Try one more time with a different approach
           try {
-            ok = await copyText(value);
-            if(ok) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(value);
               route = "clipboard";
-              call(hooks.onStatus,"Copied");
-              console.log('[Clipboard] ✅ SUCCESS with async copyText');
-            } else {
-              route = 'clipboard-failed'; 
-              call(hooks.onStatus,"Clipboard blocked");
-              console.log('[Clipboard] ❌ FAILED - Both methods failed');
+              call(hooks.onStatus,"Copied (async)");
+              console.log('🎉 ASYNC CLIPBOARD SUCCESS!');
             }
           } catch(err) {
-            route = 'clipboard-failed'; 
-            call(hooks.onStatus,"Clipboard error");
-            console.log('[Clipboard] ❌ ERROR:', err.message);
+            console.log('💥 ASYNC CLIPBOARD ALSO FAILED:', err);
           }
         }
       }
