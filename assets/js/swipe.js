@@ -27,73 +27,6 @@ const Swipe = (() => {
       ta.setAttribute('readonly', '');
       ta.style.position = 'absolute';
       ta.style.left = '-9999px';
-      // ULTRA-SIMPLE CLIPBOARD - No fancy stuff, just what works
-  function simpleCopy(text) {
-    console.log('=== SIMPLE COPY ATTEMPT ===');
-    console.log('Text to copy:', text);
-    
-    // Method 1: Most basic approach
-    try {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'absolute';
-      textArea.style.left = '-1000px';
-      textArea.style.top = '-1000px';
-      textArea.style.width = '2em';
-      textArea.style.height = '2em';
-      textArea.style.padding = '0';
-      textArea.style.border = 'none';
-      textArea.style.outline = 'none';
-      textArea.style.boxShadow = 'none';
-      textArea.style.background = 'transparent';
-      
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
-      console.log('execCommand result:', successful);
-      if (successful) {
-        console.log('✅ SUCCESS: Text copied with execCommand');
-        return true;
-      }
-    } catch (err) {
-      console.log('❌ execCommand failed:', err);
-    }
-    
-    // Method 2: Try with input instead
-    try {
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = text;
-      input.style.position = 'absolute';
-      input.style.left = '-1000px';
-      input.style.top = '-1000px';
-      
-      document.body.appendChild(input);
-      input.focus();
-      input.select();
-      input.setSelectionRange(0, input.value.length);
-      
-      const successful = document.execCommand('copy');
-      document.body.removeChild(input);
-      
-      console.log('input execCommand result:', successful);
-      if (successful) {
-        console.log('✅ SUCCESS: Text copied with input');
-        return true;
-      }
-    } catch (err) {
-      console.log('❌ input method failed:', err);
-    }
-    
-    console.log('❌ ALL METHODS FAILED');
-    return false;
-  }
-
-  // syncCopy: simpler version that tries to work during gesture events
       ta.style.top = '0';
       document.body.appendChild(ta);
       ta.select();
@@ -107,9 +40,8 @@ const Swipe = (() => {
     }
   }
 
-  // Synchronous copy for immediate user gestures - simplified
+  // Synchronous copy for immediate user gestures - last known-good implementation
   function syncCopy(text){
-    console.log('[Clipboard] syncCopy attempting:', text);
     try{
       const input = document.createElement('input');
       input.value = text;
@@ -117,23 +49,16 @@ const Swipe = (() => {
       input.style.top = '0';
       input.style.left = '0';
       input.style.opacity = '0';
-      input.style.fontSize = '16px'; // Prevents iOS zoom
+      input.style.fontSize = '16px'; // Prevent iOS zoom
       input.readOnly = true;
-      
       document.body.appendChild(input);
       input.focus();
       input.select();
-      input.setSelectionRange(0, input.value.length);
-      
-      const success = document.execCommand('copy');
+      if (typeof input.setSelectionRange === 'function') input.setSelectionRange(0, input.value.length);
+      const success = document.execCommand && document.execCommand('copy');
       document.body.removeChild(input);
-      
-      console.log('[Clipboard] syncCopy result:', success);
-      return success;
-    }catch(e){ 
-      console.log('[Clipboard] syncCopy failed:', e.message);
-      return false; 
-    }
+      return !!success;
+    }catch(e){ return false; }
   }
 
   function mergeConfig(arg={}){
@@ -175,35 +100,32 @@ const Swipe = (() => {
       
       let route="none";
 
-      // If clipboard is requested, try to copy the SAVED value
-      if(cfg.clipboard){
-        console.log('=== CLIPBOARD COPY ATTEMPT ===');
-        console.log('Saved value to copy:', value);
-        console.log('Value type:', typeof value);
-        console.log('Value length:', value.length);
-        
-        // Use our ultra-simple copy function
-        const success = simpleCopy(value);
-        
-        if(success) {
-          route = "clipboard";
-          call(hooks.onStatus,"Copied");
-          console.log('🎉 CLIPBOARD SUCCESS!');
+      // If clipboard is requested, try to copy the SAVED value (last known-good flow)
+      if (cfg.clipboard) {
+        try { console.debug('[Clipboard] Attempting copy for value:', value); } catch(_) {}
+        // Try synchronous copy first (best chance on mobile during a user gesture)
+        let ok = syncCopy(value);
+        if (ok) {
+          route = 'clipboard';
+          call(hooks.onStatus, 'Copied');
+          try { console.debug('[Clipboard] syncCopy SUCCESS'); } catch(_) {}
         } else {
-          route = 'clipboard-failed'; 
-          call(hooks.onStatus,"Clipboard failed");
-          console.log('💥 CLIPBOARD FAILED!');
-          
-          // Try one more time with a different approach
+          // Fallback to async strategies
           try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              await navigator.clipboard.writeText(value);
-              route = "clipboard";
-              call(hooks.onStatus,"Copied (async)");
-              console.log('🎉 ASYNC CLIPBOARD SUCCESS!');
+            ok = await copyText(value);
+            if (ok) {
+              route = 'clipboard';
+              call(hooks.onStatus, 'Copied');
+              try { console.debug('[Clipboard] async copyText SUCCESS'); } catch(_) {}
+            } else {
+              route = 'clipboard-failed';
+              call(hooks.onStatus, 'Clipboard blocked');
+              try { console.debug('[Clipboard] Both sync and async copy failed'); } catch(_) {}
             }
-          } catch(err) {
-            console.log('💥 ASYNC CLIPBOARD ALSO FAILED:', err);
+          } catch (err) {
+            route = 'clipboard-failed';
+            call(hooks.onStatus, 'Clipboard error');
+            try { console.debug('[Clipboard] async copyText ERROR:', err?.message || err); } catch(_) {}
           }
         }
       }
@@ -255,3 +177,55 @@ const Swipe = (() => {
 
   return { start };
 })();
+
+// MOBILE-FIRST CLIPBOARD - Override the broken copyText function
+async function simpleMobileCopy(text) {
+  console.log('📱 Mobile copy:', text);
+  
+  // Method 1: Modern clipboard (works on HTTPS/localhost)
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      console.log('✅ Modern clipboard success');
+      return true;
+    } catch (e) {
+      console.log('❌ Modern clipboard failed:', e);
+    }
+  }
+  
+  // Method 2: Mobile-optimized execCommand
+  try {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = text;
+    input.style.position = 'fixed';
+    input.style.top = '0';
+    input.style.left = '0';
+    input.style.opacity = '0';
+    input.style.pointerEvents = 'none';
+    input.style.fontSize = '16px'; // Prevent iOS zoom
+    input.readOnly = true;
+    
+    document.body.appendChild(input);
+    input.select();
+    input.setSelectionRange(0, 99999);
+    
+    const success = document.execCommand('copy');
+    document.body.removeChild(input);
+    
+    if (success) {
+      console.log('✅ Mobile execCommand success');
+      return true;
+    }
+  } catch (e) {
+    console.log('❌ Mobile execCommand failed:', e);
+  }
+  
+  console.log('❌ All mobile copy methods failed');
+  return false;
+}
+
+// Override the broken copyText function
+if (typeof window !== 'undefined') {
+  window.copyText = simpleMobileCopy;
+}

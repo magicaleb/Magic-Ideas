@@ -124,10 +124,55 @@
             line-height: 1.4;
             z-index: 999;
             display: none;
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
         }
         .debug-overlay.show { display: block; }
+        
+        .clock-overlay {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            border: 3px solid blue;
+            border-radius: 50%;
+            z-index: 998;
+            display: none;
+        }
+        .clock-overlay.show { display: block; }
+        
+        .clock-number {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: blue;
+            color: white;
+            font-weight: bold;
+            border-radius: 50%;
+            font-size: 16px;
+        }
+        
+        .paste-test {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0,100,0,0.3);
+            border-radius: 5px;
+        }
+        
+        .paste-input {
+            width: 100%;
+            padding: 5px;
+            margin: 5px 0;
+            border: 1px solid #00ff00;
+            background: black;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
     </style>
 </head>
 <body>
@@ -135,8 +180,12 @@
         <div class="numbers" id="numbers"></div>
         <div class="debug-toggle" id="debugToggle">DEBUG</div>
         <div class="back-button" id="backButton">BACK</div>
+        
+        <!-- Clock overlay for visual debugging -->
+        <div class="clock-overlay" id="clockOverlay" style="display: none;">
+        </div>
         <div class="debug-overlay" id="debugOverlay">
-            <div><strong>VERSION:</strong> v2.5 - Ultra Simple Clipboard Test</div>
+            <div><strong>VERSION:</strong> v2.6 - Ultra Simple Clipboard Test</div>
             <div><strong>Buffer:</strong> <span id="debugBuffer">""</span></div>
             <div><strong>Timer:</strong> <span id="debugTimer">none</span></div>
             <div><strong>Swipe Count:</strong> <span id="debugSwipeCount">0</span></div>
@@ -202,37 +251,84 @@
             }
         }
         
-        function testClipboard() {
-            console.log('=== MANUAL CLIPBOARD TEST ===');
+        async function testClipboard() {
+            console.log('=== COMPREHENSIVE CLIPBOARD TEST ===');
+            const testText = "123";
+            let success = false;
             
-            // Test the simpleCopy function directly
+            // Method 1: Modern Clipboard API
             try {
+                console.log('1. Trying modern Clipboard API...');
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(testText);
+                    console.log('✅ Modern Clipboard API SUCCESS');
+                    updateDebug('Clipboard', 'Modern API SUCCESS');
+                    alert('✅ CLIPBOARD SUCCESS! (Modern API)\nTry pasting "123" in the test field below.');
+                    return;
+                }
+            } catch (e) {
+                console.log('❌ Modern Clipboard API failed:', e);
+            }
+            
+            // Method 2: execCommand with textarea
+            try {
+                console.log('2. Trying execCommand with textarea...');
                 const textArea = document.createElement('textarea');
-                textArea.value = '123';
-                textArea.style.position = 'absolute';
-                textArea.style.left = '-1000px';
-                textArea.style.top = '-1000px';
+                textArea.value = testText;
+                textArea.style.position = 'fixed';
+                textArea.style.top = '0';
+                textArea.style.left = '0';
+                textArea.style.width = '1px';
+                textArea.style.height = '1px';
+                textArea.style.opacity = '0';
                 
                 document.body.appendChild(textArea);
                 textArea.focus();
                 textArea.select();
                 
-                const successful = document.execCommand('copy');
+                success = document.execCommand('copy');
                 document.body.removeChild(textArea);
                 
-                console.log('Manual test result:', successful);
-                if (successful) {
-                    updateDebug('Clipboard', 'Manual test SUCCESS');
-                    alert('✅ Clipboard test SUCCESS! Try pasting "123"');
+                if (success) {
+                    console.log('✅ execCommand SUCCESS');
+                    updateDebug('Clipboard', 'execCommand SUCCESS');
+                    alert('✅ CLIPBOARD SUCCESS! (execCommand)\nTry pasting "123" in the test field below.');
+                    return;
                 } else {
-                    updateDebug('Clipboard', 'Manual test FAILED');
-                    alert('❌ Clipboard test FAILED');
+                    console.log('❌ execCommand returned false');
                 }
-            } catch(err) {
-                console.log('Manual test error:', err);
-                updateDebug('Clipboard', 'Manual test ERROR');
-                alert('❌ Clipboard test ERROR: ' + err.message);
+            } catch (e) {
+                console.log('❌ execCommand failed:', e);
             }
+            
+            // Method 3: User interaction fallback
+            console.log('3. All automatic methods failed. Showing manual prompt...');
+            updateDebug('Clipboard', 'All methods FAILED');
+            
+            // Create a visible textarea for manual copy
+            const manualArea = document.createElement('textarea');
+            manualArea.value = testText;
+            manualArea.style.position = 'fixed';
+            manualArea.style.top = '50%';
+            manualArea.style.left = '50%';
+            manualArea.style.transform = 'translate(-50%, -50%)';
+            manualArea.style.width = '200px';
+            manualArea.style.height = '50px';
+            manualArea.style.background = 'yellow';
+            manualArea.style.color = 'black';
+            manualArea.style.border = '2px solid red';
+            manualArea.style.fontSize = '16px';
+            manualArea.style.zIndex = '10000';
+            
+            document.body.appendChild(manualArea);
+            manualArea.focus();
+            manualArea.select();
+            
+            alert('❌ AUTOMATIC CLIPBOARD FAILED!\n\nThe text "123" is now selected in a yellow box.\nPlease manually copy it (Ctrl+C or long press > copy).\n\nClick OK to continue.');
+            
+            setTimeout(() => {
+                document.body.removeChild(manualArea);
+            }, 5000);
         }
         
         function showNumbers(text) {
