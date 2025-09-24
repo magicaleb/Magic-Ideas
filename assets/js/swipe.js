@@ -168,6 +168,8 @@ const Swipe = (() => {
 
   // Use long-press to clear to avoid misclassifying quick taps during fast swipes
   if (Gestures.onLongPress) Gestures.onLongPress(()=> clearAll(), root);
+  // Single-tap submits immediately (runs inside a user gesture on mobile)
+  if (Gestures.onTap) Gestures.onTap(()=> submit(), root);
     Gestures.onTwoFingerDown(()=>{ clearAll(); window.location.href='settings.html'; }, root);
     if(Gestures.onTwoFingerTap) Gestures.onTwoFingerTap(()=> submit(), root);
 

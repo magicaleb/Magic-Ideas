@@ -1,13 +1,55 @@
-/* Touch-only gestures: swipe angle, double-tap, two-finger down, two-finger tap */
+/* Touch-only gestures: swipe angle, tap, double-tap, two-finger down, two-finger tap */
 const Gestures = (() => {
   // increased thresholds to better separate quick swipes from taps
   const MIN_SWIPE_PX = 50, DOUBLE_TAP_MS = 300, TWO_DOWN_MS = 150;
+  const TAP_MAX_MS = 250, TAP_MAX_MOVE = 12; // single-tap constraints
   const TWO_TAP_MS = 250, TWO_TAP_MAX_MOVE = 30;
   let sx=null, sy=null, lastTap=0, t0=0;
   let twoStart=0, twoStartPos=null;
 
   const dist2 = (x1,y1,x2,y2)=>{const dx=x2-x1, dy=y2-y1; return dx*dx+dy*dy;};
   const norm = d => { let a=d%360; if(a>=180)a-=360; if(a<-180)a+=360; return a; };
+
+  function onTap(cb, el=document.body){
+    // Prefer PointerEvents
+    if(window.PointerEvent){
+      let downX=null, downY=null, downAt=0, pointerId=null;
+      el.addEventListener('pointerdown', e => {
+        if(!e.isPrimary || e.pointerType==='mouse') return;
+        pointerId = e.pointerId;
+        downX = e.clientX; downY = e.clientY; downAt = Date.now();
+      }, { passive:true });
+      el.addEventListener('pointerup', e => {
+        if(pointerId===null || e.pointerId!==pointerId) return;
+        const dt = Date.now()-downAt;
+        const dx = e.clientX - downX, dy = e.clientY - downY;
+        const moved2 = dx*dx + dy*dy;
+        if(dt <= TAP_MAX_MS && moved2 <= TAP_MAX_MOVE*TAP_MAX_MOVE){
+          try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
+          cb();
+        }
+        pointerId = null; downX = downY = null; downAt = 0;
+      }, { passive:false });
+      return;
+    }
+
+    // Touch fallback
+    let tx=null, ty=null, tAt=0, active=false;
+    el.addEventListener('touchstart', e => {
+      try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
+      if(e.touches.length!==1) { active=false; return; }
+      const t=e.touches[0]; tx=t.clientX; ty=t.clientY; tAt=Date.now(); active=true;
+    }, { passive:false });
+    el.addEventListener('touchend', e => {
+      try{ if(e.cancelable) e.preventDefault(); }catch(_){ }
+      if(!active || (e.changedTouches && e.changedTouches.length!==1)) { active=false; return; }
+      const t=e.changedTouches[0];
+      const dt = Date.now()-tAt; const dx=t.clientX-tx, dy=t.clientY-ty;
+      const moved2 = dx*dx + dy*dy;
+      if(dt <= TAP_MAX_MS && moved2 <= TAP_MAX_MOVE*TAP_MAX_MOVE){ cb(); }
+      active=false;
+    }, { passive:false });
+  }
 
   function onSwipe(cb, el=document.body){
     // Prefer PointerEvents if available (unified and easier to prevent defaults)
@@ -141,5 +183,5 @@ const Gestures = (() => {
     },{passive:false});
   }
 
-  return { onSwipe, onDoubleTap, onLongPress, onTwoFingerDown, onTwoFingerTap };
+  return { onSwipe, onTap, onDoubleTap, onLongPress, onTwoFingerDown, onTwoFingerTap };
 })();
