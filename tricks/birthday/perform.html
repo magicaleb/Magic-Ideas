@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Birthday — Perform</title>
+  <style>
+    html, body { margin:0; padding:0; width:100dvw; height:100dvh; background:#0b1020; overflow:hidden; touch-action:none; -webkit-user-select:none; user-select:none; font-family:-apple-system, system-ui, sans-serif; }
+    #root { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
+    .digits { font-size:4.4rem; letter-spacing:8px; color:rgba(255,255,255,0.95); font-weight:800; text-align:center; }
+    .toast { position:fixed; left:50%; bottom:28%; transform:translateX(-50%); background:#0f1733; border:1px solid #2a386c; color:#eef2ff; padding:8px 12px; border-radius:10px; display:none; }
+  /* WATERMARK — remove this class+element to hide */
+  .wm { position:fixed; left:10px; bottom:10px; color:#ffffff; opacity:0.18; font-size:12px; font-weight:700; letter-spacing:0.08em; pointer-events:none; text-transform:uppercase; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div style="position:fixed;left:10px;bottom:10px;color:#ffffff;opacity:0.25;font-size:12px;font-weight:700;letter-spacing:0.06em;pointer-events:none;z-index:9999;">Test 1</div>
+    <div id="dateLabel" style="color:#bbb;font-size:1.2em;text-align:center;margin-bottom:8px;min-height:1.2em;">&nbsp;</div>
+    <div id="digits" class="digits">—</div>
+    <div id="toast" class="toast" aria-hidden="true">Copied</div>
+  </div>
+
+  <script src="../../assets/js/gestures.js"></script>
+  <script>
+  const digitsEl = document.getElementById('digits');
+  const dateLabel = document.getElementById('dateLabel');
+    const toast = document.getElementById('toast');
+
+  const show = (s)=>{ digitsEl.textContent = s; };
+  const showDate = (mmdd)=>{
+    if(!mmdd || mmdd.length!==4) { dateLabel.textContent = '\u00A0'; return; }
+    const monthNum = parseInt(mmdd.slice(0,2),10);
+    const dayNum = parseInt(mmdd.slice(2,4),10);
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    if(monthNum>=1 && monthNum<=12 && dayNum>=1 && dayNum<=31){
+      dateLabel.textContent = `${months[monthNum-1]} ${dayNum}`;
+    }else{
+      dateLabel.textContent = '\u00A0';
+    }
+  };
+  const showDebug = ()=>{};
+    const pad2 = (n)=> n.toString().padStart(2,'0');
+    const showToast = (msg)=>{ toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none', 900); };
+
+    // Cardinal mapping via swipe angle (clock orientation: up=U, right=R, down=D, left=L)
+    function cardinalFromAngle(ang){
+      // Fix: Gestures gives -90° for up, +90° for down
+      if (ang > -135 && ang <= -45) return 'U'; // up
+      if (ang > 45 && ang <= 135) return 'D'; // down
+      if (ang > -45 && ang <= 45) return 'R'; // right
+      return 'L'; // left
+    }
+
+    const order = ['U','R','D','L'];
+    function adjustDelta(base, adj){
+      const bi = order.indexOf(base), ai = order.indexOf(adj);
+      if (ai === bi) return 0;
+      const diff = (ai - bi + 4) % 4; // 1 = clockwise, 3 = counter, 2 = opposite
+      if (diff === 1) return +1;
+      if (diff === 3) return -1;
+      // opposite: pick clockwise by convention
+      return +1;
+    }
+
+    function monthFrom(baseCard, adjCard){
+      const baseMap = { U:12, R:3, D:6, L:9 };
+      let n = baseMap[baseCard];
+      const d = adjustDelta(baseCard, adjCard);
+      // wrap 1..12 (with 12 treated as 12, 13=>1, 0=>12)
+      n = n + d;
+      if (n === 13) n = 1;
+      if (n === 0) n = 12;
+      return n;
+    }
+
+    function onesFrom(baseCard, adjCard){
+      const baseMap = { U:0, R:3, D:6, L:9 };
+      let n = baseMap[baseCard];
+      const d = adjustDelta(baseCard, adjCard);
+      n = (n + d + 10) % 10;
+      return n;
+    }
+
+    // Simple immediate copy (user-gesture safe on mobile)
+    function tryCopy(text){
+      // Modern API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(()=>showToast('Copied')).catch(()=>{
+          // fallback
+          const input = document.createElement('input');
+          input.value = text; input.style.position='fixed'; input.style.top='0'; input.style.left='0'; input.style.opacity='0'; input.style.fontSize='16px'; input.readOnly=true;
+          document.body.appendChild(input); input.select(); if(input.setSelectionRange) input.setSelectionRange(0, input.value.length);
+          const ok = document.execCommand && document.execCommand('copy');
+          document.body.removeChild(input);
+          showToast(ok ? 'Copied' : 'Clipboard blocked');
+        });
+        return;
+      }
+      // Fallback only
+      const input = document.createElement('input');
+      input.value = text; input.style.position='fixed'; input.style.top='0'; input.style.left='0'; input.style.opacity='0'; input.style.fontSize='16px'; input.readOnly=true;
+      document.body.appendChild(input); input.select(); if(input.setSelectionRange) input.setSelectionRange(0, input.value.length);
+      const ok = document.execCommand && document.execCommand('copy');
+      document.body.removeChild(input);
+      showToast(ok ? 'Copied' : 'Clipboard blocked');
+    }
+
+    // State machine
+    let state = 'm_base';
+    let mBase = null, month = null, tens = null, oBase = null, ones = null;
+
+    function paintPreview(){
+      const mm = month!=null ? pad2(month) : '__';
+      const tt = tens!=null ? tens.toString() : '_';
+      const oo = ones!=null ? ones.toString() : '_';
+      show(`${mm}${tt}${oo}`);
+    }
+
+    function handleSwipe(angle){
+      const c = cardinalFromAngle(angle);
+      showDebug(angle, c);
+      if (state === 'm_base') {
+        mBase = c; state = 'm_adj';
+      } else if (state === 'm_adj') {
+        month = monthFrom(mBase, c); state = 'd_tens';
+      } else if (state === 'd_tens') {
+        // Clockwise: U=0, R=1, D=2, L=3
+        tens = { U:0, R:1, D:2, L:3 }[c]; state = 'o_base';
+      } else if (state === 'o_base') {
+        oBase = c; state = 'o_adj';
+      } else if (state === 'o_adj') {
+        ones = onesFrom(oBase, c);
+        // Finalize
+        const mm = pad2(month);
+        const dd = `${tens}${ones}`;
+        const out = `${mm}${dd}`; // 4-digit MMDD
+  show(out);
+  showDate(out);
+  tryCopy(out);
+        // Reset for next entry
+        state = 'm_base'; mBase = null; month = null; tens = null; oBase = null; ones = null;
+      }
+      paintPreview();
+    }
+
+    // Wire gestures
+    Gestures.onSwipe(handleSwipe, document.getElementById('root'));
+    // Optional: single-tap to clear current staged entry
+    if (Gestures.onTap) Gestures.onTap(()=>{ state='m_base'; mBase=month=tens=oBase=ones=null; paintPreview(); showToast('Cleared'); }, document.getElementById('root'));
+
+    // Init
+    paintPreview();
+  </script>
+</body>
+</html>

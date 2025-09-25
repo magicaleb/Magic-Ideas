@@ -72,6 +72,11 @@
           <label for="fakeHomescreen" class="small">Enable Fake Homescreen</label>
         </div>
 
+        <div class="row" style="align-items:center;gap:8px">
+          <input id="directEntry" type="checkbox">
+          <label for="directEntry" class="small">Direct Clock Face Entry (single-swipe digits)</label>
+        </div>
+
         <label class="small">Upload homescreen image (optional)</label>
         <input id="homescreenImage" type="file" accept="image/*">
 
@@ -85,7 +90,7 @@
 
   <script src="../../assets/js/storage.js"></script>
   <script>
-    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'' };
+    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'', entryMode:'adjust' };
     const $ = id => document.getElementById(id);
     let state = Storage.load('swipe', defaults);
 
@@ -93,14 +98,16 @@
     $('delay').value = state.delay;
     $('shortcut').value = state.shortcut;
     $('clipboard').checked = !!state.clipboard;
-    $('fakeHomescreen').checked = !!state.fakeHomescreen;
+  $('fakeHomescreen').checked = !!state.fakeHomescreen;
+  $('directEntry').checked = (state.entryMode === 'direct');
 
     const persist = () => { Storage.save('swipe', state); };
 
     $('delay').addEventListener('input', ()=>{ state.delay = Math.max(1, +$('delay').value || defaults.delay); persist(); });
     $('shortcut').addEventListener('input', ()=>{ state.shortcut = ($('shortcut').value||'').trim(); persist(); });
     $('clipboard').addEventListener('change', ()=>{ state.clipboard = !!$('clipboard').checked; persist(); });
-    $('fakeHomescreen').addEventListener('change', ()=>{ state.fakeHomescreen = !!$('fakeHomescreen').checked; persist(); });
+  $('fakeHomescreen').addEventListener('change', ()=>{ state.fakeHomescreen = !!$('fakeHomescreen').checked; persist(); });
+  $('directEntry').addEventListener('change', ()=>{ state.entryMode = $('directEntry').checked ? 'direct' : 'adjust'; persist(); });
 
     const imgEl = $('homescreenImage');
     if(imgEl){

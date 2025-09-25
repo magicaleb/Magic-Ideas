@@ -3,10 +3,21 @@
   Double-tap clears. Two-finger down exits to settings. Two-finger tap submits.
 */
 const Swipe = (() => {
-  const DEF = { delay: 3, shortcut: "", clipboard: false, postShortcut: "" };
+  const DEF = { delay: 3, shortcut: "", clipboard: false, postShortcut: "", entryMode: "adjust" };
 
-  const toCW = deg => ((deg + 90) % 360 + 360) % 360;       // up=0, CW+
-  const cwToHour = cw => ((Math.round(cw/30) % 12) || 12);   // 1..12
+  // Convert gestures angle (0=right, 90=up, -90=down, 180/-180=left)
+  // to clockwise clock degrees where 0=12 (up), 90=3 (right), 180=6 (down), 270=9 (left)
+  const toCW = deg => {
+    // Map Gestures angle to compass-clockwise degrees: up(-90)→0, right(0)→90, down(90)→180, left(±180)→270
+    let cw = (deg + 90) % 360;
+    if (cw < 0) cw += 360;
+    return cw;
+  };
+  // Snap to nearest 30° sector and map 0=>12, 30=>1, ..., 330=>11
+  const cwToHour = cw => {
+    const h = Math.floor((cw + 15) / 30) % 12;
+    return h === 0 ? 12 : h;
+  };
   const hourMap = h => h===12 ? 0 : (h>=1&&h<=9 ? h : (h===11 ? "SUBMIT" : null));
 
   async function copyText(text){
@@ -69,12 +80,13 @@ const Swipe = (() => {
       shortcut: (('shortcut' in arg ? arg.shortcut : saved.shortcut) || "").trim(),
       clipboard: !!('clipboard' in arg ? arg.clipboard : saved.clipboard),
       postShortcut: (('postShortcut' in arg ? arg.postShortcut : saved.postShortcut) || "").trim(),
+      entryMode: (('entryMode' in arg ? arg.entryMode : saved.entryMode) || 'adjust')
     };
   }
 
   function start(configArg={}, hooks={}){
     const cfg = mergeConfig(configArg);
-    let buffer="", timer=null;
+    let buffer="", timer=null, pendingBase=null;
 
     const call = (fn, ...a)=>{ try{ fn && fn(...a); }catch{} };
     const paint = ()=>{
@@ -84,6 +96,24 @@ const Swipe = (() => {
   const arm   = ()=>{ clearTimeout(timer); timer=setTimeout(()=>submit(), cfg.delay*1000); debugArm(); };
 
   function debugArm(){ try{ console.debug('[Swipe] arm timer (ms)', cfg.delay*1000, 'timerId', timer); }catch(_){} }
+    // ----- Adjust-mode helpers (two-swipe digit input) -----
+    const order = ['U','R','D','L'];
+    const cardinalFromAngle = (ang)=>{
+      // Gestures: 0=right, 90=up, -90=down
+      if (ang > -135 && ang <= -45) return 'U';
+      if (ang > 45 && ang <= 135) return 'D';
+      if (ang > -45 && ang <= 45) return 'R';
+      return 'L';
+    };
+    const adjustDelta = (base, adj)=>{
+      const bi = order.indexOf(base), ai = order.indexOf(adj);
+      if (ai === bi) return 0; // same direction = no adjust
+      const diff = (ai - bi + 4) % 4; // 1=CW, 3=CCW, 2=opposite
+      if (diff === 1) return +1;
+      if (diff === 3) return -1;
+      return +1; // opposite => pick +1 by convention
+    };
+    const baseDigitFromCardinal = c => ({ U:0, R:3, D:6, L:9 })[c];
 
     async function submit(){
       try{ console.debug('[Swipe] submit triggered, buffer=', buffer); }catch(_){ }
@@ -93,8 +123,8 @@ const Swipe = (() => {
       console.log('[Clipboard] Saving value to copy:', value);
       
       // Clear display and timer first
-      clearTimeout(timer); timer=null; 
-      buffer=""; // Clear buffer AFTER saving value
+  clearTimeout(timer); timer=null; 
+  buffer=""; pendingBase=null; // Clear buffer AFTER saving value
       paint(); // Update display to show empty
       try{ console.debug('[Swipe] buffer cleared by submit'); }catch(_){ }
       
@@ -152,17 +182,32 @@ const Swipe = (() => {
       call(hooks.onSubmit, value, route);
     }
 
-  function clearAll(){ try{ console.debug('[Swipe] clearAll called'); }catch(_){} buffer=""; clearTimeout(timer); timer=null; call(hooks.onClear); paint(); }
+  function clearAll(){ try{ console.debug('[Swipe] clearAll called'); }catch(_){} buffer=""; pendingBase=null; clearTimeout(timer); timer=null; call(hooks.onClear); paint(); }
 
   // swipe digits
   // The perform page uses id="root" for the main container — prefer that.
   const root = document.getElementById('root') || document.getElementById('performRoot') || document.body;
     Gestures.onSwipe(angle=>{
-      const v = hourMap(cwToHour(toCW(angle)));
-      if(v===null) return;
-      if(v==="SUBMIT"){ return; }
-      buffer += String(v);
-      call(hooks.onDigit, v, buffer);
+      const mode = (cfg.entryMode || 'adjust');
+      if (mode === 'direct') {
+        const v = hourMap(cwToHour(toCW(angle)));
+        if(v===null) return;
+        if(v==="SUBMIT"){ return; }
+        buffer += String(v);
+        call(hooks.onDigit, v, buffer);
+        arm();
+        return;
+      }
+
+      // Adjust mode: base + adjust swipes produce one digit
+      const card = cardinalFromAngle(angle);
+      if (!pendingBase) { pendingBase = card; call(hooks.onDigit, null, buffer); return; }
+      const d = adjustDelta(pendingBase, card);
+      let digit = baseDigitFromCardinal(pendingBase);
+      digit = (digit + d + 10) % 10;
+      pendingBase = null;
+      buffer += String(digit);
+      call(hooks.onDigit, digit, buffer);
       arm();
     }, root);
 
@@ -170,7 +215,14 @@ const Swipe = (() => {
   if (Gestures.onLongPress) Gestures.onLongPress(()=> clearAll(), root);
   // Single-tap submits immediately (runs inside a user gesture on mobile)
   if (Gestures.onTap) Gestures.onTap(()=> submit(), root);
-    Gestures.onTwoFingerDown(()=>{ clearAll(); window.location.href='settings.html'; }, root);
+    Gestures.onTwoFingerDown(()=>{ 
+      clearAll(); 
+      try{
+        const inTrick = (location.pathname || '').indexOf('/tricks/swipe/') !== -1;
+        const url = inTrick ? 'settings.html' : 'tricks/swipe/settings.html';
+        window.location.href = url;
+      }catch{ window.location.href='tricks/swipe/settings.html'; }
+    }, root);
     if(Gestures.onTwoFingerTap) Gestures.onTwoFingerTap(()=> submit(), root);
 
     paint();
@@ -179,55 +231,3 @@ const Swipe = (() => {
 
   return { start };
 })();
-
-// MOBILE-FIRST CLIPBOARD - Override the broken copyText function
-async function simpleMobileCopy(text) {
-  console.log('📱 Mobile copy:', text);
-  
-  // Method 1: Modern clipboard (works on HTTPS/localhost)
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      console.log('✅ Modern clipboard success');
-      return true;
-    } catch (e) {
-      console.log('❌ Modern clipboard failed:', e);
-    }
-  }
-  
-  // Method 2: Mobile-optimized execCommand
-  try {
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = text;
-    input.style.position = 'fixed';
-    input.style.top = '0';
-    input.style.left = '0';
-    input.style.opacity = '0';
-    input.style.pointerEvents = 'none';
-    input.style.fontSize = '16px'; // Prevent iOS zoom
-    input.readOnly = true;
-    
-    document.body.appendChild(input);
-    input.select();
-    input.setSelectionRange(0, 99999);
-    
-    const success = document.execCommand('copy');
-    document.body.removeChild(input);
-    
-    if (success) {
-      console.log('✅ Mobile execCommand success');
-      return true;
-    }
-  } catch (e) {
-    console.log('❌ Mobile execCommand failed:', e);
-  }
-  
-  console.log('❌ All mobile copy methods failed');
-  return false;
-}
-
-// Override the broken copyText function
-if (typeof window !== 'undefined') {
-  window.copyText = simpleMobileCopy;
-}

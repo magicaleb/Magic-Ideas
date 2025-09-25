@@ -47,13 +47,16 @@
     </style>
 </head>
 <body>
+    <div style="position:fixed;left:10px;bottom:10px;color:#ffffff;opacity:0.25;font-size:12px;font-weight:700;letter-spacing:0.06em;pointer-events:none;z-index:9999;">Test 1</div>
     <div class="container">
         <button class="black-btn" onclick="goToBlack()">Perform with Black Background</button>
         <button class="custom-btn" onclick="goToCustom()">Perform with Custom Background</button>
+        <button class="custom-btn" onclick="goToBirthday()">Perform — Birthday Mode</button>
     </div>
     <script>
         function goToBlack() { window.location.href = 'black.html'; }
         function goToCustom() { window.location.href = 'custom.html'; }
+        function goToBirthday() { window.location.href = 'tricks/birthday/perform.html'; }
     </script>
 </body>
 </html>
