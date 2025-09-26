@@ -154,6 +154,13 @@
       <p id="errorMessage"></p>
       <a href="settings.html"><button class="ghost" style="margin-top: 10px;">Back to Settings</button></a>
     </div>
+
+    <!-- Keyboard shortcuts hint -->
+    <div class="card" style="margin-top: 12px; font-size: 0.9rem; color: var(--muted);">
+      <div style="text-align: center;">
+        <strong>Keyboard Shortcuts:</strong> Y / ← = Yes • N / → = No • R = Restart
+      </div>
+    </div>
   </div>
 
   <script src="../../assets/js/storage.js"></script>
@@ -291,11 +298,16 @@
     // Keyboard support
     document.addEventListener('keydown', (e) => {
       if (session && !session.done()) {
-        if (e.key === 'y' || e.key === 'Y') {
+        if (e.key === 'y' || e.key === 'Y' || e.key === 'ArrowLeft') {
           answerQuestion(true);
-        } else if (e.key === 'n' || e.key === 'N') {
+          e.preventDefault();
+        } else if (e.key === 'n' || e.key === 'N' || e.key === 'ArrowRight') {
           answerQuestion(false);
+          e.preventDefault();
         }
+      } else if (session && session.done() && e.key === 'r' || e.key === 'R') {
+        restart();
+        e.preventDefault();
       }
     });
 
