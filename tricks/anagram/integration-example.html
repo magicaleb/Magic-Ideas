@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Anagram + Hangman Integration Demo</title>
+  <link rel="stylesheet" href="../../assets/css/base.css">
+  <style>
+    .integration-demo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+    
+    .demo-panel {
+      background: var(--card);
+      border: 1px solid #1f2a53;
+      border-radius: 16px;
+      padding: 20px;
+    }
+    
+    .hangman-word {
+      font-family: 'Courier New', monospace;
+      font-size: 2rem;
+      text-align: center;
+      background: #0f1630;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 15px 0;
+      letter-spacing: 8px;
+    }
+    
+    .anagram-hint {
+      background: rgba(110, 231, 183, 0.1);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    .status-ready { background: var(--accent); }
+    .status-working { background: #fbbf24; }
+    .status-complete { background: #10b981; }
+    
+    @media (max-width: 768px) {
+      .integration-demo {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container stack">
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <h2>Integration Demo</h2>
+      <a href="settings.html"><button class="ghost">Back to Settings</button></a>
+    </div>
+
+    <div class="card">
+      <h3>How Anagram Service Integrates with Hangman</h3>
+      <p style="color: var(--muted); line-height: 1.5;">
+        This demo shows how the Progressive Anagram service can work in the background to help with word guessing games like Hangman.
+        The anagram engine analyzes your word list and provides strategic letter suggestions.
+      </p>
+    </div>
+
+    <div class="integration-demo">
+      <!-- Hangman Simulation Panel -->
+      <div class="demo-panel">
+        <h4>🎯 Hangman Game</h4>
+        <div class="hangman-word" id="hangmanWord">_ _ _ _ _ _ _</div>
+        
+        <div style="margin: 15px 0;">
+          <strong>Guessed Letters:</strong> <span id="guessedLetters">None</span>
+        </div>
+        
+        <div style="margin: 15px 0;">
+          <strong>Wrong Guesses:</strong> <span id="wrongGuesses">0/6</span>
+        </div>
+        
+        <div class="row" style="gap: 8px; flex-wrap: wrap; margin-top: 15px;">
+          <button id="resetHangman" class="ghost">New Word</button>
+          <button id="revealWord" class="ghost">Reveal Answer</button>
+        </div>
+      </div>
+
+      <!-- Anagram Assistant Panel -->
+      <div class="demo-panel">
+        <h4>🧠 Anagram Assistant</h4>
+        <div style="margin: 10px 0;">
+          <span class="status-indicator" id="serviceStatus"></span>
+          <span id="serviceStatusText">Not initialized</span>
+        </div>
+        
+        <div class="anagram-hint" id="anagramHint" style="display: none;">
+          <strong>Suggested Question:</strong><br>
+          <span id="suggestedQuestion">Loading...</span>
+          <div style="margin-top: 10px;">
+            <button id="answerYes" class="btn" style="margin-right: 8px;">Yes</button>
+            <button id="answerNo" class="btn">No</button>
+          </div>
+        </div>
+        
+        <div id="anagramResult" style="display: none;">
+          <strong>Likely Words:</strong>
+          <div id="resultWords" style="margin-top: 8px;"></div>
+        </div>
+        
+        <div class="row" style="gap: 8px; margin-top: 15px;">
+          <button id="initService" class="btn">Initialize Assistant</button>
+          <button id="resetService" class="ghost">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Integration Code Example</h4>
+      <pre style="background: #0f1630; padding: 15px; border-radius: 8px; font-size: 0.85rem; overflow-x: auto;"><code>// Initialize anagram service with word list
+const result = AnagramService.initializeFromStorage();
+if (result.success) {
+  console.log('Anagram service ready with', result.wordCount, 'words');
+}
+
+// Get strategic letter suggestion
+const question = AnagramService.getCurrentQuestion();
+if (question) {
+  console.log('Try asking:', question.question);
+}
+
+// Answer based on hangman progress
+const answer = AnagramService.answerQuestion(hasLetter);
+if (answer.completed) {
+  console.log('Possible words:', answer.result);
+}</code></pre>
+    </div>
+  </div>
+
+  <script src="../../assets/js/storage.js"></script>
+  <script src="../../assets/js/anagram.js"></script>
+  <script src="../../assets/js/anagram-service.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    
+    // Demo word list (cities)
+    const demoWords = ['London', 'Paris', 'Tokyo', 'Berlin', 'Madrid', 'Vienna', 'Prague'];
+    let currentWord = '';
+    let guessedLetters = new Set();
+    let wrongCount = 0;
+    let revealedWord = '';
+
+    // Initialize demo
+    function initDemo() {
+      // Pick random word
+      currentWord = demoWords[Math.floor(Math.random() * demoWords.length)].toUpperCase();
+      guessedLetters.clear();
+      wrongCount = 0;
+      updateHangmanDisplay();
+      
+      // Initialize anagram service
+      const result = AnagramService.initialize(demoWords, { entropy: true });
+      updateServiceStatus(result.success);
+    }
+
+    function updateHangmanDisplay() {
+      // Update word display
+      revealedWord = currentWord.split('').map(letter => 
+        guessedLetters.has(letter) ? letter : '_'
+      ).join(' ');
+      $('hangmanWord').textContent = revealedWord;
+      
+      // Update guessed letters
+      $('guessedLetters').textContent = guessedLetters.size > 0 ? 
+        Array.from(guessedLetters).sort().join(', ') : 'None';
+      
+      // Update wrong guesses
+      $('wrongGuesses').textContent = `${wrongCount}/6`;
+    }
+
+    function updateServiceStatus(ready) {
+      const statusEl = $('serviceStatus');
+      const textEl = $('serviceStatusText');
+      
+      if (ready) {
+        statusEl.className = 'status-indicator status-ready';
+        textEl.textContent = 'Ready for assistance';
+        updateAnagramHint();
+      } else {
+        statusEl.className = 'status-indicator';
+        textEl.textContent = 'Not initialized';
+        $('anagramHint').style.display = 'none';
+        $('anagramResult').style.display = 'none';
+      }
+    }
+
+    function updateAnagramHint() {
+      const question = AnagramService.getCurrentQuestion();
+      
+      if (question) {
+        $('suggestedQuestion').textContent = question.question;
+        $('anagramHint').style.display = 'block';
+        $('anagramResult').style.display = 'none';
+      } else if (AnagramService.isCompleted) {
+        const status = AnagramService.getStatus();
+        $('anagramHint').style.display = 'none';
+        $('anagramResult').style.display = 'block';
+        
+        $('resultWords').innerHTML = status.result.map(word => 
+          `<span class="badge" style="margin: 2px;">${word}</span>`
+        ).join(' ');
+      }
+    }
+
+    function simulateLetterGuess(letter) {
+      if (guessedLetters.has(letter)) return;
+      
+      guessedLetters.add(letter);
+      
+      if (!currentWord.includes(letter)) {
+        wrongCount++;
+      }
+      
+      updateHangmanDisplay();
+    }
+
+    // Event listeners
+    $('resetHangman').addEventListener('click', initDemo);
+    
+    $('revealWord').addEventListener('click', () => {
+      $('hangmanWord').textContent = currentWord;
+    });
+    
+    $('initService').addEventListener('click', () => {
+      const result = AnagramService.initialize(demoWords, { entropy: true });
+      updateServiceStatus(result.success);
+    });
+    
+    $('resetService').addEventListener('click', () => {
+      updateServiceStatus(false);
+    });
+    
+    $('answerYes').addEventListener('click', () => {
+      const answer = AnagramService.answerQuestion(true);
+      updateAnagramHint();
+    });
+    
+    $('answerNo').addEventListener('click', () => {
+      const answer = AnagramService.answerQuestion(false);
+      updateAnagramHint();
+    });
+
+    // Initialize demo on load
+    initDemo();
+  </script>
+</body>
+</html>

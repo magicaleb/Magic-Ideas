@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Progressive Anagram — Settings</title>
+  <link rel="stylesheet" href="../../assets/css/base.css">
+</head>
+<body>
+  <div class="container stack">
+    <h2>Progressive Anagram — Settings</h2>
+
+    <div class="card stack" style="gap:12px;">
+      <div class="stack" style="gap:8px;">
+        <label style="font-size:1.05rem;">Word List</label>
+        <textarea id="wordList" 
+                  placeholder="Enter words separated by commas or new lines&#10;e.g., Mercury, Venus, Earth, Mars..."
+                  style="width:100%; height:120px; padding:12px; font-size:1rem; resize:vertical; font-family:inherit;"></textarea>
+      </div>
+
+      <div class="row" style="gap:12px;">
+        <button id="pasteBtn" class="ghost" style="flex:1;">📋 Paste from Clipboard</button>
+        <button id="clearBtn" class="danger" style="flex:1;">Clear All</button>
+      </div>
+
+      <div class="row" style="align-items:center; gap:8px;">
+        <input id="useEntropy" type="checkbox" style="width:auto;">
+        <label for="useEntropy" style="font-size:1rem;">Use entropy optimization (slower but more efficient)</label>
+      </div>
+
+      <div class="stack" style="gap:6px;">
+        <label style="font-size:0.95rem; color:var(--muted);">Sample Word Lists:</label>
+        <div class="row" style="gap:8px; flex-wrap:wrap;">
+          <button id="planetsBtn" class="ghost" style="font-size:0.9rem; padding:8px 12px;">Planets</button>
+          <button id="animalsBtn" class="ghost" style="font-size:0.9rem; padding:8px 12px;">Animals</button>
+          <button id="citiesBtn" class="ghost" style="font-size:0.9rem; padding:8px 12px;">Cities</button>
+        </div>
+      </div>
+
+      <div class="row" style="justify-content:center; margin-top:8px;">
+        <a id="startBtn" href="solver.html">
+          <button class="xl" style="min-width:240px; padding:14px 22px; font-size:1.08rem;">Start Solving</button>
+        </a>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px;">
+      <div style="font-size:1rem; font-weight:600; margin-bottom:6px;">How it Works</div>
+      <div style="font-size:0.98rem; line-height:1.4; color:var(--muted);">
+        <div>• Enter a list of words you want to narrow down</div>
+        <div>• The app builds an optimal decision tree</div>
+        <div>• Answer yes/no questions about letters in your target word</div>
+        <div>• Quickly narrow down to the exact word you're thinking of</div>
+      </div>
+      <div style="margin-top: 12px; text-align: center;">
+        <a href="integration-example.html">
+          <button class="ghost" style="font-size: 0.9rem; padding: 8px 16px;">
+            🔗 View Integration Demo
+          </button>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/storage.js"></script>
+  <script>
+    const defaults = { 
+      wordList: 'Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto', 
+      useEntropy: false 
+    };
+    const $ = id => document.getElementById(id);
+
+    // Live state
+    let state = Storage.load('anagram', defaults);
+
+    // Sample word lists
+    const samples = {
+      planets: 'Mercury,Venus,Earth,Mars,Jupiter,Saturn,Uranus,Neptune,Pluto',
+      animals: 'Dog,Cat,Horse,Lion,Tiger,Elephant,Giraffe,Zebra,Monkey,Bear,Wolf,Fox,Rabbit,Deer,Mouse',
+      cities: 'London,Paris,Tokyo,New York,Sydney,Berlin,Rome,Madrid,Amsterdam,Barcelona,Vienna,Prague'
+    };
+
+    // Hydrate controls
+    $('wordList').value = state.wordList || defaults.wordList;
+    $('useEntropy').checked = !!state.useEntropy;
+
+    // Persist helper
+    const persist = () => Storage.save('anagram', state);
+
+    // Clipboard helper
+    async function pasteFromClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text.trim()) {
+          $('wordList').value = text.trim();
+          state.wordList = text.trim();
+          persist();
+        }
+      } catch (err) {
+        // Fallback for browsers without clipboard access
+        const text = prompt('Paste your word list here:');
+        if (text && text.trim()) {
+          $('wordList').value = text.trim();
+          state.wordList = text.trim();
+          persist();
+        }
+      }
+    }
+
+    // Event listeners
+    $('wordList').addEventListener('input', () => {
+      state.wordList = $('wordList').value;
+      persist();
+    });
+
+    $('useEntropy').addEventListener('change', () => {
+      state.useEntropy = $('useEntropy').checked;
+      persist();
+    });
+
+    $('pasteBtn').addEventListener('click', pasteFromClipboard);
+
+    $('clearBtn').addEventListener('click', () => {
+      if (confirm('Clear all words?')) {
+        $('wordList').value = '';
+        state.wordList = '';
+        persist();
+      }
+    });
+
+    // Sample buttons
+    $('planetsBtn').addEventListener('click', () => {
+      $('wordList').value = samples.planets;
+      state.wordList = samples.planets;
+      persist();
+    });
+
+    $('animalsBtn').addEventListener('click', () => {
+      $('wordList').value = samples.animals;
+      state.wordList = samples.animals;
+      persist();
+    });
+
+    $('citiesBtn').addEventListener('click', () => {
+      $('wordList').value = samples.cities;
+      state.wordList = samples.cities;
+      persist();
+    });
+
+    // Validate before starting
+    $('startBtn').addEventListener('click', e => {
+      const words = state.wordList.split(/[,\n]/).map(w => w.trim()).filter(w => w);
+      if (words.length < 2) {
+        e.preventDefault();
+        alert('Please enter at least 2 words to create a progressive anagram.');
+        return;
+      }
+      persist();
+    });
+  </script>
+</body>
+</html>
