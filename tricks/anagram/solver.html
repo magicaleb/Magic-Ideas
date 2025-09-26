@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Progressive Anagram — Solver</title>
+  <link rel="stylesheet" href="../../assets/css/base.css">
+  <style>
+    .question-display {
+      background: radial-gradient(115% 115% at 50% 0%, #16214b 0%, #0c132b 60%);
+      border: 1px solid #1f2a53;
+      border-radius: 20px;
+      padding: 40px 20px;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .question-text {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: var(--text);
+    }
+    
+    .letter-highlight {
+      color: var(--accent);
+      background: rgba(110, 231, 183, 0.1);
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+    
+    .answer-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    
+    .answer-btn {
+      font-size: 1.4rem;
+      padding: 16px 32px;
+      min-width: 120px;
+      border-radius: 16px;
+      font-weight: 700;
+    }
+    
+    .yes-btn {
+      background: linear-gradient(90deg, #10b981, #6ee7b7);
+      color: #064e3b;
+    }
+    
+    .no-btn {
+      background: linear-gradient(90deg, #ef4444, #f87171);
+      color: #7f1d1d;
+    }
+    
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    
+    .result-display {
+      background: var(--card);
+      border: 1px solid #1f2a53;
+      border-radius: 16px;
+      padding: 30px 20px;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .result-words {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    
+    .word-badge {
+      background: var(--accent);
+      color: #064e3b;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    
+    .trail-display {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 15px;
+      line-height: 1.4;
+    }
+    
+    @media (max-width: 480px) {
+      .question-text {
+        font-size: 1.8rem;
+      }
+      
+      .answer-btn {
+        font-size: 1.2rem;
+        padding: 14px 24px;
+        min-width: 100px;
+      }
+      
+      .answer-buttons {
+        gap: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container stack">
+    <div class="row" style="justify-content: space-between; align-items: center;">
+      <h2>Progressive Anagram</h2>
+      <a href="settings.html"><button class="ghost">Settings</button></a>
+    </div>
+
+    <div id="gameArea">
+      <!-- Progress info -->
+      <div class="progress-info">
+        <span id="stepCounter">Step 1</span>
+        <span id="remainingWords">? words remaining</span>
+      </div>
+
+      <!-- Question display -->
+      <div class="question-display" id="questionDisplay">
+        <div class="question-text" id="questionText">Loading...</div>
+        <div class="answer-buttons" id="answerButtons" style="display: none;">
+          <button id="yesBtn" class="btn answer-btn yes-btn">✓ Yes</button>
+          <button id="noBtn" class="btn answer-btn no-btn">✗ No</button>
+        </div>
+      </div>
+
+      <!-- Result display (hidden initially) -->
+      <div class="result-display" id="resultDisplay" style="display: none;">
+        <h3 style="margin-bottom: 15px;">Found Your Word(s)!</h3>
+        <div class="result-words" id="resultWords"></div>
+        <div class="trail-display" id="trailDisplay"></div>
+        <div style="margin-top: 25px;">
+          <button id="restartBtn" class="xl">Start Over</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error display -->
+    <div class="card" id="errorDisplay" style="display: none; background: var(--danger); color: #fff;">
+      <h3>Error</h3>
+      <p id="errorMessage"></p>
+      <a href="settings.html"><button class="ghost" style="margin-top: 10px;">Back to Settings</button></a>
+    </div>
+  </div>
+
+  <script src="../../assets/js/storage.js"></script>
+  <script src="../../assets/js/anagram.js"></script>
+  <script>
+    const $ = id => document.getElementById(id);
+    
+    let session = null;
+    let stepCount = 0;
+    let totalWords = 0;
+
+    // Initialize the solver
+    function initializeSolver() {
+      try {
+        const config = Storage.load('anagram', { wordList: '', useEntropy: false });
+        
+        if (!config.wordList) {
+          showError('No word list found. Please set up your words first.');
+          return;
+        }
+
+        // Parse words from the stored list
+        const words = config.wordList
+          .split(/[,\n]/)
+          .map(w => w.trim())
+          .filter(w => w);
+
+        if (words.length < 2) {
+          showError('Need at least 2 words to create a progressive anagram.');
+          return;
+        }
+
+        totalWords = words.length;
+        
+        // Build the decision tree
+        const tree = Anagram.buildTree(words, { entropy: config.useEntropy });
+        session = Anagram.createSession(tree);
+        
+        stepCount = 1;
+        updateDisplay();
+        
+      } catch (error) {
+        console.error('Initialization error:', error);
+        showError('Failed to initialize anagram solver: ' + error.message);
+      }
+    }
+
+    function updateDisplay() {
+      if (!session) return;
+
+      $('stepCounter').textContent = `Step ${stepCount}`;
+      
+      if (session.done()) {
+        showResult();
+      } else {
+        const question = session.getQuestion();
+        if (question) {
+          // Highlight the letter in the question
+          const letterMatch = question.match(/Contains "([a-zA-Z])"/);
+          if (letterMatch) {
+            const letter = letterMatch[1];
+            const highlightedQuestion = question.replace(
+              `"${letter}"`, 
+              `"<span class="letter-highlight">${letter.toUpperCase()}</span>"`
+            );
+            $('questionText').innerHTML = highlightedQuestion;
+          } else {
+            $('questionText').textContent = question;
+          }
+          
+          $('answerButtons').style.display = 'flex';
+          $('remainingWords').textContent = `Narrowing down from ${totalWords} words`;
+        }
+      }
+    }
+
+    function showResult() {
+      const results = session.result();
+      const trail = session.path();
+      
+      $('questionDisplay').style.display = 'none';
+      $('resultDisplay').style.display = 'block';
+      
+      // Display result words
+      const wordsContainer = $('resultWords');
+      wordsContainer.innerHTML = '';
+      
+      results.forEach(word => {
+        const badge = document.createElement('span');
+        badge.className = 'word-badge';
+        badge.textContent = word;
+        wordsContainer.appendChild(badge);
+      });
+      
+      // Display the path taken
+      if (trail.length > 0) {
+        $('trailDisplay').innerHTML = `
+          <strong>Decision path:</strong><br>
+          ${trail.map(step => {
+            const [letter, answer] = step.split(':');
+            const symbol = answer === 'Y' ? '✓' : '✗';
+            return `${symbol} Contains "${letter.toUpperCase()}"`;
+          }).join('<br>')}
+        `;
+      }
+    }
+
+    function showError(message) {
+      $('gameArea').style.display = 'none';
+      $('errorDisplay').style.display = 'block';
+      $('errorMessage').textContent = message;
+    }
+
+    function answerQuestion(answer) {
+      if (!session || session.done()) return;
+      
+      session.answer(answer);
+      stepCount++;
+      updateDisplay();
+    }
+
+    function restart() {
+      $('questionDisplay').style.display = 'block';
+      $('resultDisplay').style.display = 'none';
+      $('gameArea').style.display = 'block';
+      $('errorDisplay').style.display = 'none';
+      initializeSolver();
+    }
+
+    // Event listeners
+    $('yesBtn').addEventListener('click', () => answerQuestion(true));
+    $('noBtn').addEventListener('click', () => answerQuestion(false));
+    $('restartBtn').addEventListener('click', restart);
+
+    // Keyboard support
+    document.addEventListener('keydown', (e) => {
+      if (session && !session.done()) {
+        if (e.key === 'y' || e.key === 'Y') {
+          answerQuestion(true);
+        } else if (e.key === 'n' || e.key === 'N') {
+          answerQuestion(false);
+        }
+      }
+    });
+
+    // Initialize on page load
+    initializeSolver();
+  </script>
+</body>
+</html>
