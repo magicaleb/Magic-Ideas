@@ -320,6 +320,133 @@
         // Initialize word list globally
         window.WORDS = loadWords();
 
+        // Lazy Progressive Anagram Initialization
+        (function() {
+            let anagramStarted = false;
+            const MAX_RETRY_TIME = 5000; // 5 seconds
+            const RETRY_INTERVAL = 250;  // 250ms between retries
+            
+            // Define the progressive anagram starter function
+            function startProgressiveAnagram(words) {
+                try {
+                    // Import anagram service if not already available
+                    if (typeof AnagramService === 'undefined') {
+                        // Try to load anagram service script dynamically
+                        const script = document.createElement('script');
+                        script.src = '../../assets/js/anagram.js';
+                        script.onload = () => {
+                            const script2 = document.createElement('script');
+                            script2.src = '../../assets/js/anagram-service.js';
+                            script2.onload = () => {
+                                initializeAnagramService(words);
+                            };
+                            document.head.appendChild(script2);
+                        };
+                        document.head.appendChild(script);
+                        return;
+                    }
+                    
+                    initializeAnagramService(words);
+                } catch (error) {
+                    console.log('[DEBUG] Progressive anagram initialization error:', error);
+                }
+            }
+            
+            function initializeAnagramService(words) {
+                try {
+                    const result = AnagramService.initialize(words, { entropy: true });
+                    if (result.success) {
+                        console.log('[DEBUG] Progressive anagram started with', result.wordCount, 'words');
+                        if (isDebugMode()) {
+                            debugLog('Progressive anagram initialized', { wordCount: result.wordCount, firstQuestion: result.firstQuestion });
+                        }
+                    } else {
+                        console.log('[DEBUG] Progressive anagram initialization failed:', result.error);
+                    }
+                } catch (error) {
+                    console.log('[DEBUG] AnagramService initialization error:', error);
+                }
+            }
+            
+            // Make startProgressiveAnagram globally available
+            window.startProgressiveAnagram = startProgressiveAnagram;
+            
+            function tryStartAnagram() {
+                if (anagramStarted) return true;
+                
+                // Check if we have words and the function is available
+                if (Array.isArray(window.WORDS) && window.WORDS.length > 0 && 
+                    typeof window.startProgressiveAnagram === 'function') {
+                    
+                    anagramStarted = true;
+                    window.startProgressiveAnagram(window.WORDS);
+                    return true;
+                }
+                return false;
+            }
+            
+            function retryWithTimeout(startTime) {
+                if (Date.now() - startTime > MAX_RETRY_TIME) {
+                    console.log('[DEBUG] Progressive anagram initialization timeout');
+                    return;
+                }
+                
+                if (tryStartAnagram()) {
+                    return; // Success, stop retrying
+                }
+                
+                // Retry after interval
+                setTimeout(() => retryWithTimeout(startTime), RETRY_INTERVAL);
+            }
+            
+            function handleFirstCanvasInteraction(event) {
+                if (anagramStarted) return;
+                
+                console.log('[DEBUG] First canvas interaction detected');
+                
+                if (tryStartAnagram()) {
+                    // Success, remove listeners
+                    removeCanvasListeners();
+                } else {
+                    // Start retry loop
+                    console.log('[DEBUG] Starting progressive anagram retry loop');
+                    retryWithTimeout(Date.now());
+                    // Remove listeners to prevent multiple retry loops
+                    removeCanvasListeners();
+                }
+            }
+            
+            function removeCanvasListeners() {
+                const canvas = document.getElementById('drawingCanvas') || document.querySelector('canvas');
+                if (canvas) {
+                    canvas.removeEventListener('pointerdown', handleFirstCanvasInteraction);
+                    canvas.removeEventListener('mousedown', handleFirstCanvasInteraction);
+                    canvas.removeEventListener('touchstart', handleFirstCanvasInteraction);
+                }
+            }
+            
+            // Set up canvas listeners when DOM is ready
+            function setupCanvasListeners() {
+                const canvas = document.getElementById('drawingCanvas') || document.querySelector('canvas');
+                if (canvas) {
+                    // Use passive listeners for better performance
+                    canvas.addEventListener('pointerdown', handleFirstCanvasInteraction, { passive: true, once: false });
+                    canvas.addEventListener('mousedown', handleFirstCanvasInteraction, { passive: true, once: false });
+                    canvas.addEventListener('touchstart', handleFirstCanvasInteraction, { passive: true, once: false });
+                    console.log('[DEBUG] Canvas listeners set up for progressive anagram lazy init');
+                } else {
+                    console.log('[DEBUG] Canvas not found for progressive anagram setup');
+                }
+            }
+            
+            // Initialize when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', setupCanvasListeners);
+            } else {
+                setupCanvasListeners();
+            }
+        })();
+
         // Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
