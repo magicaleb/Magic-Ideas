@@ -2,71 +2,326 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#FFEB3B">
     <title>Hangman Drawing</title>
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiBmaWxsPSIjRkZFQjNCIi8+CjxwYXRoIGQ9Ik05NiA0OEM4MC41MzYgNDggNjggNjAuNTM2IDY4IDc2VjExNkM2OCAxMzEuNDY0IDgwLjUzNiAxNDQgOTYgMTQ0UzEyNCAxMzEuNDY0IDEyNCAxMTZWNzZDMTI0IDYwLjUzNiAxMTEuNDY0IDQ4IDk2IDQ4WiIgZmlsbD0iIzMzMzMzMyIvPgo8Y2lyY2xlIGN4PSI4NCIgY3k9IjY4IiByPSI0IiBmaWxsPSIjRkZFQjNCIi8+CjxjaXJjbGUgY3g9IjEwOCIgY3k9IjY4IiByPSI0IiBmaWxsPSIjRkZFQjNCIi8+CjxwYXRoIGQ9Ik04NCA4OEMxMDQgODggMTA0IDk2IDg0IDk2IiBzdHJva2U9IiNGRkVCM0IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CjwvZz4KPC9zdmc+">
     <style>
+        * {
+            box-sizing: border-box;
+        }
+        
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #FFEB3B 0%, #FFC107 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            touch-action: manipulation;
         }
+        
         .button-area {
-            background-color: #FFEB3B; /* Light yellow-orange */
-            padding: 10px;
-            text-align: center;
-        }
-        .canvas {
-            border: 1px solid #000;
-            position: relative;
-            top: 50px; /* Adjusted to lower the canvas */
-        }
-        .result-area {
-            margin: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
             padding: 15px;
-            background-color: #f0f0f0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-family: monospace;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+            min-height: 56px;
+            touch-action: manipulation;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+        }
+        
+        .btn.secondary {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+        
+        .btn.secondary:hover {
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+        }
+        
+        .btn.secondary:active {
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+        }
+        
+        .btn.info {
+            background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+        
+        .btn.info:hover {
+            box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+        }
+        
+        .btn.info:active {
+            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .canvas {
+            border: 3px solid #333;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-width: 90vw;
+            max-height: 60vh;
+            margin: 20px 0;
+        }
+        
+        .status-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 500;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        
+        .status-indicator.show {
+            opacity: 1;
+        }
+        
+        .debug-panel {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 20px;
+            max-height: 40vh;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            z-index: 200;
+        }
+        
+        .debug-panel.show {
+            display: block;
+        }
+        
+        .debug-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 300;
+            display: none;
+        }
+        
+        .debug-toggle.show {
+            display: block;
+        }
+        
+        .result-area {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
             white-space: pre-wrap;
             max-height: 200px;
             overflow-y: auto;
+            max-width: 90vw;
+            word-break: break-word;
         }
+        
         .error-message {
             color: #d32f2f;
             font-weight: bold;
         }
+        
         .success-message {
             color: #388e3c;
             font-weight: bold;
         }
+        
         .fallback-input {
-            margin-top: 10px;
-            padding: 10px;
+            margin-top: 15px;
+            padding: 15px;
             width: 100%;
-            box-sizing: border-box;
-            font-family: monospace;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 120px;
         }
+        
+        .fallback-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+        
+        .process-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: background 0.2s ease;
+        }
+        
+        .process-btn:hover {
+            background: #45a049;
+        }
+        
         .invisible-input {
             position: fixed;
             left: -9999px;
             opacity: 0;
             pointer-events: none;
         }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .button-area {
+                padding: 12px;
+            }
+            
+            .btn {
+                padding: 14px 16px;
+                font-size: 14px;
+                min-height: 48px;
+            }
+            
+            .canvas {
+                max-width: 95vw;
+                max-height: 50vh;
+            }
+            
+            .main-content {
+                padding: 15px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .button-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .btn {
+                padding: 16px;
+                font-size: 16px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="button-area">
-        <button id="draw">Draw</button>
-        <button id="clear">Clear</button>
-        <button id="pen-size">Pen Size</button>
+        <div class="button-grid">
+            <button class="btn" id="draw">📋 Draw</button>
+            <button class="btn secondary" id="clear">🗑️ Clear</button>
+            <button class="btn info" id="pen-size">ℹ️ Info</button>
+        </div>
     </div>
-    <canvas class="canvas" id="drawingCanvas" width="800" height="600"></canvas>
-    <div class="result-area" id="resultArea">
-        <div>Clipboard content will appear here...</div>
+    
+    <div class="main-content">
+        <canvas class="canvas" id="drawingCanvas" width="800" height="600"></canvas>
     </div>
+    
+    <!-- Status indicator for feedback -->
+    <div class="status-indicator" id="statusIndicator"></div>
+    
+    <!-- Debug panel (only shown in debug mode) -->
+    <div class="debug-panel" id="debugPanel">
+        <div class="result-area" id="resultArea">
+            <div>Debug mode active - clipboard content will appear here...</div>
+        </div>
+    </div>
+    
+    <!-- Debug toggle button -->
+    <button class="debug-toggle" id="debugToggle" title="Toggle Debug Panel">🔧</button>
+    
     <!-- Invisible text field for clipboard operations -->
     <textarea class="invisible-input" id="invisibleClipboardField" readonly></textarea>
 
     <script>
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+
         // Debug mode detection (check for ?debug in URL or localStorage setting)
         const isDebugMode = () => {
             return new URLSearchParams(window.location.search).has('debug') || 
@@ -77,11 +332,43 @@
         const debugLog = (message, data = null) => {
             if (isDebugMode()) {
                 console.log('[DEBUG]', message, data || '');
+                updateDebugPanel(message, data);
+            }
+        };
+        
+        // Update debug panel with new information
+        const updateDebugPanel = (message, data = null) => {
+            const debugPanel = document.getElementById('debugPanel');
+            const resultArea = document.getElementById('resultArea');
+            if (debugPanel && resultArea) {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = `[${timestamp}] ${message}${data ? ': ' + JSON.stringify(data) : ''}`;
+                resultArea.innerHTML += `<div style="margin-bottom: 8px; padding: 4px; border-left: 3px solid #4CAF50;">${logEntry}</div>`;
+                resultArea.scrollTop = resultArea.scrollHeight;
             }
         };
 
-        // Display result in the result area
+        // Show status indicator
+        const showStatus = (message, isError = false, duration = 2000) => {
+            const indicator = document.getElementById('statusIndicator');
+            indicator.textContent = message;
+            indicator.style.background = isError ? 'rgba(211, 47, 47, 0.9)' : 'rgba(76, 175, 80, 0.9)';
+            indicator.classList.add('show');
+            
+            // Clear any existing timeout
+            if (window.statusTimeout) {
+                clearTimeout(window.statusTimeout);
+            }
+            
+            window.statusTimeout = setTimeout(() => {
+                indicator.classList.remove('show');
+            }, duration);
+        };
+
+        // Display result in the result area (debug mode only)
         const displayResult = (message, isError = false, isSuccess = false) => {
+            if (!isDebugMode()) return;
+            
             const resultArea = document.getElementById('resultArea');
             const className = isError ? 'error-message' : (isSuccess ? 'success-message' : '');
             resultArea.innerHTML = `<div class="${className}">${message}</div>`;
@@ -90,12 +377,17 @@
 
         // Show fallback input for manual text entry
         const showFallbackInput = () => {
+            if (!isDebugMode()) {
+                showStatus('Clipboard access denied. Please enable clipboard permissions.', true, 3000);
+                return;
+            }
+            
             const resultArea = document.getElementById('resultArea');
             resultArea.innerHTML = `
                 <div class="error-message">Clipboard access not supported or denied.</div>
                 <div>Please paste your content manually:</div>
                 <textarea class="fallback-input" id="fallbackInput" placeholder="Paste your content here..." rows="5"></textarea>
-                <button onclick="processFallbackInput()">Process Input</button>
+                <button class="process-btn" onclick="processFallbackInput()">Process Input</button>
             `;
             debugLog('Fallback input displayed');
         };
@@ -106,10 +398,22 @@
             const content = fallbackInput.value;
             if (content.trim()) {
                 displayResult(`Manually entered content:\n${content}`, false, true);
+                showStatus('Content processed successfully!', false);
                 debugLog('Fallback input processed:', content);
             } else {
                 displayResult('Please enter some content in the text area.', true);
+                showStatus('Please enter some content first.', true);
             }
+        };
+
+        // Auto-trigger clipboard paste
+        const autoTriggerClipboard = async () => {
+            debugLog('Auto-triggering clipboard read on page focus/load');
+            
+            // Small delay to ensure page is fully loaded
+            setTimeout(() => {
+                readClipboard();
+            }, 500);
         };
 
         // Paste from clipboard into invisible text field
@@ -157,12 +461,16 @@
             debugLog('Clipboard read operation initiated');
             
             try {
-                // Display loading message
-                displayResult('Reading clipboard...', false, false);
+                // Show loading in debug mode
+                if (isDebugMode()) {
+                    displayResult('Reading clipboard...', false, false);
+                } else {
+                    showStatus('Reading clipboard...', false, 1000);
+                }
                 
                 // Create a timeout promise
                 const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Clipboard read timeout')), 5000)
+                    setTimeout(() => reject(new Error('Clipboard read timeout')), 3000)
                 );
                 
                 // Race between clipboard paste and timeout
@@ -174,11 +482,23 @@
                 debugLog('Clipboard content retrieved via invisible field:', clipboardContent);
 
                 if (clipboardContent && clipboardContent.trim() === '') {
-                    displayResult('Clipboard is empty.', true);
+                    if (isDebugMode()) {
+                        displayResult('Clipboard is empty.', true);
+                    } else {
+                        showStatus('Clipboard is empty', true);
+                    }
                 } else if (clipboardContent) {
-                    displayResult(`Clipboard content:\n${clipboardContent}`, false, true);
+                    if (isDebugMode()) {
+                        displayResult(`Clipboard content:\n${clipboardContent}`, false, true);
+                    } else {
+                        showStatus('Clipboard content loaded successfully!', false);
+                    }
                 } else {
-                    displayResult('No clipboard content found.', true);
+                    if (isDebugMode()) {
+                        displayResult('No clipboard content found.', true);
+                    } else {
+                        showStatus('No clipboard content found', true);
+                    }
                 }
 
             } catch (error) {
@@ -186,16 +506,32 @@
                 
                 // Handle specific error types  
                 if (error.name === 'NotAllowedError') {
-                    displayResult('Clipboard access denied. Please grant permission or use the fallback input below.', true);
-                    showFallbackInput();
+                    if (isDebugMode()) {
+                        displayResult('Clipboard access denied. Please grant permission or use the fallback input below.', true);
+                        showFallbackInput();
+                    } else {
+                        showStatus('Clipboard access denied. Please enable permissions.', true, 3000);
+                    }
                 } else if (error.name === 'NotFoundError') {
-                    displayResult('No clipboard content found.', true);
+                    if (isDebugMode()) {
+                        displayResult('No clipboard content found.', true);
+                    } else {
+                        showStatus('No clipboard content found', true);
+                    }
                 } else if (error.message === 'Clipboard read timeout') {
-                    displayResult('Clipboard read timed out. Please try again or use the fallback input below.', true);
-                    showFallbackInput();
+                    if (isDebugMode()) {
+                        displayResult('Clipboard read timed out. Please try again or use the fallback input below.', true);
+                        showFallbackInput();
+                    } else {
+                        showStatus('Clipboard read timed out. Please try again.', true, 3000);
+                    }
                 } else {
-                    displayResult(`Error reading clipboard: ${error.message}`, true);
-                    showFallbackInput();
+                    if (isDebugMode()) {
+                        displayResult(`Error reading clipboard: ${error.message}`, true);
+                        showFallbackInput();
+                    } else {
+                        showStatus('Clipboard read failed. Try again.', true, 3000);
+                    }
                 }
             }
         };
@@ -205,34 +541,71 @@
             const drawButton = document.getElementById('draw');
             const clearButton = document.getElementById('clear');
             const penSizeButton = document.getElementById('pen-size');
+            const debugPanel = document.getElementById('debugPanel');
+            const debugToggle = document.getElementById('debugToggle');
 
             debugLog('Application initialized', { debugMode: isDebugMode() });
 
-            // Main Draw button - triggers clipboard paste
+            // Show debug elements if in debug mode
+            if (isDebugMode()) {
+                debugPanel.classList.add('show');
+                debugToggle.classList.add('show');
+                displayResult('DEBUG MODE ACTIVE - Check console for detailed logs', false, true);
+            }
+
+            // Debug toggle functionality
+            debugToggle.addEventListener('click', () => {
+                debugPanel.classList.toggle('show');
+            });
+
+            // Main Draw button - triggers clipboard paste automatically
             drawButton.addEventListener('click', () => {
                 debugLog('Draw button clicked - triggering clipboard read');
                 readClipboard();
             });
 
-            // Clear button - clears the result area
+            // Clear button - clears the result area and shows success
             clearButton.addEventListener('click', () => {
                 debugLog('Clear button clicked');
-                displayResult('Clipboard content will appear here...');
+                if (isDebugMode()) {
+                    displayResult('Debug panel cleared...');
+                } else {
+                    showStatus('Cleared', false, 1000);
+                }
             });
 
-            // Pen Size button - shows clipboard API support info
+            // Info button - shows clipboard API support info
             penSizeButton.addEventListener('click', () => {
-                debugLog('Pen Size button clicked - showing clipboard support info');
+                debugLog('Info button clicked - showing clipboard support info');
                 const isSupported = navigator.clipboard && navigator.clipboard.readText;
                 const supportMessage = isSupported 
                     ? 'Clipboard API is supported in this browser.' 
                     : 'Clipboard API is not supported. Fallback input will be used.';
-                displayResult(supportMessage, !isSupported, isSupported);
+                
+                if (isDebugMode()) {
+                    displayResult(supportMessage, !isSupported, isSupported);
+                } else {
+                    showStatus(supportMessage, !isSupported, 3000);
+                }
             });
 
-            // Add debug mode toggle if in debug
-            if (isDebugMode()) {
-                displayResult('DEBUG MODE ACTIVE - Check console for detailed logs', false, true);
+            // Auto-trigger clipboard read on page load
+            autoTriggerClipboard();
+        });
+
+        // Auto-trigger clipboard read when page gains focus (for PWA usage)
+        window.addEventListener('focus', () => {
+            if (document.hasFocus()) {
+                debugLog('Page gained focus - auto-triggering clipboard read');
+                autoTriggerClipboard();
+            }
+        });
+
+        // Auto-trigger clipboard read when page becomes visible (for mobile PWA)
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                debugLog('Page became visible - auto-triggering clipboard read');
+                autoTriggerClipboard();
             }
         });
 
