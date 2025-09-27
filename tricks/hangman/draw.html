@@ -28,7 +28,7 @@
         
         .button-area {
             background: #FFEB3B;
-            padding: 8px;
+            padding: 4px;
             text-align: center;
             position: sticky;
             top: 0;
@@ -39,27 +39,28 @@
         .button-grid {
             display: flex;
             justify-content: center;
-            gap: 6px;
-            flex-wrap: wrap;
+            gap: 3px;
+            flex-wrap: nowrap;
             max-width: 100%;
         }
         
         .btn {
             background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             border: none;
-            border-radius: 6px;
-            padding: 8px 12px;
+            border-radius: 4px;
+            padding: 4px 6px;
             color: white;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
-            box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
-            min-height: 32px;
-            min-width: 50px;
+            letter-spacing: 0.2px;
+            box-shadow: 0 1px 3px rgba(76, 175, 80, 0.3);
+            min-height: 24px;
+            min-width: 40px;
             touch-action: manipulation;
+            flex: 1;
         }
         
         .btn:hover {
@@ -120,7 +121,7 @@
             border-radius: 0;
             background: white;
             width: 100vw;
-            height: calc(100vh - 50px);
+            height: calc(100vh - 34px);
             margin: 0;
             cursor: crosshair;
         }
