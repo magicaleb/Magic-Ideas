@@ -233,6 +233,7 @@
             
             <div class="toolbar-group">
                 <button id="debugBtn" class="btn secondary">DEBUG</button>
+                <button id="addWordsBtn" class="btn secondary">ADD WORDS</button>
                 <button id="undoBtn" class="btn secondary" disabled>Undo</button>
                 <button id="clearBtn" class="btn danger">Clear</button>
             </div>
@@ -275,6 +276,11 @@
                 this.currentLetter = '';
                 this.debugMode = false;
                 
+                // Clipboard state
+                this.clipboardAvailable = false;
+                this.lastClipboardContent = null;
+                this.lastPasteAttempt = null;
+                
                 // UI elements
                 this.drawBtn = document.getElementById('drawBtn');
                 this.eraseBtn = document.getElementById('eraseBtn');
@@ -284,6 +290,7 @@
                 this.clearBtn = document.getElementById('clearBtn');
                 this.trickModeToggle = document.getElementById('trickMode');
                 this.debugBtn = document.getElementById('debugBtn');
+                this.addWordsBtn = document.getElementById('addWordsBtn');
                 this.anagramDisplay = document.getElementById('anagramDisplay');
                 this.debugInfo = document.getElementById('debugInfo');
                 
@@ -294,6 +301,7 @@
                 this.setupCanvas();
                 this.setupEventListeners();
                 this.setupCanvasDrawing();
+                this.checkClipboardAvailability();
                 this.loadWordBank();
                 this.updateDebugInfo();
             }
@@ -344,8 +352,16 @@
                 
                 // Action buttons
                 this.debugBtn.addEventListener('click', () => this.toggleDebug());
+                this.addWordsBtn.addEventListener('click', () => this.showAddWordsDialog());
                 this.undoBtn.addEventListener('click', () => this.undo());
                 this.clearBtn.addEventListener('click', () => this.clear());
+                
+                // Refresh clipboard status when window gains focus
+                window.addEventListener('focus', () => {
+                    if (this.debugMode) {
+                        this.refreshClipboardStatus();
+                    }
+                });
             }
             
             setupCanvasDrawing() {
@@ -392,6 +408,7 @@
             async handleCanvasTap(e) {
                 // Handle word bank pasting if empty
                 if (this.wordBank.length === 0 && !this.trickModeActive) {
+                    this.showDebugMessage('💡 Tap detected - trying clipboard paste...');
                     await this.pasteFromClipboard();
                     return;
                 }
@@ -406,33 +423,123 @@
                     if (y < canvasHeight / 3) {
                         // Upper third = NO
                         answer = false;
+                        this.showDebugMessage('🔴 NO selected');
                     } else if (y > (2 * canvasHeight) / 3) {
                         // Bottom third = YES
                         answer = true;
+                        this.showDebugMessage('🟢 YES selected');
                     } else {
                         // Middle third = ignore
+                        this.showDebugMessage('⚪ Middle area - no action');
                         return;
                     }
                     
                     this.answerAnagramQuestion(answer);
+                } else if (this.wordBank.length > 0 && !this.trickModeActive) {
+                    this.showDebugMessage('💡 Word bank ready! Enable Trick mode to play.');
+                }
+            }
+            
+            async checkClipboardAvailability() {
+                try {
+                    this.clipboardAvailable = !!(navigator.clipboard && navigator.clipboard.readText);
+                    if (this.clipboardAvailable) {
+                        // Try to read clipboard to test actual availability
+                        try {
+                            await navigator.clipboard.readText();
+                            this.lastClipboardContent = 'Available';
+                        } catch (err) {
+                            // Clipboard API exists but permission denied or other error
+                            this.clipboardAvailable = false;
+                            this.lastClipboardContent = `Blocked: ${err.name}`;
+                        }
+                    } else {
+                        this.lastClipboardContent = 'API not supported';
+                    }
+                } catch (err) {
+                    this.clipboardAvailable = false;
+                    this.lastClipboardContent = `Error: ${err.message}`;
+                }
+                
+                this.updateDebugInfo();
+            }
+            
+            async refreshClipboardStatus() {
+                if (!this.clipboardAvailable) return;
+                
+                try {
+                    const text = await navigator.clipboard.readText();
+                    const preview = text.length > 50 ? text.substring(0, 50) + '...' : text;
+                    this.lastClipboardContent = preview || '(empty)';
+                } catch (err) {
+                    this.lastClipboardContent = `Error: ${err.name}`;
+                }
+                
+                this.updateDebugInfo();
+            }
+            
+            showAddWordsDialog() {
+                const currentWords = this.wordBank.length > 0 ? 
+                    this.wordBank.join(', ') : '';
+                
+                const text = prompt(
+                    'Enter words for the anagram game (separated by commas or new lines):\n\n' +
+                    'Current words: ' + (currentWords || 'None'),
+                    currentWords
+                );
+                
+                if (text !== null && text.trim()) {
+                    this.setWordBank(text);
+                    this.showDebugMessage('✅ Words added manually');
                 }
             }
             
             async pasteFromClipboard() {
+                this.lastPasteAttempt = new Date().toLocaleTimeString();
+                this.showDebugMessage('📋 Attempting clipboard paste...');
+                
                 try {
+                    if (!navigator.clipboard || !navigator.clipboard.readText) {
+                        throw new Error('Clipboard API not supported');
+                    }
+                    
                     const text = await navigator.clipboard.readText();
+                    this.lastClipboardContent = text.length > 50 ? 
+                        text.substring(0, 50) + '...' : text;
+                    
                     if (text.trim()) {
                         this.setWordBank(text);
-                        this.showDebugMessage('✓ Pasted into word bank');
+                        this.showDebugMessage('✅ Successfully pasted from clipboard');
+                        this.updateDebugInfo();
+                        return;
+                    } else {
+                        this.showDebugMessage('⚠️ Clipboard is empty');
                     }
                 } catch (err) {
+                    console.error('Clipboard read failed:', err);
+                    this.lastClipboardContent = `Failed: ${err.name || err.message}`;
+                    this.showDebugMessage(`❌ Clipboard failed: ${err.name || err.message}`);
+                    
+                    // Show helpful guidance
+                    setTimeout(() => {
+                        this.showDebugMessage('💡 Try: Use ADD WORDS button above, or copy text first');
+                    }, 1500);
+                    
                     // Fallback: show prompt
-                    const text = prompt('Paste your word list here (words separated by commas or new lines):');
-                    if (text && text.trim()) {
-                        this.setWordBank(text);
-                        this.showDebugMessage('✓ Added to word bank');
+                    try {
+                        const text = prompt('Clipboard access failed. Please paste your word list here (words separated by commas or new lines):');
+                        if (text && text.trim()) {
+                            this.setWordBank(text);
+                            this.showDebugMessage('✅ Added words via manual input');
+                            this.updateDebugInfo();
+                            return;
+                        }
+                    } catch (promptErr) {
+                        this.showDebugMessage('❌ Manual input also failed');
                     }
                 }
+                
+                this.updateDebugInfo();
             }
             
             setWordBank(text) {
@@ -690,11 +797,20 @@
                 
                 const mode = this.trickModeActive ? 'Trick Mode' : 'Drawing';
                 
+                const clipboardStatus = this.clipboardAvailable ? '✅ Available' : '❌ Unavailable';
+                const clipboardContent = this.lastClipboardContent || 'Unknown';
+                const lastPaste = this.lastPasteAttempt || 'Never';
+                
                 this.debugInfo.innerHTML = `
                     <div>Word Bank: ${wordBankStatus}</div>
                     <div>Anagram: ${anagramStatus}</div>
                     <div>Step: ${currentStep}</div>
                     <div>Mode: ${mode}</div>
+                    <div style="border-top: 1px solid #333; margin-top: 4px; padding-top: 4px;">
+                        <div>Clipboard: ${clipboardStatus}</div>
+                        <div>Content: ${clipboardContent}</div>
+                        <div>Last Paste: ${lastPaste}</div>
+                    </div>
                 `;
             }
             
