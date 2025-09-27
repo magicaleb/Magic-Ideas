@@ -275,6 +275,11 @@
                 this.currentLetter = '';
                 this.debugMode = false;
                 
+                // Clipboard state
+                this.clipboardAvailable = false;
+                this.lastClipboardContent = null;
+                this.lastPasteAttempt = null;
+                
                 // UI elements
                 this.drawBtn = document.getElementById('drawBtn');
                 this.eraseBtn = document.getElementById('eraseBtn');
@@ -294,6 +299,7 @@
                 this.setupCanvas();
                 this.setupEventListeners();
                 this.setupCanvasDrawing();
+                this.checkClipboardAvailability();
                 this.loadWordBank();
                 this.updateDebugInfo();
             }
@@ -346,6 +352,13 @@
                 this.debugBtn.addEventListener('click', () => this.toggleDebug());
                 this.undoBtn.addEventListener('click', () => this.undo());
                 this.clearBtn.addEventListener('click', () => this.clear());
+                
+                // Refresh clipboard status when window gains focus
+                window.addEventListener('focus', () => {
+                    if (this.debugMode) {
+                        this.refreshClipboardStatus();
+                    }
+                });
             }
             
             setupCanvasDrawing() {
@@ -418,21 +431,85 @@
                 }
             }
             
-            async pasteFromClipboard() {
+            async checkClipboardAvailability() {
                 try {
-                    const text = await navigator.clipboard.readText();
-                    if (text.trim()) {
-                        this.setWordBank(text);
-                        this.showDebugMessage('✓ Pasted into word bank');
+                    this.clipboardAvailable = !!(navigator.clipboard && navigator.clipboard.readText);
+                    if (this.clipboardAvailable) {
+                        // Try to read clipboard to test actual availability
+                        try {
+                            await navigator.clipboard.readText();
+                            this.lastClipboardContent = 'Available';
+                        } catch (err) {
+                            // Clipboard API exists but permission denied or other error
+                            this.clipboardAvailable = false;
+                            this.lastClipboardContent = `Blocked: ${err.name}`;
+                        }
+                    } else {
+                        this.lastClipboardContent = 'API not supported';
                     }
                 } catch (err) {
-                    // Fallback: show prompt
-                    const text = prompt('Paste your word list here (words separated by commas or new lines):');
-                    if (text && text.trim()) {
+                    this.clipboardAvailable = false;
+                    this.lastClipboardContent = `Error: ${err.message}`;
+                }
+                
+                this.updateDebugInfo();
+            }
+            
+            async refreshClipboardStatus() {
+                if (!this.clipboardAvailable) return;
+                
+                try {
+                    const text = await navigator.clipboard.readText();
+                    const preview = text.length > 50 ? text.substring(0, 50) + '...' : text;
+                    this.lastClipboardContent = preview || '(empty)';
+                } catch (err) {
+                    this.lastClipboardContent = `Error: ${err.name}`;
+                }
+                
+                this.updateDebugInfo();
+            }
+            
+            async pasteFromClipboard() {
+                this.lastPasteAttempt = new Date().toLocaleTimeString();
+                this.showDebugMessage('📋 Attempting clipboard paste...');
+                
+                try {
+                    if (!navigator.clipboard || !navigator.clipboard.readText) {
+                        throw new Error('Clipboard API not supported');
+                    }
+                    
+                    const text = await navigator.clipboard.readText();
+                    this.lastClipboardContent = text.length > 50 ? 
+                        text.substring(0, 50) + '...' : text;
+                    
+                    if (text.trim()) {
                         this.setWordBank(text);
-                        this.showDebugMessage('✓ Added to word bank');
+                        this.showDebugMessage('✅ Successfully pasted from clipboard');
+                        this.updateDebugInfo();
+                        return;
+                    } else {
+                        this.showDebugMessage('⚠️ Clipboard is empty');
+                    }
+                } catch (err) {
+                    console.error('Clipboard read failed:', err);
+                    this.lastClipboardContent = `Failed: ${err.name || err.message}`;
+                    this.showDebugMessage(`❌ Clipboard failed: ${err.name || err.message}`);
+                    
+                    // Fallback: show prompt
+                    try {
+                        const text = prompt('Clipboard access failed. Please paste your word list here (words separated by commas or new lines):');
+                        if (text && text.trim()) {
+                            this.setWordBank(text);
+                            this.showDebugMessage('✅ Added words via manual input');
+                            this.updateDebugInfo();
+                            return;
+                        }
+                    } catch (promptErr) {
+                        this.showDebugMessage('❌ Manual input also failed');
                     }
                 }
+                
+                this.updateDebugInfo();
             }
             
             setWordBank(text) {
@@ -690,11 +767,20 @@
                 
                 const mode = this.trickModeActive ? 'Trick Mode' : 'Drawing';
                 
+                const clipboardStatus = this.clipboardAvailable ? '✅ Available' : '❌ Unavailable';
+                const clipboardContent = this.lastClipboardContent || 'Unknown';
+                const lastPaste = this.lastPasteAttempt || 'Never';
+                
                 this.debugInfo.innerHTML = `
                     <div>Word Bank: ${wordBankStatus}</div>
                     <div>Anagram: ${anagramStatus}</div>
                     <div>Step: ${currentStep}</div>
                     <div>Mode: ${mode}</div>
+                    <div style="border-top: 1px solid #333; margin-top: 4px; padding-top: 4px;">
+                        <div>Clipboard: ${clipboardStatus}</div>
+                        <div>Content: ${clipboardContent}</div>
+                        <div>Last Paste: ${lastPaste}</div>
+                    </div>
                 `;
             }
             
