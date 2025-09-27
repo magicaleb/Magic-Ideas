@@ -255,13 +255,7 @@
             background: #45a049;
         }
         
-        /* Mobile-first and touch optimizations */
-        .invisible-input {
-            position: fixed;
-            left: -9999px;
-            opacity: 0;
-            pointer-events: none;
-        }
+
     </style>
 </head>
 <body>
@@ -269,6 +263,7 @@
         <div class="button-grid">
             <button class="btn" id="draw">Draw</button>
             <button class="btn secondary" id="erase">Erase</button>
+            <button class="btn info" id="loadClipboard">Load Clipboard</button>
             <button class="btn info" id="debug">Debug</button>
             <button class="btn secondary" id="clear">Clear</button>
             <button class="btn info" id="undo">Undo</button>
@@ -292,8 +287,7 @@
     <!-- Debug toggle button -->
     <button class="debug-toggle" id="debugToggle" title="Toggle Debug Panel">🔧</button>
     
-    <!-- Invisible text field for clipboard operations -->
-    <textarea class="invisible-input" id="invisibleClipboardField" readonly></textarea>
+
 
     <script>
         // Service Worker Registration
@@ -393,132 +387,59 @@
             }
         };
 
-        // Auto-trigger clipboard paste
-        const autoTriggerClipboard = async () => {
-            debugLog('Auto-triggering clipboard read on page focus/load');
+        // Simplified clipboard loading function using only navigator.clipboard.readText()
+        const loadClipboard = async () => {
+            debugLog('Loading clipboard content');
             
-            // Small delay to ensure page is fully loaded
-            setTimeout(() => {
-                readClipboard();
-            }, 500);
-        };
-
-        // Paste from clipboard into invisible text field
-        const pasteFromClipboard = async () => {
-            debugLog('Attempting to paste from clipboard into invisible field');
-            
-            const invisibleField = document.getElementById('invisibleClipboardField');
-            
-            try {
-                // Focus the invisible field and attempt paste
-                invisibleField.focus();
-                
-                // Try using the modern clipboard API first
-                if (navigator.clipboard && navigator.clipboard.readText) {
-                    try {
-                        const clipboardContent = await navigator.clipboard.readText();
-                        invisibleField.value = clipboardContent;
-                        debugLog('Clipboard API paste successful:', clipboardContent);
-                        return clipboardContent;
-                    } catch (clipboardError) {
-                        debugLog('Clipboard API failed, trying document.execCommand:', clipboardError);
-                    }
-                }
-                
-                // Fallback to document.execCommand for older browsers
-                invisibleField.value = ''; // Clear field first
-                const success = document.execCommand('paste');
-                
-                if (success && invisibleField.value) {
-                    const content = invisibleField.value;
-                    debugLog('Document.execCommand paste successful:', content);
-                    return content;
-                } else {
-                    throw new Error('Paste operation failed or no content available');
-                }
-                
-            } catch (error) {
-                debugLog('Paste operation failed:', error);
-                throw error;
+            // Show loading message
+            if (isDebugMode()) {
+                displayResult('Reading clipboard…', false, false);
+            } else {
+                showStatus('Reading clipboard…', false, 1000);
             }
-        };
-
-        // Main clipboard reading function using invisible text field
-        const readClipboard = async () => {
-            debugLog('Clipboard read operation initiated');
             
             try {
-                // Show loading in debug mode
-                if (isDebugMode()) {
-                    displayResult('Reading clipboard...', false, false);
-                } else {
-                    showStatus('Reading clipboard...', false, 1000);
+                // Check if Clipboard API is available
+                if (!navigator.clipboard || !navigator.clipboard.readText) {
+                    debugLog('Clipboard API not supported');
+                    if (isDebugMode()) {
+                        displayResult('Clipboard read failed. You can paste manually below.', true);
+                        showFallbackInput();
+                    } else {
+                        showStatus('Clipboard API not supported', true, 3000);
+                    }
+                    return;
                 }
                 
-                // Create a timeout promise
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Clipboard read timeout')), 3000)
-                );
+                // Read clipboard content
+                const txt = (await navigator.clipboard.readText() || '').trim();
+                debugLog('Clipboard content retrieved:', txt);
                 
-                // Race between clipboard paste and timeout
-                const clipboardContent = await Promise.race([
-                    pasteFromClipboard(),
-                    timeoutPromise
-                ]);
-                
-                debugLog('Clipboard content retrieved via invisible field:', clipboardContent);
-
-                if (clipboardContent && clipboardContent.trim() === '') {
+                if (!txt) {
                     if (isDebugMode()) {
                         displayResult('Clipboard is empty.', true);
                     } else {
                         showStatus('Clipboard is empty', true);
                     }
-                } else if (clipboardContent) {
-                    if (isDebugMode()) {
-                        displayResult(`Clipboard content:\n${clipboardContent}`, false, true);
-                    } else {
-                        showStatus('Clipboard content loaded successfully!', false);
-                    }
-                } else {
-                    if (isDebugMode()) {
-                        displayResult('No clipboard content found.', true);
-                    } else {
-                        showStatus('No clipboard content found', true);
-                    }
+                    return;
                 }
-
-            } catch (error) {
-                debugLog('Clipboard read error:', error);
                 
-                // Handle specific error types  
-                if (error.name === 'NotAllowedError') {
-                    if (isDebugMode()) {
-                        displayResult('Clipboard access denied. Please grant permission or use the fallback input below.', true);
-                        showFallbackInput();
-                    } else {
-                        showStatus('Clipboard access denied. Please enable permissions.', true, 3000);
-                    }
-                } else if (error.name === 'NotFoundError') {
-                    if (isDebugMode()) {
-                        displayResult('No clipboard content found.', true);
-                    } else {
-                        showStatus('No clipboard content found', true);
-                    }
-                } else if (error.message === 'Clipboard read timeout') {
-                    if (isDebugMode()) {
-                        displayResult('Clipboard read timed out. Please try again or use the fallback input below.', true);
-                        showFallbackInput();
-                    } else {
-                        showStatus('Clipboard read timed out. Please try again.', true, 3000);
-                    }
+                // Display success
+                if (isDebugMode()) {
+                    displayResult('Clipboard content:\n' + txt, false, true);
                 } else {
-                    if (isDebugMode()) {
-                        displayResult(`Error reading clipboard: ${error.message}`, true);
-                        showFallbackInput();
-                    } else {
-                        showStatus('Clipboard read failed. Try again.', true, 3000);
-                    }
+                    showStatus('Clipboard content loaded successfully!', false);
+                }
+                
+                // (Optionally trigger any downstream logic here)
+                
+            } catch (e) {
+                debugLog('Clipboard read failed:', e);
+                if (isDebugMode()) {
+                    displayResult('Clipboard read failed. You can paste manually below.', true);
+                    showFallbackInput();  
+                } else {
+                    showStatus('Clipboard read failed. Permission denied?', true, 3000);
                 }
             }
         };
@@ -527,6 +448,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const drawButton = document.getElementById('draw');
             const eraseButton = document.getElementById('erase');
+            const loadClipboardButton = document.getElementById('loadClipboard');
             const debugButton = document.getElementById('debug');
             const clearButton = document.getElementById('clear');
             const undoButton = document.getElementById('undo');
@@ -574,9 +496,12 @@
                 eraseButton.classList.remove('active');
                 canvas.style.cursor = 'crosshair';
                 showStatus('Draw mode enabled', false, 1000);
-                
-                // Also trigger clipboard read (invisible to user)
-                readClipboard();
+            });
+
+            // Load Clipboard button - triggers clipboard read
+            loadClipboardButton.addEventListener('click', () => {
+                debugLog('Load Clipboard button clicked - triggering clipboard read');
+                loadClipboard();
             });
 
             // Erasing mode toggle
@@ -662,25 +587,6 @@
             
             canvas.addEventListener('touchend', stopDrawing);
             canvas.addEventListener('touchcancel', stopDrawing);
-
-            // Auto-trigger clipboard read on page load (invisible to user)
-            autoTriggerClipboard();
-        });
-
-        // Auto-trigger clipboard read when page gains focus (for PWA usage)
-        window.addEventListener('focus', () => {
-            if (document.hasFocus()) {
-                debugLog('Page gained focus - auto-triggering clipboard read');
-                autoTriggerClipboard();
-            }
-        });
-
-        // Auto-trigger clipboard read when page becomes visible (for mobile PWA)
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                debugLog('Page became visible - auto-triggering clipboard read');
-                autoTriggerClipboard();
-            }
         });
 
         // Global function for fallback input processing (needed for inline onclick)
