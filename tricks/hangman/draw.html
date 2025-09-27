@@ -129,7 +129,45 @@
         
         /* Adjust canvas when debug panel is visible */
         body.debug-active .canvas {
-            height: calc(100vh - 34px - 60px);
+            height: calc(100vh - 34px - 120px);
+        }
+        
+        /* Anagram display overlay */
+        .anagram-overlay {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #6ee7b7;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 150;
+            border: 1px solid #6ee7b7;
+            display: none;
+        }
+        
+        .anagram-zone-indicator {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            z-index: 140;
+            display: none;
+        }
+        
+        .anagram-zone-top {
+            top: 10px;
+        }
+        
+        .anagram-zone-bottom {
+            bottom: 140px;
         }
         
         .status-indicator {
@@ -159,15 +197,16 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             color: white;
-            padding: 8px 12px;
-            height: 60px;
+            padding: 12px 16px;
+            height: 120px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
-            font-size: 11px;
+            font-size: 12px;
             z-index: 200;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            border-top: 2px solid rgba(255, 255, 255, 0.3);
+            line-height: 1.4;
         }
         
         .debug-panel.show {
@@ -277,6 +316,14 @@
     
     <div class="main-content">
         <canvas class="canvas" id="drawingCanvas"></canvas>
+        
+        <!-- Anagram navigation overlays -->
+        <div class="anagram-zone-indicator anagram-zone-top" id="anagramZoneTop">Draw here for NO</div>
+        <div class="anagram-zone-indicator anagram-zone-bottom" id="anagramZoneBottom">Draw here for YES</div>
+        <div class="anagram-overlay" id="anagramOverlay">
+            <div id="anagramQuestion">Loading...</div>
+            <div id="anagramResult" style="display: none;"></div>
+        </div>
     </div>
     
     <!-- Status indicator for feedback -->
@@ -296,6 +343,278 @@
     <textarea class="invisible-input" id="invisibleClipboardField" readonly></textarea>
 
     <script>
+        // Progressive Anagram Word Loading Functions
+        function b64urlToJson(s){
+          s = s.replace(/-/g,'+').replace(/_/g,'/');
+          const pad = '==='.slice((s.length + 3) % 4);
+          const bin = atob(s + pad);
+          const u8  = Uint8Array.from(bin, c => c.charCodeAt(0));
+          return JSON.parse(new TextDecoder().decode(u8));
+        }
+        
+        function loadWords(){
+          const m = location.hash.match(/(?:^|#|&)data=([^&]+)/);
+          if (!m) return JSON.parse(localStorage.getItem('PA_WORDS')||'[]');
+          try {
+            const obj   = b64urlToJson(m[1]);
+            const words = Array.isArray(obj)?obj:(obj.words||[]);
+            localStorage.setItem('PA_WORDS', JSON.stringify(words));
+            history.replaceState(null,'', location.pathname + location.search);
+            return words;
+          } catch { return []; }
+        }
+        
+        // Initialize word list globally
+        window.WORDS = loadWords();
+        
+        // Global anagram state tracking
+        window.anagramState = {
+            wordsLoaded: Array.isArray(window.WORDS) && window.WORDS.length > 0,
+            serviceInitialized: false,
+            currentSession: null,
+            isNavigating: false
+        };
+
+        // Lazy Progressive Anagram Initialization
+        (function() {
+            let anagramStarted = false;
+            const MAX_RETRY_TIME = 5000; // 5 seconds
+            const RETRY_INTERVAL = 250;  // 250ms between retries
+            
+            // Define the progressive anagram starter function
+            function startProgressiveAnagram(words) {
+                try {
+                    // Import anagram service if not already available
+                    if (typeof AnagramService === 'undefined') {
+                        // Try to load anagram service script dynamically
+                        const script = document.createElement('script');
+                        script.src = '../../assets/js/anagram.js';
+                        script.onload = () => {
+                            const script2 = document.createElement('script');
+                            script2.src = '../../assets/js/anagram-service.js';
+                            script2.onload = () => {
+                                initializeAnagramService(words);
+                            };
+                            document.head.appendChild(script2);
+                        };
+                        document.head.appendChild(script);
+                        return;
+                    }
+                    
+                    initializeAnagramService(words);
+                } catch (error) {
+                    console.log('[DEBUG] Progressive anagram initialization error:', error);
+                }
+            }
+            
+            function initializeAnagramService(words) {
+                try {
+                    const result = AnagramService.initialize(words, { entropy: true });
+                    if (result.success) {
+                        console.log('[DEBUG] Progressive anagram started with', result.wordCount, 'words');
+                        window.anagramState.serviceInitialized = true;
+                        window.anagramState.currentSession = AnagramService;
+                        
+                        if (isDebugMode()) {
+                            debugLog('Progressive anagram initialized', { wordCount: result.wordCount, firstQuestion: result.firstQuestion });
+                            updateAnagramDebugInfo();
+                            startAnagramNavigation();
+                        }
+                    } else {
+                        console.log('[DEBUG] Progressive anagram initialization failed:', result.error);
+                        window.anagramState.serviceInitialized = false;
+                        if (isDebugMode()) {
+                            debugLog('Progressive anagram initialization failed', { error: result.error });
+                        }
+                    }
+                } catch (error) {
+                    console.log('[DEBUG] AnagramService initialization error:', error);
+                    window.anagramState.serviceInitialized = false;
+                    if (isDebugMode()) {
+                        debugLog('AnagramService error', { error: error.message });
+                    }
+                }
+            }
+            
+            // Make startProgressiveAnagram globally available
+            window.startProgressiveAnagram = startProgressiveAnagram;
+            
+            function tryStartAnagram() {
+                if (anagramStarted) return true;
+                
+                // Check if we have words and the function is available
+                if (Array.isArray(window.WORDS) && window.WORDS.length > 0 && 
+                    typeof window.startProgressiveAnagram === 'function') {
+                    
+                    anagramStarted = true;
+                    window.startProgressiveAnagram(window.WORDS);
+                    return true;
+                }
+                return false;
+            }
+            
+            function retryWithTimeout(startTime) {
+                if (Date.now() - startTime > MAX_RETRY_TIME) {
+                    console.log('[DEBUG] Progressive anagram initialization timeout');
+                    return;
+                }
+                
+                if (tryStartAnagram()) {
+                    return; // Success, stop retrying
+                }
+                
+                // Retry after interval
+                setTimeout(() => retryWithTimeout(startTime), RETRY_INTERVAL);
+            }
+            
+            function handleFirstCanvasInteraction(event) {
+                if (anagramStarted) return;
+                
+                console.log('[DEBUG] First canvas interaction detected');
+                
+                if (tryStartAnagram()) {
+                    // Success, remove listeners
+                    removeCanvasListeners();
+                } else {
+                    // Start retry loop
+                    console.log('[DEBUG] Starting progressive anagram retry loop');
+                    retryWithTimeout(Date.now());
+                    // Remove listeners to prevent multiple retry loops
+                    removeCanvasListeners();
+                }
+            }
+            
+            function removeCanvasListeners() {
+                const canvas = document.getElementById('drawingCanvas') || document.querySelector('canvas');
+                if (canvas) {
+                    canvas.removeEventListener('pointerdown', handleFirstCanvasInteraction);
+                    canvas.removeEventListener('mousedown', handleFirstCanvasInteraction);
+                    canvas.removeEventListener('touchstart', handleFirstCanvasInteraction);
+                }
+            }
+            
+            // Set up canvas listeners when DOM is ready
+            function setupCanvasListeners() {
+                const canvas = document.getElementById('drawingCanvas') || document.querySelector('canvas');
+                if (canvas) {
+                    // Use passive listeners for better performance
+                    canvas.addEventListener('pointerdown', handleFirstCanvasInteraction, { passive: true, once: false });
+                    canvas.addEventListener('mousedown', handleFirstCanvasInteraction, { passive: true, once: false });
+                    canvas.addEventListener('touchstart', handleFirstCanvasInteraction, { passive: true, once: false });
+                    console.log('[DEBUG] Canvas listeners set up for progressive anagram lazy init');
+                } else {
+                    console.log('[DEBUG] Canvas not found for progressive anagram setup');
+                }
+            }
+            
+            // Initialize when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', setupCanvasListeners);
+            } else {
+                setupCanvasListeners();
+            }
+        })();
+
+        // Anagram Navigation Functions
+        function updateAnagramDebugInfo() {
+            if (!isDebugMode()) return;
+            
+            const resultArea = document.getElementById('resultArea');
+            const debugInfo = `
+                <div style="border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 8px;">
+                    <strong>Anagram Status:</strong>
+                </div>
+                <div style="margin-bottom: 4px;">
+                    📝 Words loaded: <span style="color: ${window.anagramState.wordsLoaded ? '#6ee7b7' : '#f87171'};">${window.anagramState.wordsLoaded ? 'YES' : 'NO'}</span> 
+                    ${window.anagramState.wordsLoaded ? `(${window.WORDS.length} words)` : ''}
+                </div>
+                <div style="margin-bottom: 4px;">
+                    🧠 Anagram service: <span style="color: ${window.anagramState.serviceInitialized ? '#6ee7b7' : '#f87171'};">${window.anagramState.serviceInitialized ? 'INITIALIZED' : 'NOT READY'}</span>
+                </div>
+                <div style="margin-bottom: 4px;">
+                    🎮 Navigation: <span style="color: ${window.anagramState.isNavigating ? '#6ee7b7' : '#fbbf24'};">${window.anagramState.isNavigating ? 'ACTIVE' : 'STANDBY'}</span>
+                </div>
+                ${window.anagramState.wordsLoaded ? `<div style="margin-top: 8px; font-size: 10px; color: #9ca3af;">Sample words: ${window.WORDS.slice(0, 3).join(', ')}...</div>` : ''}
+            `;
+            resultArea.innerHTML = debugInfo;
+        }
+        
+        function startAnagramNavigation() {
+            if (!isDebugMode() || !window.anagramState.serviceInitialized) return;
+            
+            window.anagramState.isNavigating = true;
+            updateAnagramDisplay();
+            showAnagramZones();
+            updateAnagramDebugInfo();
+        }
+        
+        function updateAnagramDisplay() {
+            const overlay = document.getElementById('anagramOverlay');
+            const questionEl = document.getElementById('anagramQuestion');
+            const resultEl = document.getElementById('anagramResult');
+            
+            if (!window.anagramState.serviceInitialized || !isDebugMode()) {
+                overlay.style.display = 'none';
+                return;
+            }
+            
+            const currentQuestion = AnagramService.getCurrentQuestion();
+            
+            if (currentQuestion) {
+                questionEl.textContent = currentQuestion.question;
+                questionEl.style.display = 'block';
+                resultEl.style.display = 'none';
+                overlay.style.display = 'block';
+            } else if (AnagramService.isCompleted) {
+                const status = AnagramService.getStatus();
+                if (status.result && status.result.length > 0) {
+                    questionEl.style.display = 'none';
+                    resultEl.innerHTML = `<strong>Result:</strong> ${status.result.join(', ')}`;
+                    resultEl.style.display = 'block';
+                    overlay.style.display = 'block';
+                    hideAnagramZones();
+                }
+            }
+        }
+        
+        function showAnagramZones() {
+            if (!isDebugMode() || !window.anagramState.isNavigating) return;
+            document.getElementById('anagramZoneTop').style.display = 'block';
+            document.getElementById('anagramZoneBottom').style.display = 'block';
+        }
+        
+        function hideAnagramZones() {
+            document.getElementById('anagramZoneTop').style.display = 'none';
+            document.getElementById('anagramZoneBottom').style.display = 'none';
+        }
+        
+        function handleAnagramNavigation(y, canvasHeight) {
+            if (!isDebugMode() || !window.anagramState.isNavigating || !window.anagramState.serviceInitialized) return;
+            
+            const topThird = canvasHeight / 3;
+            const bottomThird = canvasHeight * 2 / 3;
+            
+            let answer = null;
+            if (y <= topThird) {
+                answer = false; // NO - top third
+            } else if (y >= bottomThird) {
+                answer = true;  // YES - bottom third
+            } else {
+                return; // Middle third - no action
+            }
+            
+            console.log('[DEBUG] Anagram navigation:', y <= topThird ? 'NO (top)' : 'YES (bottom)');
+            
+            const result = AnagramService.answerQuestion(answer);
+            if (result.success) {
+                updateAnagramDisplay();
+                if (result.completed) {
+                    console.log('[DEBUG] Anagram navigation complete:', result.result);
+                    debugLog('Anagram navigation complete', { result: result.result });
+                }
+            }
+        }
+
         // Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -535,6 +854,17 @@
 
             debugLog('Application initialized', { debugMode: isDebugMode() });
 
+            // Log loaded words in debug mode and update anagram debug info
+            if (isDebugMode()) {
+                if (window.WORDS.length > 0) {
+                    debugLog('Words loaded from URL/localStorage', { count: window.WORDS.length, words: window.WORDS });
+                } else {
+                    debugLog('No words loaded - empty word list');
+                }
+                // Initialize debug display
+                updateAnagramDebugInfo();
+            }
+
             // Setup canvas
             const { canvas, ctx } = setupCanvas();
             
@@ -740,6 +1070,11 @@
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX || e.touches[0].clientX) - rect.left;
             const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            
+            // Handle anagram navigation in debug mode
+            if (isDebugMode() && window.anagramState.isNavigating) {
+                handleAnagramNavigation(y, canvas.height);
+            }
             
             ctx.beginPath();
             ctx.moveTo(x, y);
