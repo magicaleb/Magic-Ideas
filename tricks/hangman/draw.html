@@ -45,6 +45,12 @@
             box-sizing: border-box;
             font-family: monospace;
         }
+        .invisible-input {
+            position: fixed;
+            left: -9999px;
+            opacity: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -57,6 +63,8 @@
     <div class="result-area" id="resultArea">
         <div>Clipboard content will appear here...</div>
     </div>
+    <!-- Invisible text field for clipboard operations -->
+    <textarea class="invisible-input" id="invisibleClipboardField" readonly></textarea>
     <script>
         // Debug mode detection (check for ?debug in URL or localStorage setting)
         const isDebugMode = () => {
@@ -103,19 +111,52 @@
             }
         };
 
-        // Main clipboard reading function
+        // Paste from clipboard into invisible text field
+        const pasteFromClipboard = async () => {
+            debugLog('Attempting to paste from clipboard into invisible field');
+            
+            const invisibleField = document.getElementById('invisibleClipboardField');
+            
+            try {
+                // Focus the invisible field and attempt paste
+                invisibleField.focus();
+                
+                // Try using the modern clipboard API first
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    try {
+                        const clipboardContent = await navigator.clipboard.readText();
+                        invisibleField.value = clipboardContent;
+                        debugLog('Clipboard API paste successful:', clipboardContent);
+                        return clipboardContent;
+                    } catch (clipboardError) {
+                        debugLog('Clipboard API failed, trying document.execCommand:', clipboardError);
+                    }
+                }
+                
+                // Fallback to document.execCommand for older browsers
+                invisibleField.value = ''; // Clear field first
+                const success = document.execCommand('paste');
+                
+                if (success && invisibleField.value) {
+                    const content = invisibleField.value;
+                    debugLog('Document.execCommand paste successful:', content);
+                    return content;
+                } else {
+                    throw new Error('Paste operation failed or no content available');
+                }
+                
+            } catch (error) {
+                debugLog('Paste operation failed:', error);
+                throw error;
+            }
+        };
+
+        // Main clipboard reading function using invisible text field
         const readClipboard = async () => {
             debugLog('Clipboard read operation initiated');
             
             try {
-                // Check if clipboard API is supported
-                if (!navigator.clipboard || !navigator.clipboard.readText) {
-                    debugLog('Clipboard API not supported');
-                    showFallbackInput();
-                    return;
-                }
-
-                // Read clipboard content with timeout
+                // Display loading message
                 displayResult('Reading clipboard...', false, false);
                 
                 // Create a timeout promise
@@ -123,18 +164,20 @@
                     setTimeout(() => reject(new Error('Clipboard read timeout')), 5000)
                 );
                 
-                // Race between clipboard read and timeout
+                // Race between clipboard paste and timeout
                 const clipboardContent = await Promise.race([
-                    navigator.clipboard.readText(),
+                    pasteFromClipboard(),
                     timeoutPromise
                 ]);
                 
-                debugLog('Clipboard content retrieved:', clipboardContent);
+                debugLog('Clipboard content retrieved via invisible field:', clipboardContent);
 
-                if (clipboardContent.trim() === '') {
+                if (clipboardContent && clipboardContent.trim() === '') {
                     displayResult('Clipboard is empty.', true);
-                } else {
+                } else if (clipboardContent) {
                     displayResult(`Clipboard content:\n${clipboardContent}`, false, true);
+                } else {
+                    displayResult('No clipboard content found.', true);
                 }
 
             } catch (error) {
