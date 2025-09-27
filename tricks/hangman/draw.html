@@ -411,8 +411,15 @@
                     return;
                 }
                 
-                // Read clipboard content
-                const txt = (await navigator.clipboard.readText() || '').trim();
+                // Read clipboard content with timeout
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Clipboard read timeout')), 5000)
+                );
+                
+                const txt = (await Promise.race([
+                    navigator.clipboard.readText(),
+                    timeoutPromise
+                ]) || '').trim();
                 debugLog('Clipboard content retrieved:', txt);
                 
                 if (!txt) {
