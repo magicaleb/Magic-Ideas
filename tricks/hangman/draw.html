@@ -3,907 +3,241 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Magic Drawing Pad</title>
+    <title>Hangman Drawing</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f8f9fa;
-            color: #333;
-            overflow: hidden;
-            height: 100vh;
-            touch-action: none;
+            margin: 0;
+            font-family: Arial, sans-serif;
         }
-        
-        .app-container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-        
-        .toolbar {
-            background: #FFEB3B;
-            padding: 8px 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            flex-shrink: 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .toolbar-group {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .btn {
-            background: #007AFF;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 6px 10px;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            min-width: 50px;
-        }
-        
-        .btn:hover {
-            background: #0056CC;
-        }
-        
-        .btn:active {
-            transform: scale(0.95);
-        }
-        
-        .btn.secondary {
-            background: #6c757d;
-        }
-        
-        .btn.danger {
-            background: #dc3545;
-        }
-        
-        .btn.success {
-            background: #28a745;
-        }
-        
-        .btn.active {
-            background: #28a745;
-        }
-        
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 40px;
-            height: 20px;
-        }
-        
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 20px;
-        }
-        
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        
-        input:checked + .slider {
-            background-color: #dc3545;
-        }
-        
-        input:checked + .slider:before {
-            transform: translateX(20px);
-        }
-        
-        .canvas-container {
-            flex: 1;
-            position: relative;
-            background: white;
-            overflow: hidden;
-        }
-        
-        #drawingCanvas {
-            display: block;
-            cursor: crosshair;
-            touch-action: none;
-            border: 1px solid #000;
-        }
-        
-        .canvas-container.eraser #drawingCanvas {
-            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect x="2" y="2" width="16" height="16" fill="none" stroke="black" stroke-width="2" rx="2"/></svg>') 10 10, auto;
-        }
-        
-        .anagram-display {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 24px;
-            font-weight: bold;
-            font-family: 'Courier New', monospace;
-            min-width: 60px;
+        .button-area {
+            background-color: #FFEB3B; /* Light yellow-orange */
+            padding: 10px;
             text-align: center;
-            display: none;
         }
-        
-        .debug-info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.8);
-            color: #00ff00;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-family: 'Courier New', monospace;
-            max-width: 300px;
-            display: none;
+        .canvas {
+            border: 1px solid #000;
+            position: relative;
+            top: 50px; /* Adjusted to lower the canvas */
         }
-        
-        .debug-division-lines {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+        .result-area {
+            margin: 20px;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .error-message {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+        .success-message {
+            color: #388e3c;
+            font-weight: bold;
+        }
+        .fallback-input {
+            margin-top: 10px;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+        .invisible-input {
+            position: fixed;
+            left: -9999px;
+            opacity: 0;
             pointer-events: none;
-            display: none;
-        }
-        
-        .debug-division-lines.active {
-            display: block;
-        }
-        
-        .debug-division-lines::before,
-        .debug-division-lines::after {
-            content: '';
-            position: absolute;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: rgba(255, 0, 0, 0.6);
-            z-index: 10;
-            box-shadow: 0 0 4px rgba(255, 0, 0, 0.8);
-        }
-        
-        .debug-division-lines::before {
-            top: 33.33%;
-        }
-        
-        .debug-division-lines::after {
-            top: 66.67%;
-        }
-        
-        .range-input {
-            width: 60px;
-        }
-        
-        @media (max-width: 480px) {
-            .toolbar {
-                padding: 4px 6px;
-                gap: 2px;
-                flex-wrap: wrap;
-            }
-            
-            .btn {
-                padding: 3px 5px;
-                font-size: 9px;
-                min-width: 35px;
-            }
-            
-            .toolbar-group {
-                gap: 2px;
-                flex-shrink: 0;
-            }
-            
-            .toolbar-group:last-child {
-                order: 2;
-                flex-basis: 100%;
-                justify-content: center;
-                margin-top: 2px;
-            }
-            
-            .range-input {
-                width: 40px;
-            }
-            
-            .toggle-switch {
-                width: 30px;
-                height: 16px;
-            }
-            
-            .slider:before {
-                height: 12px;
-                width: 12px;
-            }
-            
-            input:checked + .slider:before {
-                transform: translateX(14px);
-            }
-            
-            .anagram-display {
-                bottom: 10px;
-                right: 10px;
-                font-size: 20px;
-                padding: 8px 12px;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <div class="toolbar">
-            <div class="toolbar-group">
-                <button id="drawBtn" class="btn active">Draw</button>
-                <button id="eraseBtn" class="btn">Erase</button>
-            </div>
-            
-            <div class="toolbar-group">
-                <label for="brushSize" style="font-size: 11px;">Size:</label>
-                <input type="range" id="brushSize" class="range-input" min="1" max="20" value="3">
-                <span id="brushSizeValue" style="font-size: 11px; min-width: 15px;">3</span>
-            </div>
-            
-            <div class="toolbar-group">
-                <label for="trickMode" style="font-size: 11px;">Trick:</label>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="trickMode">
-                    <span class="slider"></span>
-                </label>
-            </div>
-            
-            <div class="toolbar-group">
-                <button id="debugBtn" class="btn secondary">DEBUG</button>
-                <button id="undoBtn" class="btn secondary" disabled>Undo</button>
-                <button id="clearBtn" class="btn danger">Clear</button>
-            </div>
-        </div>
-        
-        <div class="canvas-container" id="canvasContainer">
-            <canvas id="drawingCanvas"></canvas>
-            <div class="debug-division-lines" id="debugDivisionLines"></div>
-            <div class="anagram-display" id="anagramDisplay">?</div>
-            <div class="debug-info" id="debugInfo">
-                <div>Word Bank: Empty</div>
-                <div>Anagram: Not Ready</div>
-                <div>Step: 0</div>
-                <div>Mode: Drawing</div>
-            </div>
-        </div>
+    <div class="button-area">
+        <button id="draw">Draw</button>
+        <button id="clear">Clear</button>
+        <button id="pen-size">Pen Size</button>
     </div>
+    <canvas class="canvas" id="drawingCanvas" width="800" height="600"></canvas>
+    <div class="result-area" id="resultArea">
+        <div>Clipboard content will appear here...</div>
+    </div>
+    <!-- Invisible text field for clipboard operations -->
+    <textarea class="invisible-input" id="invisibleClipboardField" readonly></textarea>
 
-    <script src="../../assets/js/storage.js"></script>
-    <script src="../../assets/js/anagram.js"></script>
-    <script src="../../assets/js/anagram-service.js"></script>
     <script>
-        class MagicDrawingApp {
-            constructor() {
-                this.canvas = document.getElementById('drawingCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.canvasContainer = document.getElementById('canvasContainer');
-                
-                // Drawing state
-                this.isDrawing = false;
-                this.isErasing = false;
-                this.brushSize = 3;
-                this.strokeHistory = [];
-                this.currentStroke = [];
-                
-                // Progressive Anagram state
-                this.wordBank = [];
-                this.anagramSession = null;
-                this.anagramReady = false;
-                this.trickModeActive = false;
-                this.currentLetter = '';
-                this.debugMode = false;
-                
-                // Clipboard state
-                this.clipboardAvailable = false;
-                this.lastClipboardContent = null;
-                this.lastPasteAttempt = null;
-                
-                // UI elements
-                this.drawBtn = document.getElementById('drawBtn');
-                this.eraseBtn = document.getElementById('eraseBtn');
-                this.brushSizeSlider = document.getElementById('brushSize');
-                this.brushSizeValue = document.getElementById('brushSizeValue');
-                this.undoBtn = document.getElementById('undoBtn');
-                this.clearBtn = document.getElementById('clearBtn');
-                this.trickModeToggle = document.getElementById('trickMode');
-                this.debugBtn = document.getElementById('debugBtn');
-                this.anagramDisplay = document.getElementById('anagramDisplay');
-                this.debugInfo = document.getElementById('debugInfo');
-                this.debugDivisionLines = document.getElementById('debugDivisionLines');
-                
-                this.init();
+        // Debug mode detection (check for ?debug in URL or localStorage setting)
+        const isDebugMode = () => {
+            return new URLSearchParams(window.location.search).has('debug') || 
+                   localStorage.getItem('debugMode') === 'true';
+        };
+
+        // Debug logging function
+        const debugLog = (message, data = null) => {
+            if (isDebugMode()) {
+                console.log('[DEBUG]', message, data || '');
             }
-            
-            init() {
-                this.setupCanvas();
-                this.setupEventListeners();
-                this.setupCanvasDrawing();
-                this.checkClipboardAvailability();
-                this.loadWordBank();
-                this.updateDebugInfo();
+        };
+
+        // Display result in the result area
+        const displayResult = (message, isError = false, isSuccess = false) => {
+            const resultArea = document.getElementById('resultArea');
+            const className = isError ? 'error-message' : (isSuccess ? 'success-message' : '');
+            resultArea.innerHTML = `<div class="${className}">${message}</div>`;
+            debugLog('Display result:', { message, isError, isSuccess });
+        };
+
+        // Show fallback input for manual text entry
+        const showFallbackInput = () => {
+            const resultArea = document.getElementById('resultArea');
+            resultArea.innerHTML = `
+                <div class="error-message">Clipboard access not supported or denied.</div>
+                <div>Please paste your content manually:</div>
+                <textarea class="fallback-input" id="fallbackInput" placeholder="Paste your content here..." rows="5"></textarea>
+                <button onclick="processFallbackInput()">Process Input</button>
+            `;
+            debugLog('Fallback input displayed');
+        };
+
+        // Process content from fallback input
+        const processFallbackInput = () => {
+            const fallbackInput = document.getElementById('fallbackInput');
+            const content = fallbackInput.value;
+            if (content.trim()) {
+                displayResult(`Manually entered content:\n${content}`, false, true);
+                debugLog('Fallback input processed:', content);
+            } else {
+                displayResult('Please enter some content in the text area.', true);
             }
+        };
+
+        // Paste from clipboard into invisible text field
+        const pasteFromClipboard = async () => {
+            debugLog('Attempting to paste from clipboard into invisible field');
             
-            setupCanvas() {
-                const resizeCanvas = () => {
-                    const rect = this.canvasContainer.getBoundingClientRect();
-                    const dpr = window.devicePixelRatio || 1;
-                    
-                    this.canvas.width = rect.width * dpr;
-                    this.canvas.height = rect.height * dpr;
-                    
-                    this.canvas.style.width = rect.width + 'px';
-                    this.canvas.style.height = rect.height + 'px';
-                    
-                    this.ctx.scale(dpr, dpr);
-                    this.ctx.lineCap = 'round';
-                    this.ctx.lineJoin = 'round';
-                    
-                    // Redraw existing strokes
-                    this.redrawCanvas();
-                };
-                
-                resizeCanvas();
-                window.addEventListener('resize', resizeCanvas);
-                window.addEventListener('orientationchange', () => {
-                    setTimeout(resizeCanvas, 100);
-                });
-            }
+            const invisibleField = document.getElementById('invisibleClipboardField');
             
-            setupEventListeners() {
-                // Mode toggle buttons
-                this.drawBtn.addEventListener('click', () => this.setMode('draw'));
-                this.eraseBtn.addEventListener('click', () => this.setMode('erase'));
+            try {
+                // Focus the invisible field and attempt paste
+                invisibleField.focus();
                 
-                // Brush size
-                this.brushSizeSlider.addEventListener('input', (e) => {
-                    this.brushSize = parseInt(e.target.value);
-                    this.brushSizeValue.textContent = this.brushSize;
-                });
-                
-                // Trick mode toggle
-                this.trickModeToggle.addEventListener('change', (e) => {
-                    this.trickModeActive = e.target.checked;
-                    this.updateAnagramDisplay();
-                    this.updateDebugInfo();
-                    this.updateDivisionLines();
-                });
-                
-                // Action buttons
-                this.debugBtn.addEventListener('click', () => this.toggleDebug());
-                this.undoBtn.addEventListener('click', () => this.undo());
-                this.clearBtn.addEventListener('click', () => this.clear());
-                
-                // Refresh clipboard status when window gains focus
-                window.addEventListener('focus', () => {
-                    if (this.debugMode) {
-                        this.refreshClipboardStatus();
-                    }
-                });
-            }
-            
-            setupCanvasDrawing() {
-                // Mouse events
-                this.canvas.addEventListener('mousedown', (e) => this.handleCanvasInteraction(e, 'start'));
-                this.canvas.addEventListener('mousemove', (e) => this.handleCanvasInteraction(e, 'move'));
-                this.canvas.addEventListener('mouseup', () => this.handleCanvasInteraction(null, 'end'));
-                this.canvas.addEventListener('mouseout', () => this.handleCanvasInteraction(null, 'end'));
-                
-                // Touch events
-                this.canvas.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    const mouseEvent = { clientX: touch.clientX, clientY: touch.clientY };
-                    this.handleCanvasInteraction(mouseEvent, 'start');
-                });
-                
-                this.canvas.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    const touch = e.touches[0];
-                    const mouseEvent = { clientX: touch.clientX, clientY: touch.clientY };
-                    this.handleCanvasInteraction(mouseEvent, 'move');
-                });
-                
-                this.canvas.addEventListener('touchend', (e) => {
-                    e.preventDefault();
-                    this.handleCanvasInteraction(null, 'end');
-                });
-                
-                // Canvas tap handling for trick mode
-                this.canvas.addEventListener('click', (e) => this.handleCanvasTap(e));
-            }
-            
-            handleCanvasInteraction(e, action) {
-                if (action === 'start') {
-                    this.startDrawing(e);
-                } else if (action === 'move') {
-                    this.draw(e);
-                } else if (action === 'end') {
-                    this.stopDrawing();
-                }
-            }
-            
-            async handleCanvasTap(e) {
-                // Handle trick mode clipboard paste when no word bank exists
-                if (this.trickModeActive && this.wordBank.length === 0) {
-                    this.showDebugMessage('📋 Trick mode active - pasting from clipboard...');
-                    await this.pasteFromClipboard();
-                    return;
-                }
-                
-                // Handle word bank pasting if empty (non-trick mode)
-                if (this.wordBank.length === 0 && !this.trickModeActive) {
-                    this.showDebugMessage('💡 Tap detected - trying clipboard paste...');
-                    await this.pasteFromClipboard();
-                    return;
-                }
-                
-                // Handle trick mode navigation
-                if (this.trickModeActive && this.anagramReady && this.anagramSession) {
-                    const rect = this.canvas.getBoundingClientRect();
-                    const y = e.clientY - rect.top;
-                    const canvasHeight = rect.height;
-                    
-                    let answer;
-                    if (y < canvasHeight / 3) {
-                        // Upper third = NO
-                        answer = false;
-                        this.showDebugMessage('🔴 NO selected');
-                    } else if (y > (2 * canvasHeight) / 3) {
-                        // Bottom third = YES
-                        answer = true;
-                        this.showDebugMessage('🟢 YES selected');
-                    } else {
-                        // Middle third = ignore
-                        this.showDebugMessage('⚪ Middle area - no action');
-                        return;
-                    }
-                    
-                    this.answerAnagramQuestion(answer);
-                } else if (this.wordBank.length > 0 && !this.trickModeActive) {
-                    this.showDebugMessage('💡 Word bank ready! Enable Trick mode to play.');
-                } else if (this.trickModeActive && !this.anagramReady) {
-                    this.showDebugMessage('⚠️ Trick mode active but anagram not ready');
-                }
-            }
-            
-            async checkClipboardAvailability() {
-                try {
-                    this.clipboardAvailable = !!(navigator.clipboard && navigator.clipboard.readText);
-                    if (this.clipboardAvailable) {
-                        // Try to read clipboard to test actual availability
-                        try {
-                            await navigator.clipboard.readText();
-                            this.lastClipboardContent = 'Available';
-                        } catch (err) {
-                            // Clipboard API exists but permission denied or other error
-                            this.clipboardAvailable = false;
-                            this.lastClipboardContent = `Blocked: ${err.name}`;
-                        }
-                    } else {
-                        this.lastClipboardContent = 'API not supported';
-                    }
-                } catch (err) {
-                    this.clipboardAvailable = false;
-                    this.lastClipboardContent = `Error: ${err.message}`;
-                }
-                
-                this.updateDebugInfo();
-            }
-            
-            async refreshClipboardStatus() {
-                if (!this.clipboardAvailable) return;
-                
-                try {
-                    const text = await navigator.clipboard.readText();
-                    const preview = text.length > 50 ? text.substring(0, 50) + '...' : text;
-                    this.lastClipboardContent = preview || '(empty)';
-                } catch (err) {
-                    this.lastClipboardContent = `Error: ${err.name}`;
-                }
-                
-                this.updateDebugInfo();
-            }
-            
-            async pasteFromClipboard() {
-                this.lastPasteAttempt = new Date().toLocaleTimeString();
-                this.showDebugMessage('📋 Attempting clipboard paste...');
-                
-                try {
-                    if (!navigator.clipboard || !navigator.clipboard.readText) {
-                        throw new Error('Clipboard API not supported');
-                    }
-                    
-                    const text = await navigator.clipboard.readText();
-                    this.lastClipboardContent = text.length > 50 ? 
-                        text.substring(0, 50) + '...' : text;
-                    
-                    if (text.trim()) {
-                        this.setWordBank(text);
-                        this.showDebugMessage('✅ Successfully pasted from clipboard');
-                        this.updateDebugInfo();
-                        return;
-                    } else {
-                        this.showDebugMessage('⚠️ Clipboard is empty');
-                    }
-                } catch (err) {
-                    console.error('Clipboard read failed:', err);
-                    this.lastClipboardContent = `Failed: ${err.name || err.message}`;
-                    this.showDebugMessage(`❌ Clipboard failed: ${err.name || err.message}`);
-                    
-                    // Show helpful guidance
-                    setTimeout(() => {
-                        this.showDebugMessage('💡 Try: Use ADD WORDS button above, or copy text first');
-                    }, 1500);
-                    
-                    // Fallback: show prompt
+                // Try using the modern clipboard API first
+                if (navigator.clipboard && navigator.clipboard.readText) {
                     try {
-                        const text = prompt('Clipboard access failed. Please paste your word list here (words separated by commas or new lines):');
-                        if (text && text.trim()) {
-                            this.setWordBank(text);
-                            this.showDebugMessage('✅ Added words via manual input');
-                            this.updateDebugInfo();
-                            return;
-                        }
-                    } catch (promptErr) {
-                        this.showDebugMessage('❌ Manual input also failed');
+                        const clipboardContent = await navigator.clipboard.readText();
+                        invisibleField.value = clipboardContent;
+                        debugLog('Clipboard API paste successful:', clipboardContent);
+                        return clipboardContent;
+                    } catch (clipboardError) {
+                        debugLog('Clipboard API failed, trying document.execCommand:', clipboardError);
                     }
                 }
                 
-                this.updateDebugInfo();
-            }
-            
-            setWordBank(text) {
-                // Parse words from text
-                this.wordBank = text
-                    .split(/[,\n]/)
-                    .map(w => w.trim())
-                    .filter(w => w.length > 0);
+                // Fallback to document.execCommand for older browsers
+                invisibleField.value = ''; // Clear field first
+                const success = document.execCommand('paste');
                 
-                // Save to storage
-                Storage.save('drawingpad', { wordBank: this.wordBank });
-                
-                // Generate anagram tree
-                this.generateAnagramTree();
-                this.updateDebugInfo();
-            }
-            
-            loadWordBank() {
-                const stored = Storage.load('drawingpad', { wordBank: [] });
-                this.wordBank = stored.wordBank || [];
-                if (this.wordBank.length > 0) {
-                    this.generateAnagramTree();
-                }
-            }
-            
-            generateAnagramTree() {
-                if (this.wordBank.length < 2) {
-                    this.anagramReady = false;
-                    this.anagramSession = null;
-                    this.updateDebugInfo();
-                    return;
-                }
-                
-                try {
-                    const result = AnagramService.initialize(this.wordBank, { entropy: true });
-                    if (result.success) {
-                        this.anagramReady = true;
-                        this.anagramSession = AnagramService;
-                        this.currentLetter = this.getCurrentAnagramLetter();
-                        this.showDebugMessage('✓ Progressive anagram ready');
-                        this.updateAnagramDisplay();
-                    }
-                } catch (error) {
-                    console.error('Failed to generate anagram tree:', error);
-                    this.anagramReady = false;
-                }
-                
-                this.updateDebugInfo();
-            }
-            
-            getCurrentAnagramLetter() {
-                if (!this.anagramReady || !this.anagramSession) return '';
-                
-                const question = this.anagramSession.getCurrentQuestion();
-                if (question && question.question) {
-                    // Extract letter from question like 'Contains "A"?'
-                    const match = question.question.match(/Contains "([A-Za-z])"/);
-                    return match ? match[1].toUpperCase() : '?';
-                }
-                
-                // Check if completed
-                if (this.anagramSession.isCompleted) {
-                    const status = this.anagramSession.getStatus();
-                    if (status.result && status.result.length > 0) {
-                        return status.result[0]; // Show first result word
-                    }
-                }
-                
-                return '?';
-            }
-            
-            answerAnagramQuestion(yes) {
-                if (!this.anagramReady || !this.anagramSession) return;
-                
-                const result = this.anagramSession.answerQuestion(yes);
-                this.currentLetter = this.getCurrentAnagramLetter();
-                this.updateAnagramDisplay();
-                this.updateDebugInfo();
-                
-                if (result.completed) {
-                    this.showDebugMessage('✓ Anagram complete: ' + result.result.join(', '));
-                }
-            }
-            
-            getMousePos(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                return {
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
-                };
-            }
-            
-            startDrawing(e) {
-                this.isDrawing = true;
-                const pos = this.getMousePos(e);
-                
-                this.currentStroke = [{
-                    x: pos.x,
-                    y: pos.y,
-                    size: this.brushSize,
-                    mode: this.isErasing ? 'erase' : 'draw'
-                }];
-                
-                this.ctx.beginPath();
-                this.ctx.moveTo(pos.x, pos.y);
-                
-                if (this.isErasing) {
-                    this.ctx.globalCompositeOperation = 'destination-out';
+                if (success && invisibleField.value) {
+                    const content = invisibleField.value;
+                    debugLog('Document.execCommand paste successful:', content);
+                    return content;
                 } else {
-                    this.ctx.globalCompositeOperation = 'source-over';
-                    this.ctx.strokeStyle = '#333';
+                    throw new Error('Paste operation failed or no content available');
                 }
                 
-                this.ctx.lineWidth = this.brushSize;
+            } catch (error) {
+                debugLog('Paste operation failed:', error);
+                throw error;
             }
+        };
+
+        // Main clipboard reading function using invisible text field
+        const readClipboard = async () => {
+            debugLog('Clipboard read operation initiated');
             
-            draw(e) {
-                if (!this.isDrawing) return;
+            try {
+                // Display loading message
+                displayResult('Reading clipboard...', false, false);
                 
-                const pos = this.getMousePos(e);
+                // Create a timeout promise
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Clipboard read timeout')), 5000)
+                );
                 
-                this.currentStroke.push({
-                    x: pos.x,
-                    y: pos.y,
-                    size: this.brushSize,
-                    mode: this.isErasing ? 'erase' : 'draw'
-                });
+                // Race between clipboard paste and timeout
+                const clipboardContent = await Promise.race([
+                    pasteFromClipboard(),
+                    timeoutPromise
+                ]);
                 
-                this.ctx.lineTo(pos.x, pos.y);
-                this.ctx.stroke();
-            }
-            
-            stopDrawing() {
-                if (!this.isDrawing) return;
-                
-                this.isDrawing = false;
-                
-                if (this.currentStroke.length > 0) {
-                    this.strokeHistory.push([...this.currentStroke]);
-                    this.currentStroke = [];
-                    this.updateUndoButton();
-                }
-            }
-            
-            setMode(mode) {
-                this.isErasing = (mode === 'erase');
-                
-                if (this.isErasing) {
-                    this.drawBtn.classList.remove('active');
-                    this.eraseBtn.classList.add('active');
-                    this.canvasContainer.classList.add('eraser');
+                debugLog('Clipboard content retrieved via invisible field:', clipboardContent);
+
+                if (clipboardContent && clipboardContent.trim() === '') {
+                    displayResult('Clipboard is empty.', true);
+                } else if (clipboardContent) {
+                    displayResult(`Clipboard content:\n${clipboardContent}`, false, true);
                 } else {
-                    this.eraseBtn.classList.remove('active');
-                    this.drawBtn.classList.add('active');
-                    this.canvasContainer.classList.remove('eraser');
+                    displayResult('No clipboard content found.', true);
                 }
-            }
-            
-            undo() {
-                if (this.strokeHistory.length === 0) return;
+
+            } catch (error) {
+                debugLog('Clipboard read error:', error);
                 
-                // If in trick mode and anagram session active, go back one step
-                if (this.trickModeActive && this.anagramReady && this.anagramSession) {
-                    // Note: AnagramService doesn't have an undo feature built-in
-                    // For now, we'll just mention this limitation
-                    this.showDebugMessage('⚠ Anagram undo not implemented');
-                }
-                
-                this.strokeHistory.pop();
-                this.redrawCanvas();
-                this.updateUndoButton();
-            }
-            
-            clear() {
-                if (confirm('Clear everything? This will reset the drawing, word bank, and anagram progress.')) {
-                    // Clear drawing
-                    this.strokeHistory = [];
-                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                    
-                    // Clear word bank
-                    this.wordBank = [];
-                    Storage.save('drawingpad', { wordBank: [] });
-                    
-                    // Reset anagram
-                    this.anagramReady = false;
-                    this.anagramSession = null;
-                    this.currentLetter = '';
-                    
-                    this.updateUndoButton();
-                    this.updateAnagramDisplay();
-                    this.updateDebugInfo();
-                    this.showDebugMessage('✓ Everything cleared');
-                }
-            }
-            
-            redrawCanvas() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                
-                for (const stroke of this.strokeHistory) {
-                    if (stroke.length === 0) continue;
-                    
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(stroke[0].x, stroke[0].y);
-                    
-                    if (stroke[0].mode === 'erase') {
-                        this.ctx.globalCompositeOperation = 'destination-out';
-                    } else {
-                        this.ctx.globalCompositeOperation = 'source-over';
-                        this.ctx.strokeStyle = '#333';
-                    }
-                    
-                    this.ctx.lineWidth = stroke[0].size;
-                    
-                    for (let i = 1; i < stroke.length; i++) {
-                        this.ctx.lineTo(stroke[i].x, stroke[i].y);
-                    }
-                    
-                    this.ctx.stroke();
-                }
-            }
-            
-            updateUndoButton() {
-                this.undoBtn.disabled = this.strokeHistory.length === 0;
-            }
-            
-            updateAnagramDisplay() {
-                if (this.trickModeActive && this.anagramReady && this.currentLetter) {
-                    this.anagramDisplay.textContent = this.currentLetter;
-                    this.anagramDisplay.style.display = 'block';
+                // Handle specific error types  
+                if (error.name === 'NotAllowedError') {
+                    displayResult('Clipboard access denied. Please grant permission or use the fallback input below.', true);
+                    showFallbackInput();
+                } else if (error.name === 'NotFoundError') {
+                    displayResult('No clipboard content found.', true);
+                } else if (error.message === 'Clipboard read timeout') {
+                    displayResult('Clipboard read timed out. Please try again or use the fallback input below.', true);
+                    showFallbackInput();
                 } else {
-                    this.anagramDisplay.style.display = 'none';
+                    displayResult(`Error reading clipboard: ${error.message}`, true);
+                    showFallbackInput();
                 }
             }
-            
-            toggleDebug() {
-                this.debugMode = !this.debugMode;
-                this.debugInfo.style.display = this.debugMode ? 'block' : 'none';
-                this.debugBtn.classList.toggle('active', this.debugMode);
-                
-                // Show/hide division lines when in debug mode and trick mode
-                if (this.debugMode && this.trickModeActive) {
-                    this.debugDivisionLines.classList.add('active');
-                } else {
-                    this.debugDivisionLines.classList.remove('active');
-                }
-                
-                if (this.debugMode) {
-                    this.updateDebugInfo();
-                }
-                
-                this.updateDivisionLines();
-            }
-            
-            updateDivisionLines() {
-                // Show division lines only when both debug mode AND trick mode are active
-                if (this.debugMode && this.trickModeActive) {
-                    this.debugDivisionLines.classList.add('active');
-                } else {
-                    this.debugDivisionLines.classList.remove('active');
-                }
-            }
-            
-            updateDebugInfo() {
-                if (!this.debugMode) return;
-                
-                const wordBankStatus = this.wordBank.length > 0 ? 
-                    `${this.wordBank.length} words` : 'Empty';
-                
-                const anagramStatus = this.anagramReady ? 'Ready' : 'Not Ready';
-                
-                const currentStep = this.anagramSession && this.anagramReady ? 
-                    this.anagramSession.getStatus().step || 0 : 0;
-                
-                const mode = this.trickModeActive ? 'Trick Mode' : 'Drawing';
-                
-                const clipboardStatus = this.clipboardAvailable ? '✅ Available' : '❌ Unavailable';
-                const clipboardContent = this.lastClipboardContent || 'Unknown';
-                const lastPaste = this.lastPasteAttempt || 'Never';
-                
-                this.debugInfo.innerHTML = `
-                    <div>Word Bank: ${wordBankStatus}</div>
-                    <div>Anagram: ${anagramStatus}</div>
-                    <div>Step: ${currentStep}</div>
-                    <div>Mode: ${mode}</div>
-                    <div style="border-top: 1px solid #333; margin-top: 4px; padding-top: 4px;">
-                        <div>Clipboard: ${clipboardStatus}</div>
-                        <div>Content: ${clipboardContent}</div>
-                        <div>Last Paste: ${lastPaste}</div>
-                    </div>
-                `;
-            }
-            
-            showDebugMessage(message) {
-                if (!this.debugMode) return;
-                
-                // Add message to debug info temporarily
-                const oldContent = this.debugInfo.innerHTML;
-                this.debugInfo.innerHTML = oldContent + `<div style="color: #ffff00;">${message}</div>`;
-                
-                // Remove after 3 seconds
-                setTimeout(() => {
-                    this.updateDebugInfo();
-                }, 3000);
-            }
-        }
-        
-        // Initialize the app when DOM is loaded
+        };
+
+        // Initialize the application when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            window.app = new MagicDrawingApp();
+            const drawButton = document.getElementById('draw');
+            const clearButton = document.getElementById('clear');
+            const penSizeButton = document.getElementById('pen-size');
+
+            debugLog('Application initialized', { debugMode: isDebugMode() });
+
+            // Main Draw button - triggers clipboard paste
+            drawButton.addEventListener('click', () => {
+                debugLog('Draw button clicked - triggering clipboard read');
+                readClipboard();
+            });
+
+            // Clear button - clears the result area
+            clearButton.addEventListener('click', () => {
+                debugLog('Clear button clicked');
+                displayResult('Clipboard content will appear here...');
+            });
+
+            // Pen Size button - shows clipboard API support info
+            penSizeButton.addEventListener('click', () => {
+                debugLog('Pen Size button clicked - showing clipboard support info');
+                const isSupported = navigator.clipboard && navigator.clipboard.readText;
+                const supportMessage = isSupported 
+                    ? 'Clipboard API is supported in this browser.' 
+                    : 'Clipboard API is not supported. Fallback input will be used.';
+                displayResult(supportMessage, !isSupported, isSupported);
+            });
+
+            // Add debug mode toggle if in debug
+            if (isDebugMode()) {
+                displayResult('DEBUG MODE ACTIVE - Check console for detailed logs', false, true);
+            }
         });
+
+        // Global function for fallback input processing (needed for inline onclick)
+        window.processFallbackInput = processFallbackInput;
     </script>
 </body>
 </html>
