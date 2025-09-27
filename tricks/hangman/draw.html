@@ -124,6 +124,12 @@
             height: calc(100vh - 34px);
             margin: 0;
             cursor: crosshair;
+            transition: height 0.2s ease;
+        }
+        
+        /* Adjust canvas when debug panel is visible */
+        body.debug-active .canvas {
+            height: calc(100vh - 34px - 60px);
         }
         
         .status-indicator {
@@ -153,14 +159,15 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.8);
             color: white;
-            padding: 20px;
-            max-height: 40vh;
+            padding: 8px 12px;
+            height: 60px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
-            font-size: 14px;
+            font-size: 11px;
             z-index: 200;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .debug-panel.show {
@@ -188,17 +195,19 @@
         }
         
         .result-area {
-            margin: 20px 0;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid #ddd;
-            border-radius: 12px;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            border: none;
+            border-radius: 0;
             font-family: 'Courier New', monospace;
-            white-space: pre-wrap;
-            max-height: 200px;
-            overflow-y: auto;
-            max-width: 90vw;
-            word-break: break-word;
+            white-space: nowrap;
+            overflow-x: auto;
+            overflow-y: hidden;
+            max-width: 100%;
+            word-break: keep-all;
+            font-size: 11px;
+            line-height: 1.2;
         }
         
         .error-message {
@@ -546,12 +555,14 @@
             if (isDebugMode()) {
                 debugPanel.classList.add('show');
                 debugToggle.classList.add('show');
+                document.body.classList.add('debug-active');
                 displayResult('DEBUG MODE ACTIVE - Check console for detailed logs', false, true);
             }
 
             // Debug toggle functionality
             debugToggle.addEventListener('click', () => {
                 debugPanel.classList.toggle('show');
+                document.body.classList.toggle('debug-active');
             });
 
             // Drawing mode toggle
@@ -588,11 +599,13 @@
                 if (!currentMode) {
                     debugPanel.classList.add('show');
                     debugToggle.classList.add('show');
+                    document.body.classList.add('debug-active');
                     displayResult('DEBUG MODE ACTIVATED - Reload page to see debug grid', false, true);
                     showStatus('Debug mode enabled - reload to see grid', false, 2000);
                 } else {
                     debugPanel.classList.remove('show');
-                    debugToggle.classList.remove('show'); 
+                    debugToggle.classList.remove('show');
+                    document.body.classList.remove('debug-active');
                     showStatus('Debug mode disabled - reload to hide grid', false, 2000);
                 }
             });
