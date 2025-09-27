@@ -233,6 +233,7 @@
             
             <div class="toolbar-group">
                 <button id="debugBtn" class="btn secondary">DEBUG</button>
+                <button id="addWordsBtn" class="btn secondary">ADD WORDS</button>
                 <button id="undoBtn" class="btn secondary" disabled>Undo</button>
                 <button id="clearBtn" class="btn danger">Clear</button>
             </div>
@@ -289,6 +290,7 @@
                 this.clearBtn = document.getElementById('clearBtn');
                 this.trickModeToggle = document.getElementById('trickMode');
                 this.debugBtn = document.getElementById('debugBtn');
+                this.addWordsBtn = document.getElementById('addWordsBtn');
                 this.anagramDisplay = document.getElementById('anagramDisplay');
                 this.debugInfo = document.getElementById('debugInfo');
                 
@@ -350,6 +352,7 @@
                 
                 // Action buttons
                 this.debugBtn.addEventListener('click', () => this.toggleDebug());
+                this.addWordsBtn.addEventListener('click', () => this.showAddWordsDialog());
                 this.undoBtn.addEventListener('click', () => this.undo());
                 this.clearBtn.addEventListener('click', () => this.clear());
                 
@@ -405,6 +408,7 @@
             async handleCanvasTap(e) {
                 // Handle word bank pasting if empty
                 if (this.wordBank.length === 0 && !this.trickModeActive) {
+                    this.showDebugMessage('💡 Tap detected - trying clipboard paste...');
                     await this.pasteFromClipboard();
                     return;
                 }
@@ -419,15 +423,20 @@
                     if (y < canvasHeight / 3) {
                         // Upper third = NO
                         answer = false;
+                        this.showDebugMessage('🔴 NO selected');
                     } else if (y > (2 * canvasHeight) / 3) {
                         // Bottom third = YES
                         answer = true;
+                        this.showDebugMessage('🟢 YES selected');
                     } else {
                         // Middle third = ignore
+                        this.showDebugMessage('⚪ Middle area - no action');
                         return;
                     }
                     
                     this.answerAnagramQuestion(answer);
+                } else if (this.wordBank.length > 0 && !this.trickModeActive) {
+                    this.showDebugMessage('💡 Word bank ready! Enable Trick mode to play.');
                 }
             }
             
@@ -469,6 +478,22 @@
                 this.updateDebugInfo();
             }
             
+            showAddWordsDialog() {
+                const currentWords = this.wordBank.length > 0 ? 
+                    this.wordBank.join(', ') : '';
+                
+                const text = prompt(
+                    'Enter words for the anagram game (separated by commas or new lines):\n\n' +
+                    'Current words: ' + (currentWords || 'None'),
+                    currentWords
+                );
+                
+                if (text !== null && text.trim()) {
+                    this.setWordBank(text);
+                    this.showDebugMessage('✅ Words added manually');
+                }
+            }
+            
             async pasteFromClipboard() {
                 this.lastPasteAttempt = new Date().toLocaleTimeString();
                 this.showDebugMessage('📋 Attempting clipboard paste...');
@@ -494,6 +519,11 @@
                     console.error('Clipboard read failed:', err);
                     this.lastClipboardContent = `Failed: ${err.name || err.message}`;
                     this.showDebugMessage(`❌ Clipboard failed: ${err.name || err.message}`);
+                    
+                    // Show helpful guidance
+                    setTimeout(() => {
+                        this.showDebugMessage('💡 Try: Use ADD WORDS button above, or copy text first');
+                    }, 1500);
                     
                     // Fallback: show prompt
                     try {
