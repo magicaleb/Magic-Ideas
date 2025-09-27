@@ -97,6 +97,12 @@
             box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
         }
         
+        .btn.active {
+            background: linear-gradient(135deg, #FF5722 0%, #D32F2F 100%);
+            box-shadow: 0 4px 12px rgba(255, 87, 34, 0.5);
+            transform: translateY(-1px);
+        }
+        
         .main-content {
             flex: 1;
             display: flex;
@@ -112,9 +118,12 @@
             border-radius: 12px;
             background: white;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            max-width: 90vw;
-            max-height: 60vh;
-            margin: 20px 0;
+            width: calc(100vw - 20px);
+            height: calc(100vh - 140px);
+            max-width: calc(100vw - 20px);
+            max-height: calc(100vh - 140px);
+            margin: 10px;
+            cursor: crosshair;
         }
         
         .status-indicator {
@@ -268,13 +277,20 @@
         
         @media (max-width: 480px) {
             .button-grid {
-                grid-template-columns: 1fr;
-                gap: 10px;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
             }
             
             .btn {
-                padding: 16px;
-                font-size: 16px;
+                padding: 12px 8px;
+                font-size: 13px;
+                min-height: 44px;
+            }
+            
+            .canvas {
+                width: calc(100vw - 10px);
+                height: calc(100vh - 120px);
+                margin: 5px;
             }
         }
     </style>
@@ -283,13 +299,15 @@
     <div class="button-area">
         <div class="button-grid">
             <button class="btn" id="draw">Draw</button>
+            <button class="btn secondary" id="erase">Erase</button>
+            <button class="btn info" id="debug">Debug</button>
             <button class="btn secondary" id="clear">Clear</button>
-            <button class="btn info" id="pen-size">Info</button>
+            <button class="btn info" id="undo">Undo</button>
         </div>
     </div>
     
     <div class="main-content">
-        <canvas class="canvas" id="drawingCanvas" width="800" height="600"></canvas>
+        <canvas class="canvas" id="drawingCanvas"></canvas>
     </div>
     
     <!-- Status indicator for feedback -->
@@ -539,12 +557,30 @@
         // Initialize the application when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
             const drawButton = document.getElementById('draw');
+            const eraseButton = document.getElementById('erase');
+            const debugButton = document.getElementById('debug');
             const clearButton = document.getElementById('clear');
-            const penSizeButton = document.getElementById('pen-size');
+            const undoButton = document.getElementById('undo');
             const debugPanel = document.getElementById('debugPanel');
             const debugToggle = document.getElementById('debugToggle');
 
             debugLog('Application initialized', { debugMode: isDebugMode() });
+
+            // Setup canvas
+            const { canvas, ctx } = setupCanvas();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                const rect = canvas.getBoundingClientRect();
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                ctx.putImageData(imageData, 0, 0);
+                
+                if (isDebugMode()) {
+                    drawDebugGrid(ctx, canvas.width, canvas.height);
+                }
+            });
 
             // Show debug elements if in debug mode
             if (isDebugMode()) {
@@ -558,38 +594,103 @@
                 debugPanel.classList.toggle('show');
             });
 
-            // Main Draw button - triggers clipboard paste automatically
+            // Drawing mode toggle
             drawButton.addEventListener('click', () => {
-                debugLog('Draw button clicked - triggering clipboard read');
+                debugLog('Draw button clicked - enabling draw mode');
+                isDrawing = true;
+                isErasing = false;
+                drawButton.classList.add('active');
+                eraseButton.classList.remove('active');
+                canvas.style.cursor = 'crosshair';
+                showStatus('Draw mode enabled', false, 1000);
+                
+                // Also trigger clipboard read (invisible to user)
                 readClipboard();
             });
 
-            // Clear button - clears the result area and shows success
+            // Erasing mode toggle
+            eraseButton.addEventListener('click', () => {
+                debugLog('Erase button clicked - enabling erase mode');
+                isErasing = true;
+                isDrawing = false;
+                eraseButton.classList.add('active');
+                drawButton.classList.remove('active');
+                canvas.style.cursor = 'grab';
+                showStatus('Erase mode enabled', false, 1000);
+            });
+
+            // Debug mode toggle
+            debugButton.addEventListener('click', () => {
+                debugLog('Debug button clicked - toggling debug mode');
+                const currentMode = isDebugMode();
+                localStorage.setItem('debugMode', (!currentMode).toString());
+                
+                if (!currentMode) {
+                    debugPanel.classList.add('show');
+                    debugToggle.classList.add('show');
+                    displayResult('DEBUG MODE ACTIVATED - Reload page to see debug grid', false, true);
+                    showStatus('Debug mode enabled - reload to see grid', false, 2000);
+                } else {
+                    debugPanel.classList.remove('show');
+                    debugToggle.classList.remove('show'); 
+                    showStatus('Debug mode disabled - reload to hide grid', false, 2000);
+                }
+            });
+
+            // Clear button - clears the canvas
             clearButton.addEventListener('click', () => {
                 debugLog('Clear button clicked');
-                if (isDebugMode()) {
-                    displayResult('Debug panel cleared...');
-                } else {
-                    showStatus('Cleared', false, 1000);
-                }
-            });
-
-            // Info button - shows clipboard API support info
-            penSizeButton.addEventListener('click', () => {
-                debugLog('Info button clicked - showing clipboard support info');
-                const isSupported = navigator.clipboard && navigator.clipboard.readText;
-                const supportMessage = isSupported 
-                    ? 'Clipboard API is supported in this browser.' 
-                    : 'Clipboard API is not supported. Fallback input will be used.';
+                clearCanvas(canvas, ctx);
+                isDrawing = false;
+                isErasing = false;
+                drawButton.classList.remove('active');
+                eraseButton.classList.remove('active');
+                canvas.style.cursor = 'default';
                 
                 if (isDebugMode()) {
-                    displayResult(supportMessage, !isSupported, isSupported);
+                    displayResult('Canvas cleared...');
                 } else {
-                    showStatus(supportMessage, !isSupported, 3000);
+                    showStatus('Canvas cleared', false, 1000);
                 }
             });
 
-            // Auto-trigger clipboard read on page load
+            // Undo button - undoes last action
+            undoButton.addEventListener('click', () => {
+                debugLog('Undo button clicked');
+                undoLastAction(canvas, ctx);
+                showStatus('Last action undone', false, 1000);
+            });
+
+            // Canvas drawing event listeners
+            // Mouse events
+            canvas.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                startDrawing(e, canvas, ctx);
+            });
+            
+            canvas.addEventListener('mousemove', (e) => {
+                e.preventDefault();
+                draw(e, canvas, ctx);
+            });
+            
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+            
+            // Touch events for mobile
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                startDrawing(e, canvas, ctx);
+            });
+            
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                draw(e, canvas, ctx);
+            });
+            
+            canvas.addEventListener('touchend', stopDrawing);
+            canvas.addEventListener('touchcancel', stopDrawing);
+
+            // Auto-trigger clipboard read on page load (invisible to user)
             autoTriggerClipboard();
         });
 
@@ -611,6 +712,135 @@
 
         // Global function for fallback input processing (needed for inline onclick)
         window.processFallbackInput = processFallbackInput;
+
+        // Drawing functionality
+        let isDrawing = false;
+        let isErasing = false;
+        let drawingHistory = [];
+        let currentPath = [];
+        
+        // Canvas setup and drawing logic
+        const setupCanvas = () => {
+            const canvas = document.getElementById('drawingCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to match display size
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            
+            // Set up drawing context
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#333';
+            
+            // Add debug grid if in debug mode
+            if (isDebugMode()) {
+                drawDebugGrid(ctx, canvas.width, canvas.height);
+            }
+            
+            return { canvas, ctx };
+        };
+        
+        const drawDebugGrid = (ctx, width, height) => {
+            ctx.save();
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            
+            // Draw three horizontal lines dividing canvas into thirds
+            const thirdHeight = height / 3;
+            ctx.beginPath();
+            ctx.moveTo(0, thirdHeight);
+            ctx.lineTo(width, thirdHeight);
+            ctx.moveTo(0, thirdHeight * 2);
+            ctx.lineTo(width, thirdHeight * 2);
+            ctx.stroke();
+            
+            ctx.restore();
+        };
+        
+        const startDrawing = (e, canvas, ctx) => {
+            if (!isDrawing && !isErasing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            currentPath = [{x, y, mode: isErasing ? 'erase' : 'draw'}];
+        };
+        
+        const draw = (e, canvas, ctx) => {
+            if (!isDrawing && !isErasing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            
+            if (isErasing) {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineWidth = 10;
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.lineWidth = 3;
+            }
+            
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            currentPath.push({x, y, mode: isErasing ? 'erase' : 'draw'});
+        };
+        
+        const stopDrawing = () => {
+            if (currentPath.length > 0) {
+                drawingHistory.push([...currentPath]);
+                currentPath = [];
+            }
+        };
+        
+        const clearCanvas = (canvas, ctx) => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawingHistory = [];
+            if (isDebugMode()) {
+                drawDebugGrid(ctx, canvas.width, canvas.height);
+            }
+        };
+        
+        const undoLastAction = (canvas, ctx) => {
+            if (drawingHistory.length === 0) return;
+            
+            drawingHistory.pop();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (isDebugMode()) {
+                drawDebugGrid(ctx, canvas.width, canvas.height);
+            }
+            
+            // Redraw all paths
+            drawingHistory.forEach(path => {
+                if (path.length === 0) return;
+                
+                ctx.beginPath();
+                ctx.moveTo(path[0].x, path[0].y);
+                
+                path.forEach((point, index) => {
+                    if (index === 0) return;
+                    
+                    if (point.mode === 'erase') {
+                        ctx.globalCompositeOperation = 'destination-out';
+                        ctx.lineWidth = 10;
+                    } else {
+                        ctx.globalCompositeOperation = 'source-over';
+                        ctx.lineWidth = 3;
+                    }
+                    
+                    ctx.lineTo(point.x, point.y);
+                    ctx.stroke();
+                });
+            });
+        };
     </script>
 </body>
 </html>
