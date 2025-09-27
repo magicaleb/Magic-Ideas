@@ -1,406 +1,721 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#ffffff">
-  <title>Drawing Pad</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f8f9fa;
-      color: #333;
-      overflow: hidden;
-      height: 100vh;
-      touch-action: none;
-    }
-    
-    .app-container {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      max-height: 100vh;
-    }
-    
-    .toolbar {
-      background: #ffffff;
-      border-bottom: 1px solid #e9ecef;
-      padding: 8px 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      flex-shrink: 0;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
-    .toolbar-group {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .btn {
-      background: #007AFF;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      min-width: 60px;
-    }
-    
-    .btn:hover {
-      background: #0056CC;
-    }
-    
-    .btn:active {
-      transform: scale(0.95);
-    }
-    
-    .btn.secondary {
-      background: #6c757d;
-    }
-    
-    .btn.secondary:hover {
-      background: #5a6268;
-    }
-    
-    .btn.danger {
-      background: #dc3545;
-    }
-    
-    .btn.danger:hover {
-      background: #c82333;
-    }
-    
-    .btn.active {
-      background: #28a745;
-    }
-    
-    .btn.active:hover {
-      background: #218838;
-    }
-    
-    .btn:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-    
-    .brush-size {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    
-    .brush-size input {
-      width: 60px;
-    }
-    
-    .canvas-container {
-      flex: 1;
-      position: relative;
-      background: white;
-      overflow: hidden;
-    }
-    
-    #drawingCanvas {
-      display: block;
-      cursor: crosshair;
-      touch-action: none;
-    }
-    
-    .canvas-container.eraser #drawingCanvas {
-      cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect x="2" y="2" width="16" height="16" fill="none" stroke="black" stroke-width="2" rx="2"/></svg>') 10 10, auto;
-    }
-    
-    @media (max-width: 480px) {
-      .toolbar {
-        padding: 6px 8px;
-        gap: 4px;
-      }
-      
-      .btn {
-        padding: 6px 8px;
-        font-size: 12px;
-        min-width: 50px;
-      }
-      
-      .toolbar-group {
-        gap: 4px;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Magic Drawing Pad</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            overflow: hidden;
+            height: 100vh;
+            touch-action: none;
+        }
+        
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .toolbar {
+            background: #FFEB3B;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn {
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 50px;
+        }
+        
+        .btn:hover {
+            background: #0056CC;
+        }
+        
+        .btn:active {
+            transform: scale(0.95);
+        }
+        
+        .btn.secondary {
+            background: #6c757d;
+        }
+        
+        .btn.danger {
+            background: #dc3545;
+        }
+        
+        .btn.success {
+            background: #28a745;
+        }
+        
+        .btn.active {
+            background: #28a745;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #dc3545;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background: white;
+            overflow: hidden;
+        }
+        
+        #drawingCanvas {
+            display: block;
+            cursor: crosshair;
+            touch-action: none;
+            border: 1px solid #000;
+        }
+        
+        .canvas-container.eraser #drawingCanvas {
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><rect x="2" y="2" width="16" height="16" fill="none" stroke="black" stroke-width="2" rx="2"/></svg>') 10 10, auto;
+        }
+        
+        .anagram-display {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 24px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            min-width: 60px;
+            text-align: center;
+            display: none;
+        }
+        
+        .debug-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #00ff00;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            max-width: 300px;
+            display: none;
+        }
+        
+        .range-input {
+            width: 60px;
+        }
+        
+        @media (max-width: 480px) {
+            .toolbar {
+                padding: 6px 8px;
+                gap: 4px;
+            }
+            
+            .btn {
+                padding: 4px 6px;
+                font-size: 10px;
+                min-width: 40px;
+            }
+            
+            .toolbar-group {
+                gap: 4px;
+            }
+            
+            .anagram-display {
+                bottom: 10px;
+                right: 10px;
+                font-size: 20px;
+                padding: 8px 12px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="app-container">
-    <div class="toolbar">
-      <div class="toolbar-group">
-        <button id="drawBtn" class="btn active">Draw</button>
-        <button id="eraseBtn" class="btn">Erase</button>
-      </div>
-      
-      <div class="toolbar-group brush-size">
-        <label for="brushSize">Size:</label>
-        <input type="range" id="brushSize" min="1" max="20" value="3">
-        <span id="brushSizeValue">3</span>
-      </div>
-      
-      <div class="toolbar-group">
-        <button id="undoBtn" class="btn secondary" disabled>Undo</button>
-        <button id="clearBtn" class="btn danger">Clear</button>
-      </div>
+    <div class="app-container">
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <button id="drawBtn" class="btn active">Draw</button>
+                <button id="eraseBtn" class="btn">Erase</button>
+            </div>
+            
+            <div class="toolbar-group">
+                <label for="brushSize" style="font-size: 11px;">Size:</label>
+                <input type="range" id="brushSize" class="range-input" min="1" max="20" value="3">
+                <span id="brushSizeValue" style="font-size: 11px; min-width: 15px;">3</span>
+            </div>
+            
+            <div class="toolbar-group">
+                <label for="trickMode" style="font-size: 11px;">Trick:</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="trickMode">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="toolbar-group">
+                <button id="debugBtn" class="btn secondary">DEBUG</button>
+                <button id="undoBtn" class="btn secondary" disabled>Undo</button>
+                <button id="clearBtn" class="btn danger">Clear</button>
+            </div>
+        </div>
+        
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="drawingCanvas"></canvas>
+            <div class="anagram-display" id="anagramDisplay">?</div>
+            <div class="debug-info" id="debugInfo">
+                <div>Word Bank: Empty</div>
+                <div>Anagram: Not Ready</div>
+                <div>Step: 0</div>
+                <div>Mode: Drawing</div>
+            </div>
+        </div>
     </div>
-    
-    <div class="canvas-container" id="canvasContainer">
-      <canvas id="drawingCanvas"></canvas>
-    </div>
-  </div>
 
-  <script>
-    class DrawingApp {
-      constructor() {
-        this.canvas = document.getElementById('drawingCanvas');
-        this.ctx = this.canvas.getContext('2d');
-        this.canvasContainer = document.getElementById('canvasContainer');
-        
-        // Drawing state
-        this.isDrawing = false;
-        this.isErasing = false;
-        this.brushSize = 3;
-        this.strokeHistory = [];
-        this.currentStroke = [];
-        
-        // UI elements
-        this.drawBtn = document.getElementById('drawBtn');
-        this.eraseBtn = document.getElementById('eraseBtn');
-        this.brushSizeSlider = document.getElementById('brushSize');
-        this.brushSizeValue = document.getElementById('brushSizeValue');
-        this.undoBtn = document.getElementById('undoBtn');
-        this.clearBtn = document.getElementById('clearBtn');
-        
-        this.init();
-      }
-      
-      init() {
-        this.setupCanvas();
-        this.setupEventListeners();
-        this.setupCanvasDrawing();
-      }
-      
-      setupCanvas() {
-        const resizeCanvas = () => {
-          const rect = this.canvasContainer.getBoundingClientRect();
-          const dpr = window.devicePixelRatio || 1;
-          
-          this.canvas.width = rect.width * dpr;
-          this.canvas.height = rect.height * dpr;
-          
-          this.canvas.style.width = rect.width + 'px';
-          this.canvas.style.height = rect.height + 'px';
-          
-          this.ctx.scale(dpr, dpr);
-          this.ctx.lineCap = 'round';
-          this.ctx.lineJoin = 'round';
-          
-          // Redraw existing strokes
-          this.redrawCanvas();
-        };
-        
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-        window.addEventListener('orientationchange', () => {
-          setTimeout(resizeCanvas, 100);
-        });
-      }
-      
-      setupEventListeners() {
-        // Mode toggle buttons
-        this.drawBtn.addEventListener('click', () => this.setMode('draw'));
-        this.eraseBtn.addEventListener('click', () => this.setMode('erase'));
-        
-        // Brush size
-        this.brushSizeSlider.addEventListener('input', (e) => {
-          this.brushSize = parseInt(e.target.value);
-          this.brushSizeValue.textContent = this.brushSize;
-        });
-        
-        // Action buttons
-        this.undoBtn.addEventListener('click', () => this.undo());
-        this.clearBtn.addEventListener('click', () => this.clear());
-      }
-      
-      setupCanvasDrawing() {
-        // Mouse events
-        this.canvas.addEventListener('mousedown', (e) => this.startDrawing(e));
-        this.canvas.addEventListener('mousemove', (e) => this.draw(e));
-        this.canvas.addEventListener('mouseup', () => this.stopDrawing());
-        this.canvas.addEventListener('mouseout', () => this.stopDrawing());
-        
-        // Touch events
-        this.canvas.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          const touch = e.touches[0];
-          const mouseEvent = new MouseEvent('mousedown', {
-            clientX: touch.clientX,
-            clientY: touch.clientY
-          });
-          this.canvas.dispatchEvent(mouseEvent);
-        });
-        
-        this.canvas.addEventListener('touchmove', (e) => {
-          e.preventDefault();
-          const touch = e.touches[0];
-          const mouseEvent = new MouseEvent('mousemove', {
-            clientX: touch.clientX,
-            clientY: touch.clientY
-          });
-          this.canvas.dispatchEvent(mouseEvent);
-        });
-        
-        this.canvas.addEventListener('touchend', (e) => {
-          e.preventDefault();
-          const mouseEvent = new MouseEvent('mouseup', {});
-          this.canvas.dispatchEvent(mouseEvent);
-        });
-      }
-      
-      getMousePos(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        return {
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top
-        };
-      }
-      
-      startDrawing(e) {
-        this.isDrawing = true;
-        const pos = this.getMousePos(e);
-        
-        this.currentStroke = [{
-          x: pos.x,
-          y: pos.y,
-          size: this.brushSize,
-          mode: this.isErasing ? 'erase' : 'draw'
-        }];
-        
-        this.ctx.beginPath();
-        this.ctx.moveTo(pos.x, pos.y);
-        
-        if (this.isErasing) {
-          this.ctx.globalCompositeOperation = 'destination-out';
-        } else {
-          this.ctx.globalCompositeOperation = 'source-over';
-          this.ctx.strokeStyle = '#333';
+    <script src="../../assets/js/storage.js"></script>
+    <script src="../../assets/js/anagram.js"></script>
+    <script src="../../assets/js/anagram-service.js"></script>
+    <script>
+        class MagicDrawingApp {
+            constructor() {
+                this.canvas = document.getElementById('drawingCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.canvasContainer = document.getElementById('canvasContainer');
+                
+                // Drawing state
+                this.isDrawing = false;
+                this.isErasing = false;
+                this.brushSize = 3;
+                this.strokeHistory = [];
+                this.currentStroke = [];
+                
+                // Progressive Anagram state
+                this.wordBank = [];
+                this.anagramSession = null;
+                this.anagramReady = false;
+                this.trickModeActive = false;
+                this.currentLetter = '';
+                this.debugMode = false;
+                
+                // UI elements
+                this.drawBtn = document.getElementById('drawBtn');
+                this.eraseBtn = document.getElementById('eraseBtn');
+                this.brushSizeSlider = document.getElementById('brushSize');
+                this.brushSizeValue = document.getElementById('brushSizeValue');
+                this.undoBtn = document.getElementById('undoBtn');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.trickModeToggle = document.getElementById('trickMode');
+                this.debugBtn = document.getElementById('debugBtn');
+                this.anagramDisplay = document.getElementById('anagramDisplay');
+                this.debugInfo = document.getElementById('debugInfo');
+                
+                this.init();
+            }
+            
+            init() {
+                this.setupCanvas();
+                this.setupEventListeners();
+                this.setupCanvasDrawing();
+                this.loadWordBank();
+                this.updateDebugInfo();
+            }
+            
+            setupCanvas() {
+                const resizeCanvas = () => {
+                    const rect = this.canvasContainer.getBoundingClientRect();
+                    const dpr = window.devicePixelRatio || 1;
+                    
+                    this.canvas.width = rect.width * dpr;
+                    this.canvas.height = rect.height * dpr;
+                    
+                    this.canvas.style.width = rect.width + 'px';
+                    this.canvas.style.height = rect.height + 'px';
+                    
+                    this.ctx.scale(dpr, dpr);
+                    this.ctx.lineCap = 'round';
+                    this.ctx.lineJoin = 'round';
+                    
+                    // Redraw existing strokes
+                    this.redrawCanvas();
+                };
+                
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+                window.addEventListener('orientationchange', () => {
+                    setTimeout(resizeCanvas, 100);
+                });
+            }
+            
+            setupEventListeners() {
+                // Mode toggle buttons
+                this.drawBtn.addEventListener('click', () => this.setMode('draw'));
+                this.eraseBtn.addEventListener('click', () => this.setMode('erase'));
+                
+                // Brush size
+                this.brushSizeSlider.addEventListener('input', (e) => {
+                    this.brushSize = parseInt(e.target.value);
+                    this.brushSizeValue.textContent = this.brushSize;
+                });
+                
+                // Trick mode toggle
+                this.trickModeToggle.addEventListener('change', (e) => {
+                    this.trickModeActive = e.target.checked;
+                    this.updateAnagramDisplay();
+                    this.updateDebugInfo();
+                });
+                
+                // Action buttons
+                this.debugBtn.addEventListener('click', () => this.toggleDebug());
+                this.undoBtn.addEventListener('click', () => this.undo());
+                this.clearBtn.addEventListener('click', () => this.clear());
+            }
+            
+            setupCanvasDrawing() {
+                // Mouse events
+                this.canvas.addEventListener('mousedown', (e) => this.handleCanvasInteraction(e, 'start'));
+                this.canvas.addEventListener('mousemove', (e) => this.handleCanvasInteraction(e, 'move'));
+                this.canvas.addEventListener('mouseup', () => this.handleCanvasInteraction(null, 'end'));
+                this.canvas.addEventListener('mouseout', () => this.handleCanvasInteraction(null, 'end'));
+                
+                // Touch events
+                this.canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const mouseEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                    this.handleCanvasInteraction(mouseEvent, 'start');
+                });
+                
+                this.canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    const mouseEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                    this.handleCanvasInteraction(mouseEvent, 'move');
+                });
+                
+                this.canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.handleCanvasInteraction(null, 'end');
+                });
+                
+                // Canvas tap handling for trick mode
+                this.canvas.addEventListener('click', (e) => this.handleCanvasTap(e));
+            }
+            
+            handleCanvasInteraction(e, action) {
+                if (action === 'start') {
+                    this.startDrawing(e);
+                } else if (action === 'move') {
+                    this.draw(e);
+                } else if (action === 'end') {
+                    this.stopDrawing();
+                }
+            }
+            
+            async handleCanvasTap(e) {
+                // Handle word bank pasting if empty
+                if (this.wordBank.length === 0 && !this.trickModeActive) {
+                    await this.pasteFromClipboard();
+                    return;
+                }
+                
+                // Handle trick mode navigation
+                if (this.trickModeActive && this.anagramReady && this.anagramSession) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const y = e.clientY - rect.top;
+                    const canvasHeight = rect.height;
+                    
+                    let answer;
+                    if (y < canvasHeight / 3) {
+                        // Upper third = NO
+                        answer = false;
+                    } else if (y > (2 * canvasHeight) / 3) {
+                        // Bottom third = YES
+                        answer = true;
+                    } else {
+                        // Middle third = ignore
+                        return;
+                    }
+                    
+                    this.answerAnagramQuestion(answer);
+                }
+            }
+            
+            async pasteFromClipboard() {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    if (text.trim()) {
+                        this.setWordBank(text);
+                        this.showDebugMessage('✓ Pasted into word bank');
+                    }
+                } catch (err) {
+                    // Fallback: show prompt
+                    const text = prompt('Paste your word list here (words separated by commas or new lines):');
+                    if (text && text.trim()) {
+                        this.setWordBank(text);
+                        this.showDebugMessage('✓ Added to word bank');
+                    }
+                }
+            }
+            
+            setWordBank(text) {
+                // Parse words from text
+                this.wordBank = text
+                    .split(/[,\n]/)
+                    .map(w => w.trim())
+                    .filter(w => w.length > 0);
+                
+                // Save to storage
+                Storage.save('drawingpad', { wordBank: this.wordBank });
+                
+                // Generate anagram tree
+                this.generateAnagramTree();
+                this.updateDebugInfo();
+            }
+            
+            loadWordBank() {
+                const stored = Storage.load('drawingpad', { wordBank: [] });
+                this.wordBank = stored.wordBank || [];
+                if (this.wordBank.length > 0) {
+                    this.generateAnagramTree();
+                }
+            }
+            
+            generateAnagramTree() {
+                if (this.wordBank.length < 2) {
+                    this.anagramReady = false;
+                    this.anagramSession = null;
+                    this.updateDebugInfo();
+                    return;
+                }
+                
+                try {
+                    const result = AnagramService.initialize(this.wordBank, { entropy: true });
+                    if (result.success) {
+                        this.anagramReady = true;
+                        this.anagramSession = AnagramService;
+                        this.currentLetter = this.getCurrentAnagramLetter();
+                        this.showDebugMessage('✓ Progressive anagram ready');
+                        this.updateAnagramDisplay();
+                    }
+                } catch (error) {
+                    console.error('Failed to generate anagram tree:', error);
+                    this.anagramReady = false;
+                }
+                
+                this.updateDebugInfo();
+            }
+            
+            getCurrentAnagramLetter() {
+                if (!this.anagramReady || !this.anagramSession) return '';
+                
+                const question = this.anagramSession.getCurrentQuestion();
+                if (question && question.question) {
+                    // Extract letter from question like 'Contains "A"?'
+                    const match = question.question.match(/Contains "([A-Za-z])"/);
+                    return match ? match[1].toUpperCase() : '?';
+                }
+                
+                // Check if completed
+                if (this.anagramSession.isCompleted) {
+                    const status = this.anagramSession.getStatus();
+                    if (status.result && status.result.length > 0) {
+                        return status.result[0]; // Show first result word
+                    }
+                }
+                
+                return '?';
+            }
+            
+            answerAnagramQuestion(yes) {
+                if (!this.anagramReady || !this.anagramSession) return;
+                
+                const result = this.anagramSession.answerQuestion(yes);
+                this.currentLetter = this.getCurrentAnagramLetter();
+                this.updateAnagramDisplay();
+                this.updateDebugInfo();
+                
+                if (result.completed) {
+                    this.showDebugMessage('✓ Anagram complete: ' + result.result.join(', '));
+                }
+            }
+            
+            getMousePos(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+            
+            startDrawing(e) {
+                this.isDrawing = true;
+                const pos = this.getMousePos(e);
+                
+                this.currentStroke = [{
+                    x: pos.x,
+                    y: pos.y,
+                    size: this.brushSize,
+                    mode: this.isErasing ? 'erase' : 'draw'
+                }];
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(pos.x, pos.y);
+                
+                if (this.isErasing) {
+                    this.ctx.globalCompositeOperation = 'destination-out';
+                } else {
+                    this.ctx.globalCompositeOperation = 'source-over';
+                    this.ctx.strokeStyle = '#333';
+                }
+                
+                this.ctx.lineWidth = this.brushSize;
+            }
+            
+            draw(e) {
+                if (!this.isDrawing) return;
+                
+                const pos = this.getMousePos(e);
+                
+                this.currentStroke.push({
+                    x: pos.x,
+                    y: pos.y,
+                    size: this.brushSize,
+                    mode: this.isErasing ? 'erase' : 'draw'
+                });
+                
+                this.ctx.lineTo(pos.x, pos.y);
+                this.ctx.stroke();
+            }
+            
+            stopDrawing() {
+                if (!this.isDrawing) return;
+                
+                this.isDrawing = false;
+                
+                if (this.currentStroke.length > 0) {
+                    this.strokeHistory.push([...this.currentStroke]);
+                    this.currentStroke = [];
+                    this.updateUndoButton();
+                }
+            }
+            
+            setMode(mode) {
+                this.isErasing = (mode === 'erase');
+                
+                if (this.isErasing) {
+                    this.drawBtn.classList.remove('active');
+                    this.eraseBtn.classList.add('active');
+                    this.canvasContainer.classList.add('eraser');
+                } else {
+                    this.eraseBtn.classList.remove('active');
+                    this.drawBtn.classList.add('active');
+                    this.canvasContainer.classList.remove('eraser');
+                }
+            }
+            
+            undo() {
+                if (this.strokeHistory.length === 0) return;
+                
+                // If in trick mode and anagram session active, go back one step
+                if (this.trickModeActive && this.anagramReady && this.anagramSession) {
+                    // Note: AnagramService doesn't have an undo feature built-in
+                    // For now, we'll just mention this limitation
+                    this.showDebugMessage('⚠ Anagram undo not implemented');
+                }
+                
+                this.strokeHistory.pop();
+                this.redrawCanvas();
+                this.updateUndoButton();
+            }
+            
+            clear() {
+                if (confirm('Clear everything? This will reset the drawing, word bank, and anagram progress.')) {
+                    // Clear drawing
+                    this.strokeHistory = [];
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    // Clear word bank
+                    this.wordBank = [];
+                    Storage.save('drawingpad', { wordBank: [] });
+                    
+                    // Reset anagram
+                    this.anagramReady = false;
+                    this.anagramSession = null;
+                    this.currentLetter = '';
+                    
+                    this.updateUndoButton();
+                    this.updateAnagramDisplay();
+                    this.updateDebugInfo();
+                    this.showDebugMessage('✓ Everything cleared');
+                }
+            }
+            
+            redrawCanvas() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                for (const stroke of this.strokeHistory) {
+                    if (stroke.length === 0) continue;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(stroke[0].x, stroke[0].y);
+                    
+                    if (stroke[0].mode === 'erase') {
+                        this.ctx.globalCompositeOperation = 'destination-out';
+                    } else {
+                        this.ctx.globalCompositeOperation = 'source-over';
+                        this.ctx.strokeStyle = '#333';
+                    }
+                    
+                    this.ctx.lineWidth = stroke[0].size;
+                    
+                    for (let i = 1; i < stroke.length; i++) {
+                        this.ctx.lineTo(stroke[i].x, stroke[i].y);
+                    }
+                    
+                    this.ctx.stroke();
+                }
+            }
+            
+            updateUndoButton() {
+                this.undoBtn.disabled = this.strokeHistory.length === 0;
+            }
+            
+            updateAnagramDisplay() {
+                if (this.trickModeActive && this.anagramReady && this.currentLetter) {
+                    this.anagramDisplay.textContent = this.currentLetter;
+                    this.anagramDisplay.style.display = 'block';
+                } else {
+                    this.anagramDisplay.style.display = 'none';
+                }
+            }
+            
+            toggleDebug() {
+                this.debugMode = !this.debugMode;
+                this.debugInfo.style.display = this.debugMode ? 'block' : 'none';
+                this.debugBtn.classList.toggle('active', this.debugMode);
+                
+                if (this.debugMode) {
+                    this.updateDebugInfo();
+                }
+            }
+            
+            updateDebugInfo() {
+                if (!this.debugMode) return;
+                
+                const wordBankStatus = this.wordBank.length > 0 ? 
+                    `${this.wordBank.length} words` : 'Empty';
+                
+                const anagramStatus = this.anagramReady ? 'Ready' : 'Not Ready';
+                
+                const currentStep = this.anagramSession && this.anagramReady ? 
+                    this.anagramSession.getStatus().step || 0 : 0;
+                
+                const mode = this.trickModeActive ? 'Trick Mode' : 'Drawing';
+                
+                this.debugInfo.innerHTML = `
+                    <div>Word Bank: ${wordBankStatus}</div>
+                    <div>Anagram: ${anagramStatus}</div>
+                    <div>Step: ${currentStep}</div>
+                    <div>Mode: ${mode}</div>
+                `;
+            }
+            
+            showDebugMessage(message) {
+                if (!this.debugMode) return;
+                
+                // Add message to debug info temporarily
+                const oldContent = this.debugInfo.innerHTML;
+                this.debugInfo.innerHTML = oldContent + `<div style="color: #ffff00;">${message}</div>`;
+                
+                // Remove after 3 seconds
+                setTimeout(() => {
+                    this.updateDebugInfo();
+                }, 3000);
+            }
         }
         
-        this.ctx.lineWidth = this.brushSize;
-      }
-      
-      draw(e) {
-        if (!this.isDrawing) return;
-        
-        const pos = this.getMousePos(e);
-        
-        this.currentStroke.push({
-          x: pos.x,
-          y: pos.y,
-          size: this.brushSize,
-          mode: this.isErasing ? 'erase' : 'draw'
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new MagicDrawingApp();
         });
-        
-        this.ctx.lineTo(pos.x, pos.y);
-        this.ctx.stroke();
-      }
-      
-      stopDrawing() {
-        if (!this.isDrawing) return;
-        
-        this.isDrawing = false;
-        
-        if (this.currentStroke.length > 0) {
-          this.strokeHistory.push([...this.currentStroke]);
-          this.currentStroke = [];
-          this.updateUndoButton();
-        }
-      }
-      
-      setMode(mode) {
-        this.isErasing = (mode === 'erase');
-        
-        if (this.isErasing) {
-          this.drawBtn.classList.remove('active');
-          this.eraseBtn.classList.add('active');
-          this.canvasContainer.classList.add('eraser');
-        } else {
-          this.eraseBtn.classList.remove('active');
-          this.drawBtn.classList.add('active');
-          this.canvasContainer.classList.remove('eraser');
-        }
-      }
-      
-      undo() {
-        if (this.strokeHistory.length === 0) return;
-        
-        this.strokeHistory.pop();
-        this.redrawCanvas();
-        this.updateUndoButton();
-      }
-      
-      clear() {
-        if (confirm('Clear the entire drawing?')) {
-          this.strokeHistory = [];
-          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-          this.updateUndoButton();
-        }
-      }
-      
-      redrawCanvas() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        for (const stroke of this.strokeHistory) {
-          if (stroke.length === 0) continue;
-          
-          this.ctx.beginPath();
-          this.ctx.moveTo(stroke[0].x, stroke[0].y);
-          
-          if (stroke[0].mode === 'erase') {
-            this.ctx.globalCompositeOperation = 'destination-out';
-          } else {
-            this.ctx.globalCompositeOperation = 'source-over';
-            this.ctx.strokeStyle = '#333';
-          }
-          
-          this.ctx.lineWidth = stroke[0].size;
-          
-          for (let i = 1; i < stroke.length; i++) {
-            this.ctx.lineTo(stroke[i].x, stroke[i].y);
-          }
-          
-          this.ctx.stroke();
-        }
-      }
-      
-      updateUndoButton() {
-        this.undoBtn.disabled = this.strokeHistory.length === 0;
-      }
-    }
-    
-    // Initialize the app when DOM is loaded
-    document.addEventListener('DOMContentLoaded', () => {
-      new DrawingApp();
-    });
-  </script>
+    </script>
 </body>
 </html>
