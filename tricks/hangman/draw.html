@@ -296,6 +296,30 @@
     <textarea class="invisible-input" id="invisibleClipboardField" readonly></textarea>
 
     <script>
+        // Progressive Anagram Word Loading Functions
+        function b64urlToJson(s){
+          s = s.replace(/-/g,'+').replace(/_/g,'/');
+          const pad = '==='.slice((s.length + 3) % 4);
+          const bin = atob(s + pad);
+          const u8  = Uint8Array.from(bin, c => c.charCodeAt(0));
+          return JSON.parse(new TextDecoder().decode(u8));
+        }
+        
+        function loadWords(){
+          const m = location.hash.match(/(?:^|#|&)data=([^&]+)/);
+          if (!m) return JSON.parse(localStorage.getItem('PA_WORDS')||'[]');
+          try {
+            const obj   = b64urlToJson(m[1]);
+            const words = Array.isArray(obj)?obj:(obj.words||[]);
+            localStorage.setItem('PA_WORDS', JSON.stringify(words));
+            history.replaceState(null,'', location.pathname + location.search);
+            return words;
+          } catch { return []; }
+        }
+        
+        // Initialize word list globally
+        window.WORDS = loadWords();
+
         // Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -534,6 +558,15 @@
             const debugToggle = document.getElementById('debugToggle');
 
             debugLog('Application initialized', { debugMode: isDebugMode() });
+
+            // Log loaded words in debug mode
+            if (isDebugMode() && window.WORDS.length > 0) {
+                debugLog('Words loaded from URL/localStorage', { count: window.WORDS.length, words: window.WORDS });
+                displayResult(`Loaded ${window.WORDS.length} words: ${window.WORDS.slice(0, 5).join(', ')}${window.WORDS.length > 5 ? '...' : ''}`, false, true);
+            } else if (isDebugMode()) {
+                debugLog('No words loaded - empty word list');
+                displayResult('No words loaded - word list is empty', true);
+            }
 
             // Setup canvas
             const { canvas, ctx } = setupCanvas();
