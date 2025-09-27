@@ -180,24 +180,85 @@
             display: none;
         }
         
+        .debug-division-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            display: none;
+        }
+        
+        .debug-division-lines.active {
+            display: block;
+        }
+        
+        .debug-division-lines::before,
+        .debug-division-lines::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: rgba(255, 0, 0, 0.6);
+            z-index: 10;
+            box-shadow: 0 0 4px rgba(255, 0, 0, 0.8);
+        }
+        
+        .debug-division-lines::before {
+            top: 33.33%;
+        }
+        
+        .debug-division-lines::after {
+            top: 66.67%;
+        }
+        
         .range-input {
             width: 60px;
         }
         
         @media (max-width: 480px) {
             .toolbar {
-                padding: 6px 8px;
-                gap: 4px;
+                padding: 4px 6px;
+                gap: 2px;
+                flex-wrap: wrap;
             }
             
             .btn {
-                padding: 4px 6px;
-                font-size: 10px;
-                min-width: 40px;
+                padding: 3px 5px;
+                font-size: 9px;
+                min-width: 35px;
             }
             
             .toolbar-group {
-                gap: 4px;
+                gap: 2px;
+                flex-shrink: 0;
+            }
+            
+            .toolbar-group:last-child {
+                order: 2;
+                flex-basis: 100%;
+                justify-content: center;
+                margin-top: 2px;
+            }
+            
+            .range-input {
+                width: 40px;
+            }
+            
+            .toggle-switch {
+                width: 30px;
+                height: 16px;
+            }
+            
+            .slider:before {
+                height: 12px;
+                width: 12px;
+            }
+            
+            input:checked + .slider:before {
+                transform: translateX(14px);
             }
             
             .anagram-display {
@@ -233,7 +294,6 @@
             
             <div class="toolbar-group">
                 <button id="debugBtn" class="btn secondary">DEBUG</button>
-                <button id="addWordsBtn" class="btn secondary">ADD WORDS</button>
                 <button id="undoBtn" class="btn secondary" disabled>Undo</button>
                 <button id="clearBtn" class="btn danger">Clear</button>
             </div>
@@ -241,6 +301,7 @@
         
         <div class="canvas-container" id="canvasContainer">
             <canvas id="drawingCanvas"></canvas>
+            <div class="debug-division-lines" id="debugDivisionLines"></div>
             <div class="anagram-display" id="anagramDisplay">?</div>
             <div class="debug-info" id="debugInfo">
                 <div>Word Bank: Empty</div>
@@ -290,9 +351,9 @@
                 this.clearBtn = document.getElementById('clearBtn');
                 this.trickModeToggle = document.getElementById('trickMode');
                 this.debugBtn = document.getElementById('debugBtn');
-                this.addWordsBtn = document.getElementById('addWordsBtn');
                 this.anagramDisplay = document.getElementById('anagramDisplay');
                 this.debugInfo = document.getElementById('debugInfo');
+                this.debugDivisionLines = document.getElementById('debugDivisionLines');
                 
                 this.init();
             }
@@ -348,11 +409,11 @@
                     this.trickModeActive = e.target.checked;
                     this.updateAnagramDisplay();
                     this.updateDebugInfo();
+                    this.updateDivisionLines();
                 });
                 
                 // Action buttons
                 this.debugBtn.addEventListener('click', () => this.toggleDebug());
-                this.addWordsBtn.addEventListener('click', () => this.showAddWordsDialog());
                 this.undoBtn.addEventListener('click', () => this.undo());
                 this.clearBtn.addEventListener('click', () => this.clear());
                 
@@ -406,7 +467,14 @@
             }
             
             async handleCanvasTap(e) {
-                // Handle word bank pasting if empty
+                // Handle trick mode clipboard paste when no word bank exists
+                if (this.trickModeActive && this.wordBank.length === 0) {
+                    this.showDebugMessage('📋 Trick mode active - pasting from clipboard...');
+                    await this.pasteFromClipboard();
+                    return;
+                }
+                
+                // Handle word bank pasting if empty (non-trick mode)
                 if (this.wordBank.length === 0 && !this.trickModeActive) {
                     this.showDebugMessage('💡 Tap detected - trying clipboard paste...');
                     await this.pasteFromClipboard();
@@ -437,6 +505,8 @@
                     this.answerAnagramQuestion(answer);
                 } else if (this.wordBank.length > 0 && !this.trickModeActive) {
                     this.showDebugMessage('💡 Word bank ready! Enable Trick mode to play.');
+                } else if (this.trickModeActive && !this.anagramReady) {
+                    this.showDebugMessage('⚠️ Trick mode active but anagram not ready');
                 }
             }
             
@@ -476,22 +546,6 @@
                 }
                 
                 this.updateDebugInfo();
-            }
-            
-            showAddWordsDialog() {
-                const currentWords = this.wordBank.length > 0 ? 
-                    this.wordBank.join(', ') : '';
-                
-                const text = prompt(
-                    'Enter words for the anagram game (separated by commas or new lines):\n\n' +
-                    'Current words: ' + (currentWords || 'None'),
-                    currentWords
-                );
-                
-                if (text !== null && text.trim()) {
-                    this.setWordBank(text);
-                    this.showDebugMessage('✅ Words added manually');
-                }
             }
             
             async pasteFromClipboard() {
@@ -779,8 +833,26 @@
                 this.debugInfo.style.display = this.debugMode ? 'block' : 'none';
                 this.debugBtn.classList.toggle('active', this.debugMode);
                 
+                // Show/hide division lines when in debug mode and trick mode
+                if (this.debugMode && this.trickModeActive) {
+                    this.debugDivisionLines.classList.add('active');
+                } else {
+                    this.debugDivisionLines.classList.remove('active');
+                }
+                
                 if (this.debugMode) {
                     this.updateDebugInfo();
+                }
+                
+                this.updateDivisionLines();
+            }
+            
+            updateDivisionLines() {
+                // Show division lines only when both debug mode AND trick mode are active
+                if (this.debugMode && this.trickModeActive) {
+                    this.debugDivisionLines.classList.add('active');
+                } else {
+                    this.debugDivisionLines.classList.remove('active');
                 }
             }
             
@@ -830,7 +902,7 @@
         
         // Initialize the app when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            new MagicDrawingApp();
+            window.app = new MagicDrawingApp();
         });
     </script>
 </body>
