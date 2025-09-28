@@ -127,9 +127,9 @@
             transition: height 0.2s ease;
         }
         
-        /* Adjust canvas when debug panel is visible */
+        /* Adjust canvas when debug panel is visible - no longer needed as debug is in corner */
         body.debug-active .canvas {
-            height: calc(100vh - 34px - 120px);
+            height: calc(100vh - 34px);
         }
         
         /* Anagram display overlay */
@@ -194,23 +194,65 @@
         .debug-panel {
             display: none;
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            top: 40px;
+            left: 10px;
+            width: 300px;
+            height: 300px;
             background: rgba(0, 0, 0, 0.9);
             color: white;
-            padding: 12px 16px;
-            height: 120px;
+            padding: 12px;
             overflow-y: auto;
             font-family: 'Courier New', monospace;
-            font-size: 12px;
-            z-index: 200;
-            border-top: 2px solid rgba(255, 255, 255, 0.3);
-            line-height: 1.4;
+            font-size: 11px;
+            z-index: 150;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            line-height: 1.3;
         }
         
         .debug-panel.show {
             display: block;
+        }
+        
+        .debug-status {
+            margin-bottom: 8px;
+            padding: 4px;
+            border-left: 3px solid #4CAF50;
+            font-size: 10px;
+        }
+        
+        .debug-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 9px;
+            cursor: pointer;
+            margin: 2px;
+            min-width: 60px;
+        }
+        
+        .debug-button:hover {
+            background: #45a049;
+        }
+        
+        .debug-button.secondary {
+            background: #2196F3;
+        }
+        
+        .debug-button.secondary:hover {
+            background: #1976D2;
+        }
+        
+        .debug-content {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 8px;
+            padding: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            font-size: 9px;
         }
         
         .debug-toggle {
@@ -331,9 +373,20 @@
     
     <!-- Debug panel (only shown in debug mode) -->
     <div class="debug-panel" id="debugPanel">
-        <div class="result-area" id="resultArea">
-            <div>Debug mode active - clipboard content will appear here...</div>
+        <div style="font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #555; padding-bottom: 4px;">DEBUG WINDOW</div>
+        
+        <div class="debug-status" id="debugModeStatus">Mode: LOADING</div>
+        <div class="debug-status" id="debugWordsStatus">Words: LOADING</div>
+        <div class="debug-status" id="debugPAStatus">PA Generation: LOADING</div>
+        <div class="debug-status" id="debugPAComplete">PA Complete: NO</div>
+        <div class="debug-status" id="debugLastPAInput">Last PA Input: -</div>
+        
+        <div style="margin-top: 8px;">
+            <button class="debug-button" onclick="showWords()">View Words</button>
+            <button class="debug-button secondary" onclick="showPA()">View PA</button>
         </div>
+        
+        <div class="debug-content" id="debugContent" style="display: none;"></div>
     </div>
     
     <!-- Debug toggle button -->
@@ -367,13 +420,76 @@
         // Initialize word list globally
         window.WORDS = loadWords();
         
-        // Global anagram state tracking
+        // Global anagram state tracking (keeping original structure for compatibility)
         window.anagramState = {
             wordsLoaded: Array.isArray(window.WORDS) && window.WORDS.length > 0,
             serviceInitialized: false,
             currentSession: null,
             isNavigating: false
         };
+
+        // Global debug state tracking
+        window.debugState = {
+            currentMode: 'STANDBY',
+            wordsLoaded: Array.isArray(window.WORDS) && window.WORDS.length > 0,
+            wordsCount: window.WORDS ? window.WORDS.length : 0,
+            paGenerating: false,
+            paComplete: false,
+            lastPAInput: null
+        };
+
+        // Update debug window status
+        const updateDebugStatus = () => {
+            if (!isDebugMode()) return;
+            
+            document.getElementById('debugModeStatus').textContent = `Mode: ${window.debugState.currentMode}`;
+            document.getElementById('debugWordsStatus').textContent = `Words: ${window.debugState.wordsLoaded ? 'YES (' + window.debugState.wordsCount + ')' : 'NO'}`;
+            document.getElementById('debugPAStatus').textContent = `PA Generation: ${window.debugState.paGenerating ? 'YES' : 'NO'}`;
+            document.getElementById('debugPAComplete').textContent = `PA Complete: ${window.debugState.paComplete ? 'YES' : 'NO'}`;
+            document.getElementById('debugLastPAInput').textContent = `Last PA Input: ${window.debugState.lastPAInput || '-'}`;
+        };
+
+        // Show words in debug content area
+        const showWords = () => {
+            const debugContent = document.getElementById('debugContent');
+            if (window.WORDS && window.WORDS.length > 0) {
+                debugContent.innerHTML = `<strong>Loaded Words (${window.WORDS.length}):</strong><br>` + 
+                    window.WORDS.map((word, i) => `${i+1}. ${word}`).join('<br>');
+                debugContent.style.display = 'block';
+            } else {
+                debugContent.innerHTML = '<strong>No words loaded</strong>';
+                debugContent.style.display = 'block';
+            }
+        };
+
+        // Show PA tree structure in debug content area
+        const showPA = () => {
+            const debugContent = document.getElementById('debugContent');
+            if (window.anagramState.serviceInitialized && window.anagramState.currentSession) {
+                try {
+                    const status = AnagramService.getStatus();
+                    let paInfo = '<strong>PA Tree Structure:</strong><br>';
+                    paInfo += `Path: ${status.path || 'None'}<br>`;
+                    paInfo += `Current Question: ${status.currentQuestion || 'None'}<br>`;
+                    paInfo += `Remaining Words: ${status.remainingWords || 0}<br>`;
+                    paInfo += `Complete: ${status.completed ? 'YES' : 'NO'}<br>`;
+                    if (status.result) {
+                        paInfo += `Result: ${Array.isArray(status.result) ? status.result.join(', ') : status.result}`;
+                    }
+                    debugContent.innerHTML = paInfo;
+                } catch (e) {
+                    debugContent.innerHTML = '<strong>PA Tree:</strong><br>Error retrieving PA structure: ' + e.message;
+                }
+                debugContent.style.display = 'block';
+            } else {
+                debugContent.innerHTML = '<strong>PA Tree:</strong><br>PA service not initialized';
+                debugContent.style.display = 'block';
+            }
+        };
+
+        // Make functions globally available
+        window.showWords = showWords;
+        window.showPA = showPA;
 
         // Lazy Progressive Anagram Initialization
         (function() {
@@ -409,20 +525,29 @@
             
             function initializeAnagramService(words) {
                 try {
+                    window.debugState.paGenerating = true;
+                    updateDebugStatus();
+                    
                     const result = AnagramService.initialize(words, { entropy: true });
                     if (result.success) {
                         console.log('[DEBUG] Progressive anagram started with', result.wordCount, 'words');
                         window.anagramState.serviceInitialized = true;
                         window.anagramState.currentSession = AnagramService;
+                        window.debugState.paGenerating = false;
+                        window.debugState.paComplete = true;
+                        updateDebugStatus();
                         
                         if (isDebugMode()) {
                             debugLog('Progressive anagram initialized', { wordCount: result.wordCount, firstQuestion: result.firstQuestion });
-                            updateAnagramDebugInfo();
                             startAnagramNavigation();
                         }
                     } else {
                         console.log('[DEBUG] Progressive anagram initialization failed:', result.error);
                         window.anagramState.serviceInitialized = false;
+                        window.debugState.paGenerating = false;
+                        window.debugState.paComplete = false;
+                        updateDebugStatus();
+                        
                         if (isDebugMode()) {
                             debugLog('Progressive anagram initialization failed', { error: result.error });
                         }
@@ -430,6 +555,10 @@
                 } catch (error) {
                     console.log('[DEBUG] AnagramService initialization error:', error);
                     window.anagramState.serviceInitialized = false;
+                    window.debugState.paGenerating = false;
+                    window.debugState.paComplete = false;
+                    updateDebugStatus();
+                    
                     if (isDebugMode()) {
                         debugLog('AnagramService error', { error: error.message });
                     }
@@ -516,36 +645,14 @@
         })();
 
         // Anagram Navigation Functions
-        function updateAnagramDebugInfo() {
-            if (!isDebugMode()) return;
-            
-            const resultArea = document.getElementById('resultArea');
-            const debugInfo = `
-                <div style="border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 8px;">
-                    <strong>Anagram Status:</strong>
-                </div>
-                <div style="margin-bottom: 4px;">
-                    📝 Words loaded: <span style="color: ${window.anagramState.wordsLoaded ? '#6ee7b7' : '#f87171'};">${window.anagramState.wordsLoaded ? 'YES' : 'NO'}</span> 
-                    ${window.anagramState.wordsLoaded ? `(${window.WORDS.length} words)` : ''}
-                </div>
-                <div style="margin-bottom: 4px;">
-                    🧠 Anagram service: <span style="color: ${window.anagramState.serviceInitialized ? '#6ee7b7' : '#f87171'};">${window.anagramState.serviceInitialized ? 'INITIALIZED' : 'NOT READY'}</span>
-                </div>
-                <div style="margin-bottom: 4px;">
-                    🎮 Navigation: <span style="color: ${window.anagramState.isNavigating ? '#6ee7b7' : '#fbbf24'};">${window.anagramState.isNavigating ? 'ACTIVE' : 'STANDBY'}</span>
-                </div>
-                ${window.anagramState.wordsLoaded ? `<div style="margin-top: 8px; font-size: 10px; color: #9ca3af;">Sample words: ${window.WORDS.slice(0, 3).join(', ')}...</div>` : ''}
-            `;
-            resultArea.innerHTML = debugInfo;
-        }
-        
         function startAnagramNavigation() {
             if (!isDebugMode() || !window.anagramState.serviceInitialized) return;
             
             window.anagramState.isNavigating = true;
+            window.debugState.currentMode = 'PA_NAVIGATION';
+            updateDebugStatus();
             updateAnagramDisplay();
             showAnagramZones();
-            updateAnagramDebugInfo();
         }
         
         function updateAnagramDisplay() {
@@ -595,13 +702,20 @@
             const bottomThird = canvasHeight * 2 / 3;
             
             let answer = null;
+            let inputText = null;
             if (y <= topThird) {
                 answer = false; // NO - top third
+                inputText = 'NO';
             } else if (y >= bottomThird) {
                 answer = true;  // YES - bottom third
+                inputText = 'YES';
             } else {
                 return; // Middle third - no action
             }
+            
+            // Update debug state with last PA input
+            window.debugState.lastPAInput = inputText;
+            updateDebugStatus();
             
             console.log('[DEBUG] Anagram navigation:', y <= topThird ? 'NO (top)' : 'YES (bottom)');
             
@@ -611,6 +725,8 @@
                 if (result.completed) {
                     console.log('[DEBUG] Anagram navigation complete:', result.result);
                     debugLog('Anagram navigation complete', { result: result.result });
+                    window.debugState.currentMode = 'PA_COMPLETE';
+                    updateDebugStatus();
                 }
             }
         }
@@ -638,19 +754,6 @@
         const debugLog = (message, data = null) => {
             if (isDebugMode()) {
                 console.log('[DEBUG]', message, data || '');
-                updateDebugPanel(message, data);
-            }
-        };
-        
-        // Update debug panel with new information
-        const updateDebugPanel = (message, data = null) => {
-            const debugPanel = document.getElementById('debugPanel');
-            const resultArea = document.getElementById('resultArea');
-            if (debugPanel && resultArea) {
-                const timestamp = new Date().toLocaleTimeString();
-                const logEntry = `[${timestamp}] ${message}${data ? ': ' + JSON.stringify(data) : ''}`;
-                resultArea.innerHTML += `<div style="margin-bottom: 8px; padding: 4px; border-left: 3px solid #4CAF50;">${logEntry}</div>`;
-                resultArea.scrollTop = resultArea.scrollHeight;
             }
         };
 
@@ -671,177 +774,6 @@
             }, duration);
         };
 
-        // Display result in the result area (debug mode only)
-        const displayResult = (message, isError = false, isSuccess = false) => {
-            if (!isDebugMode()) return;
-            
-            const resultArea = document.getElementById('resultArea');
-            const className = isError ? 'error-message' : (isSuccess ? 'success-message' : '');
-            resultArea.innerHTML = `<div class="${className}">${message}</div>`;
-            debugLog('Display result:', { message, isError, isSuccess });
-        };
-
-        // Show fallback input for manual text entry
-        const showFallbackInput = () => {
-            if (!isDebugMode()) {
-                showStatus('Clipboard access denied. Please enable clipboard permissions.', true, 3000);
-                return;
-            }
-            
-            const resultArea = document.getElementById('resultArea');
-            resultArea.innerHTML = `
-                <div class="error-message">Clipboard access not supported or denied.</div>
-                <div>Please paste your content manually:</div>
-                <textarea class="fallback-input" id="fallbackInput" placeholder="Paste your content here..." rows="5"></textarea>
-                <button class="process-btn" onclick="processFallbackInput()">Process Input</button>
-            `;
-            debugLog('Fallback input displayed');
-        };
-
-        // Process content from fallback input
-        const processFallbackInput = () => {
-            const fallbackInput = document.getElementById('fallbackInput');
-            const content = fallbackInput.value;
-            if (content.trim()) {
-                displayResult(`Manually entered content:\n${content}`, false, true);
-                showStatus('Content processed successfully!', false);
-                debugLog('Fallback input processed:', content);
-            } else {
-                displayResult('Please enter some content in the text area.', true);
-                showStatus('Please enter some content first.', true);
-            }
-        };
-
-        // Auto-trigger clipboard paste
-        const autoTriggerClipboard = async () => {
-            debugLog('Auto-triggering clipboard read on page focus/load');
-            
-            // Small delay to ensure page is fully loaded
-            setTimeout(() => {
-                readClipboard();
-            }, 500);
-        };
-
-        // Paste from clipboard into invisible text field
-        const pasteFromClipboard = async () => {
-            debugLog('Attempting to paste from clipboard into invisible field');
-            
-            const invisibleField = document.getElementById('invisibleClipboardField');
-            
-            try {
-                // Focus the invisible field and attempt paste
-                invisibleField.focus();
-                
-                // Try using the modern clipboard API first
-                if (navigator.clipboard && navigator.clipboard.readText) {
-                    try {
-                        const clipboardContent = await navigator.clipboard.readText();
-                        invisibleField.value = clipboardContent;
-                        debugLog('Clipboard API paste successful:', clipboardContent);
-                        return clipboardContent;
-                    } catch (clipboardError) {
-                        debugLog('Clipboard API failed, trying document.execCommand:', clipboardError);
-                    }
-                }
-                
-                // Fallback to document.execCommand for older browsers
-                invisibleField.value = ''; // Clear field first
-                const success = document.execCommand('paste');
-                
-                if (success && invisibleField.value) {
-                    const content = invisibleField.value;
-                    debugLog('Document.execCommand paste successful:', content);
-                    return content;
-                } else {
-                    throw new Error('Paste operation failed or no content available');
-                }
-                
-            } catch (error) {
-                debugLog('Paste operation failed:', error);
-                throw error;
-            }
-        };
-
-        // Main clipboard reading function using invisible text field
-        const readClipboard = async () => {
-            debugLog('Clipboard read operation initiated');
-            
-            try {
-                // Show loading in debug mode
-                if (isDebugMode()) {
-                    displayResult('Reading clipboard...', false, false);
-                } else {
-                    showStatus('Reading clipboard...', false, 1000);
-                }
-                
-                // Create a timeout promise
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Clipboard read timeout')), 3000)
-                );
-                
-                // Race between clipboard paste and timeout
-                const clipboardContent = await Promise.race([
-                    pasteFromClipboard(),
-                    timeoutPromise
-                ]);
-                
-                debugLog('Clipboard content retrieved via invisible field:', clipboardContent);
-
-                if (clipboardContent && clipboardContent.trim() === '') {
-                    if (isDebugMode()) {
-                        displayResult('Clipboard is empty.', true);
-                    } else {
-                        showStatus('Clipboard is empty', true);
-                    }
-                } else if (clipboardContent) {
-                    if (isDebugMode()) {
-                        displayResult(`Clipboard content:\n${clipboardContent}`, false, true);
-                    } else {
-                        showStatus('Clipboard content loaded successfully!', false);
-                    }
-                } else {
-                    if (isDebugMode()) {
-                        displayResult('No clipboard content found.', true);
-                    } else {
-                        showStatus('No clipboard content found', true);
-                    }
-                }
-
-            } catch (error) {
-                debugLog('Clipboard read error:', error);
-                
-                // Handle specific error types  
-                if (error.name === 'NotAllowedError') {
-                    if (isDebugMode()) {
-                        displayResult('Clipboard access denied. Please grant permission or use the fallback input below.', true);
-                        showFallbackInput();
-                    } else {
-                        showStatus('Clipboard access denied. Please enable permissions.', true, 3000);
-                    }
-                } else if (error.name === 'NotFoundError') {
-                    if (isDebugMode()) {
-                        displayResult('No clipboard content found.', true);
-                    } else {
-                        showStatus('No clipboard content found', true);
-                    }
-                } else if (error.message === 'Clipboard read timeout') {
-                    if (isDebugMode()) {
-                        displayResult('Clipboard read timed out. Please try again or use the fallback input below.', true);
-                        showFallbackInput();
-                    } else {
-                        showStatus('Clipboard read timed out. Please try again.', true, 3000);
-                    }
-                } else {
-                    if (isDebugMode()) {
-                        displayResult(`Error reading clipboard: ${error.message}`, true);
-                        showFallbackInput();
-                    } else {
-                        showStatus('Clipboard read failed. Try again.', true, 3000);
-                    }
-                }
-            }
-        };
-
         // Initialize the application when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
             const drawButton = document.getElementById('draw');
@@ -854,15 +786,15 @@
 
             debugLog('Application initialized', { debugMode: isDebugMode() });
 
-            // Log loaded words in debug mode and update anagram debug info
+            // Log loaded words in debug mode and update debug status
             if (isDebugMode()) {
                 if (window.WORDS.length > 0) {
                     debugLog('Words loaded from URL/localStorage', { count: window.WORDS.length, words: window.WORDS });
                 } else {
                     debugLog('No words loaded - empty word list');
                 }
-                // Initialize debug display
-                updateAnagramDebugInfo();
+                // Initialize debug status display
+                updateDebugStatus();
             }
 
             // Setup canvas
@@ -886,7 +818,6 @@
                 debugPanel.classList.add('show');
                 debugToggle.classList.add('show');
                 document.body.classList.add('debug-active');
-                displayResult('DEBUG MODE ACTIVE - Check console for detailed logs', false, true);
             }
 
             // Debug toggle functionality
@@ -900,13 +831,12 @@
                 debugLog('Draw button clicked - enabling draw mode');
                 isDrawing = true;
                 isErasing = false;
+                window.debugState.currentMode = 'DRAWING';
+                updateDebugStatus();
                 drawButton.classList.add('active');
                 eraseButton.classList.remove('active');
                 canvas.style.cursor = 'crosshair';
                 showStatus('Draw mode enabled', false, 1000);
-                
-                // Also trigger clipboard read (invisible to user)
-                readClipboard();
             });
 
             // Erasing mode toggle
@@ -914,6 +844,8 @@
                 debugLog('Erase button clicked - enabling erase mode');
                 isErasing = true;
                 isDrawing = false;
+                window.debugState.currentMode = 'ERASING';
+                updateDebugStatus();
                 eraseButton.classList.add('active');
                 drawButton.classList.remove('active');
                 canvas.style.cursor = 'grab';
@@ -946,15 +878,13 @@
                 clearCanvas(canvas, ctx);
                 isDrawing = false;
                 isErasing = false;
+                window.debugState.currentMode = 'STANDBY';
+                updateDebugStatus();
                 drawButton.classList.remove('active');
                 eraseButton.classList.remove('active');
                 canvas.style.cursor = 'default';
                 
-                if (isDebugMode()) {
-                    displayResult('Canvas cleared...');
-                } else {
-                    showStatus('Canvas cleared', false, 1000);
-                }
+                showStatus('Canvas cleared', false, 1000);
             });
 
             // Undo button - undoes last action
@@ -992,29 +922,7 @@
             
             canvas.addEventListener('touchend', stopDrawing);
             canvas.addEventListener('touchcancel', stopDrawing);
-
-            // Auto-trigger clipboard read on page load (invisible to user)
-            autoTriggerClipboard();
         });
-
-        // Auto-trigger clipboard read when page gains focus (for PWA usage)
-        window.addEventListener('focus', () => {
-            if (document.hasFocus()) {
-                debugLog('Page gained focus - auto-triggering clipboard read');
-                autoTriggerClipboard();
-            }
-        });
-
-        // Auto-trigger clipboard read when page becomes visible (for mobile PWA)
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                debugLog('Page became visible - auto-triggering clipboard read');
-                autoTriggerClipboard();
-            }
-        });
-
-        // Global function for fallback input processing (needed for inline onclick)
-        window.processFallbackInput = processFallbackInput;
 
         // Drawing functionality
         let isDrawing = false;
