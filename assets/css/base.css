@@ -71,8 +71,7 @@ button.xl{font-size:1.6rem;padding:20px;width:100%;border-radius:12px}
   align-items: center;
   background: var(--bg);
   z-index: 10;
-  padding-top: env(safe-area-inset-top);
-  /* padding-bottom removed to allow full-bleed background */
+  /* Removed safe area padding to allow true fullscreen */
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
