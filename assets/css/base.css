@@ -20,7 +20,7 @@ input[type="text"],input[type="number"]{
 button{border:0;border-radius:12px;padding:14px 16px;background:linear-gradient(90deg,var(--accent2),var(--accent));color:#05111b;font-weight:700;cursor:pointer}
 button.ghost{background:#1b254a;color:var(--text);border:1px solid #2a386c}
 button.danger{background:var(--danger);color:#160e0e}
-button.xl{font-size:1.6rem;padding:20px;width:100%;border-radius:12px}
+button.xl{font-size:1.2rem;padding:16px 20px;width:100%;border-radius:12px}
 
 .display{
   display:flex;align-items:center;justify-content:center;
