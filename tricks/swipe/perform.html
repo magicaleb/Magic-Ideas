@@ -27,8 +27,7 @@
       position: fixed !important;
       inset: 0 !important;
       width: 100dvw !important;
-      height: calc(100dvh + env(safe-area-inset-bottom)) !important;
-      margin-bottom: calc(-1 * env(safe-area-inset-bottom)) !important;
+      height: 100dvh !important;
       display: flex !important;
       flex-direction: column !important;
       justify-content: center !important;
@@ -105,13 +104,12 @@
     position: fixed !important;
     inset: 0 !important;
     width: 100dvw !important;
-    height: calc(100dvh + env(safe-area-inset-bottom)) !important;
+    height: 100dvh !important;
     object-fit: cover !important;
     pointer-events: none !important;
     z-index: 1 !important;
     display: none !important;
     background: black !important;
-    margin-bottom: calc(-1 * env(safe-area-inset-bottom)) !important;
   " alt="Homescreen Background">
   
   <div id="root" class="perform-root" role="application">
