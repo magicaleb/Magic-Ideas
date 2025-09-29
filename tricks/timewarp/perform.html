@@ -2,35 +2,31 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Timewarp — Perform</title>
-  <link rel="stylesheet" href="../../assets/css/base.css?v=28">
   <style>
-    /* Fullscreen layout */
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      background: #000;
+    html, body { 
+      margin: 0; 
+      padding: 0; 
+      width: 100dvw; 
+      height: 100dvh; 
+      background: #000; 
+      overflow: hidden; 
+      touch-action: none; 
+      -webkit-user-select: none; 
+      user-select: none; 
+      font-family: -apple-system, system-ui, sans-serif; 
     }
     
-    .perform-root {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      align-items: center;
-      background: #000;
+    #root { 
+      position: fixed; 
+      inset: 0; 
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
+      background-color: #000;
     }
     
     .clock-display {
@@ -41,99 +37,31 @@
       white-space: nowrap;
     }
     
-    .swipe-input-area {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-      background: rgba(0, 0, 0, 0.7);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-    
-    .swipe-input-area.visible {
-      opacity: 1;
-      pointer-events: all;
-    }
-    
-    .swipe-digits {
-      font-size: 4rem;
-      color: rgba(255, 255, 255, 0.9);
-      font-variant-numeric: tabular-nums;
-      letter-spacing: 0.1em;
-      margin-bottom: 2rem;
-      text-align: center;
-    }
-    
-    .swipe-instructions {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 1.1rem;
-      text-align: center;
-      max-width: 80%;
-      line-height: 1.4;
-    }
-    
-    .toast {
-      position: fixed;
-      left: 50%;
-      bottom: 8%;
-      transform: translateX(-50%);
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 0.9rem;
-      background: rgba(0, 0, 0, 0.8);
-      padding: 12px 20px;
-      border-radius: 20px;
-      display: none;
-      z-index: 2000;
-    }
-    
-    .settings-button {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: rgba(255, 255, 255, 0.8);
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      z-index: 1001;
+    .toast { 
+      position: fixed; 
+      left: 50%; 
+      bottom: 28%; 
+      transform: translateX(-50%); 
+      background: #0f1733; 
+      border: 1px solid #2a386c; 
+      color: #eef2ff; 
+      padding: 8px 12px; 
+      border-radius: 10px; 
+      display: none; 
     }
   </style>
 </head>
 <body>
-  <div id="performRoot" class="perform-root">
+  <div id="root">
     <!-- Clock display -->
     <div id="clockDisplay" class="clock-display">12:00</div>
     
-    <!-- Settings button -->
-    <button id="settingsBtn" class="settings-button">Settings</button>
-    
-    <!-- Swipe input overlay (hidden by default) -->
-    <div id="swipeInputArea" class="swipe-input-area">
-      <div id="swipeDigits" class="swipe-digits">—</div>
-      <div class="swipe-instructions">
-        Swipe to enter minutes to add<br>
-        Two-finger tap to submit<br>
-        Double tap to clear<br>
-        Single tap to cancel
-      </div>
-    </div>
+    <!-- Toast for status messages -->
+    <div id="toast" class="toast" aria-hidden="true">Status</div>
   </div>
-
-  <!-- Toast for status messages -->
-  <div id="toast" class="toast">Status</div>
 
   <script src="../../assets/js/storage.js?v=1"></script>
   <script src="../../assets/js/gestures.js?v=1"></script>
-  <script src="../../assets/js/swipe.js?v=1"></script>
   <script>
     // Load saved config
     const saved = Storage.load('timewarp', {
@@ -151,25 +79,23 @@
     });
 
     // DOM elements
-    const performRoot = document.getElementById('performRoot');
+    const root = document.getElementById('root');
     const clockDisplay = document.getElementById('clockDisplay');
-    const swipeInputArea = document.getElementById('swipeInputArea');
-    const swipeDigits = document.getElementById('swipeDigits');
     const toast = document.getElementById('toast');
-    const settingsBtn = document.getElementById('settingsBtn');
 
     // State
-    let isSwipeMode = false;
     let currentDisplayTime = new Date();
     let isRollingBack = false;
     let rollbackTimer = null;
     let realTimeSync = null;
+    let swipeBuffer = '';
+    let rollingBackWithDelay = false;
 
     // Utility functions
-    const toastMsg = (msg, duration = 2000) => {
-      toast.textContent = msg;
-      toast.style.display = 'block';
-      setTimeout(() => toast.style.display = 'none', duration);
+    const showToast = (msg) => { 
+      toast.textContent = msg; 
+      toast.style.display = 'block'; 
+      setTimeout(() => toast.style.display = 'none', 900); 
     };
 
     const formatTime = (date, showAmPm = false) => {
@@ -222,62 +148,62 @@
 
     const applyBackground = () => {
       if (saved.useBackground && saved.backgroundImage) {
-        performRoot.style.backgroundImage = `url(${saved.backgroundImage})`;
-        performRoot.style.backgroundColor = 'transparent';
+        root.style.backgroundImage = `url(${saved.backgroundImage})`;
+        root.style.backgroundColor = 'transparent';
       } else {
-        performRoot.style.backgroundImage = '';
-        performRoot.style.backgroundColor = '#000';
+        root.style.backgroundImage = '';
+        root.style.backgroundColor = '#000';
       }
     };
 
-    const enterSwipeMode = () => {
-      isSwipeMode = true;
-      swipeInputArea.classList.add('visible');
-      swipeDigits.textContent = '—';
-    };
-
-    const exitSwipeMode = () => {
-      isSwipeMode = false;
-      swipeInputArea.classList.remove('visible');
-    };
-
-    const startRollbackAnimation = (targetMinutes) => {
-      if (isRollingBack) return;
+    const startRollbackAnimation = () => {
+      if (isRollingBack || rollingBackWithDelay) return;
       
       const now = new Date();
       const diffMinutes = Math.floor((currentDisplayTime - now) / (1000 * 60));
       
       if (diffMinutes <= 0) {
-        toastMsg('Already at current time');
+        // Already at current time, sync up
+        currentDisplayTime = new Date();
+        updateClockDisplay();
+        startRealTimeSync();
         return;
       }
 
-      isRollingBack = true;
-      const totalDuration = saved.rollbackDuration * 1000; // Convert to milliseconds
-      const stepInterval = Math.max(40, Math.min(600, totalDuration / diffMinutes)); // Clamp between 40ms and 600ms
+      rollingBackWithDelay = true;
+      showToast('Starting rollback in 5 seconds...');
       
-      toastMsg(`Rolling back ${diffMinutes} minutes...`, 1000);
-      
-      rollbackTimer = setInterval(() => {
-        // Decrement by one minute
-        currentDisplayTime.setMinutes(currentDisplayTime.getMinutes() - 1);
-        updateClockDisplay();
+      // 5 second delay before starting rollback
+      setTimeout(() => {
+        rollingBackWithDelay = false;
+        isRollingBack = true;
         
-        // Check if we've reached current time
-        const newDiff = Math.floor((currentDisplayTime - new Date()) / (1000 * 60));
-        if (newDiff <= 0) {
-          clearInterval(rollbackTimer);
-          isRollingBack = false;
-          
-          // Sync to exact current time
-          currentDisplayTime = new Date();
+        const totalDuration = saved.rollbackDuration * 1000; // Convert to milliseconds
+        const stepInterval = Math.max(40, Math.min(600, totalDuration / diffMinutes)); // Clamp between 40ms and 600ms
+        
+        showToast(`Rolling back ${diffMinutes} minutes...`);
+        
+        rollbackTimer = setInterval(() => {
+          // Decrement by one minute
+          currentDisplayTime.setMinutes(currentDisplayTime.getMinutes() - 1);
           updateClockDisplay();
           
-          // Start real-time sync
-          startRealTimeSync();
-          toastMsg('Time synchronized!');
-        }
-      }, stepInterval);
+          // Check if we've reached current time
+          const newDiff = Math.floor((currentDisplayTime - new Date()) / (1000 * 60));
+          if (newDiff <= 0) {
+            clearInterval(rollbackTimer);
+            isRollingBack = false;
+            
+            // Sync to exact current time
+            currentDisplayTime = new Date();
+            updateClockDisplay();
+            
+            // Start real-time sync
+            startRealTimeSync();
+            showToast('Time synchronized!');
+          }
+        }, stepInterval);
+      }, 5000);
     };
 
     const startRealTimeSync = () => {
@@ -298,6 +224,69 @@
       }
     };
 
+    // Simple digit mapping from swipe angles (like birthday trick)
+    const hourMap = { 12:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9 };
+    
+    const toCW = deg => ((deg + 90) % 360 + 360) % 360;       // up=0, CW+
+    const cwToHour = cw => ((Math.round(cw/30) % 12) || 12);   // 1..12
+    const getDigit = angle => {
+      const clockDeg = toCW(angle);
+      const hour = cwToHour(clockDeg);
+      return hourMap[hour] !== undefined ? hourMap[hour] : null;
+    };
+
+    const handleSwipe = (angle) => {
+      if (isRollingBack || rollingBackWithDelay) return;
+      
+      const digit = getDigit(angle);
+      if (digit !== null) {
+        swipeBuffer += String(digit);
+        
+        // Auto-submit when we have 1-2 digits (up to 99 minutes)
+        const minutes = parseInt(swipeBuffer, 10);
+        if (minutes > 0 && swipeBuffer.length <= 2) {
+          // Add minutes to current real time
+          const now = new Date();
+          const futureTime = new Date(now.getTime() + minutes * 60 * 1000);
+          
+          // Update display time
+          currentDisplayTime = futureTime;
+          updateClockDisplay();
+          
+          // Stop real-time sync since we're now in "future" mode
+          stopRealTimeSync();
+          
+          showToast(`Jumped forward ${minutes} minutes`);
+          
+          // Clear buffer
+          swipeBuffer = '';
+        }
+      }
+    };
+
+    const handleTap = () => {
+      if (rollingBackWithDelay) {
+        // Cancel the pending rollback
+        rollingBackWithDelay = false;
+        showToast('Rollback cancelled');
+        return;
+      }
+      
+      if (isRollingBack) return; // Don't interrupt ongoing rollback
+      
+      const now = new Date();
+      const diffMinutes = Math.floor((currentDisplayTime - now) / (1000 * 60));
+      
+      if (diffMinutes > 0) {
+        // We're in future time, start rollback
+        startRollbackAnimation();
+      } else {
+        // Clear any buffer or just show ready status
+        swipeBuffer = '';
+        showToast('Ready for input');
+      }
+    };
+
     // Initialize display
     const init = () => {
       currentDisplayTime = new Date();
@@ -307,97 +296,9 @@
       startRealTimeSync();
     };
 
-    // Swipe engine integration - only active during swipe mode
-    let swipeHooks = null;
-    const initSwipeEngine = () => {
-      // Initialize gestures for swipe input, but only when in swipe mode
-      Gestures.onSwipe((angle) => {
-        if (!isSwipeMode) return;
-        
-        // Use the same logic as the swipe.js engine
-        const toCW = deg => ((deg + 90) % 360 + 360) % 360;
-        const cwToHour = cw => ((Math.round(cw/30) % 12) || 12);
-        const hourMap = h => h===12 ? 0 : (h>=1&&h<=9 ? h : null);
-        
-        const clockDeg = toCW(angle);
-        const hour = cwToHour(clockDeg);
-        const digit = hourMap(hour);
-        
-        if (digit !== null) {
-          // Get current buffer
-          const currentBuffer = swipeDigits.textContent === '—' ? '' : swipeDigits.textContent;
-          const newBuffer = currentBuffer + String(digit);
-          swipeDigits.textContent = newBuffer;
-        }
-      }, swipeInputArea);
-
-      Gestures.onDoubleTap(() => {
-        if (!isSwipeMode) return;
-        swipeDigits.textContent = '—';
-        toastMsg('Cleared');
-      }, swipeInputArea);
-
-      Gestures.onTwoFingerTap(() => {
-        if (!isSwipeMode) return;
-        
-        const buffer = swipeDigits.textContent === '—' ? '' : swipeDigits.textContent;
-        if (buffer) {
-          const minutes = parseInt(buffer, 10);
-          if (minutes > 0) {
-            // Add minutes to current real time
-            const now = new Date();
-            const futureTime = new Date(now.getTime() + minutes * 60 * 1000);
-            
-            // Update display time
-            currentDisplayTime = futureTime;
-            updateClockDisplay();
-            
-            // Stop real-time sync since we're now in "future" mode
-            stopRealTimeSync();
-            
-            exitSwipeMode();
-            toastMsg(`Jumped forward ${minutes} minutes`);
-          } else {
-            toastMsg('Enter a positive number');
-          }
-        } else {
-          toastMsg('Enter minutes first');
-        }
-      }, swipeInputArea);
-    };
-
-    // Gesture handlers
-    const initGestures = () => {
-      // Single tap to trigger rollback or exit swipe mode
-      Gestures.onTap(() => {
-        if (isSwipeMode) {
-          exitSwipeMode();
-          toastMsg('Cancelled');
-        } else if (!isRollingBack) {
-          const now = new Date();
-          const diffMinutes = Math.floor((currentDisplayTime - now) / (1000 * 60));
-          
-          if (diffMinutes > 0) {
-            startRollbackAnimation();
-          } else {
-            // Enter swipe mode to add minutes
-            enterSwipeMode();
-            toastMsg('Swipe to enter minutes to add');
-          }
-        }
-      }, performRoot);
-
-      // Two-finger down to go to settings
-      Gestures.onTwoFingerDown(() => {
-        window.location.href = 'settings.html';
-      });
-    };
-
-    // Settings button
-    settingsBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      window.location.href = 'settings.html';
-    });
+    // Wire gestures
+    Gestures.onSwipe(handleSwipe, root);
+    Gestures.onTap(handleTap, root);
 
     // Prevent context menu and other interactions
     document.addEventListener('contextmenu', e => e.preventDefault());
@@ -405,13 +306,10 @@
 
     // Initialize everything
     init();
-    initSwipeEngine();
-    initGestures();
 
     // Handle visibility changes to keep time in sync
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && !isRollingBack && !isSwipeMode) {
-        // Page became visible, sync to current time if we're supposed to be in real-time
+      if (!document.hidden && !isRollingBack && !rollingBackWithDelay) {
         const now = new Date();
         const diffMinutes = Math.floor((currentDisplayTime - now) / (1000 * 60));
         
