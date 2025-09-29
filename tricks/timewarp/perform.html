@@ -15,7 +15,7 @@
     
     html, body { 
       width: 100vw; 
-      height: 100vh; 
+      height: 100dvh; 
       overflow: hidden; 
       touch-action: none; 
       -webkit-user-select: none; 
@@ -28,7 +28,7 @@
       position: fixed;
       inset: 0;
       width: 100vw;
-      height: 100vh;
+      height: 100dvh;
       background: #000;
       background-size: cover;
       background-position: center;
@@ -36,7 +36,7 @@
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      /* Remove hardcoded padding-top - will be set by JavaScript */
+      /* Padding will be set by JavaScript */
     }
     
     .clock {
@@ -60,7 +60,7 @@
   <script>
     // Load configuration
     const config = Storage.load('timewarp', {
-      useBackground: false,
+      useBackground: true,  // Changed to true by default
       backgroundImage: '',
       fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif',
       fontWeight: '400',
@@ -93,9 +93,11 @@
         lockscreen.style.backgroundSize = 'cover';
         lockscreen.style.backgroundPosition = 'center';
         lockscreen.style.backgroundRepeat = 'no-repeat';
+        console.log('Background applied:', config.backgroundImage.substring(0, 50) + '...');
       } else {
         lockscreen.style.backgroundImage = '';
         lockscreen.style.backgroundColor = '#000';
+        console.log('No background applied - useBackground:', config.useBackground, 'hasImage:', !!config.backgroundImage);
       }
     }
 
@@ -110,16 +112,23 @@
       // Position the clock based on settings
       lockscreen.style.paddingTop = config.verticalOffset + 'vh';
       
+      // Reset alignment properties first to avoid conflicts
+      lockscreen.style.alignItems = 'flex-start';
+      lockscreen.style.justifyContent = 'center';
+      lockscreen.style.paddingLeft = '0';
+      lockscreen.style.paddingRight = '0';
+      
+      // Apply horizontal alignment
       if (config.horizontalAlignment === 'left') {
-        lockscreen.style.alignItems = 'flex-start';
+        lockscreen.style.justifyContent = 'flex-start';
         clock.style.textAlign = 'left';
         lockscreen.style.paddingLeft = '5vw';
       } else if (config.horizontalAlignment === 'right') {
-        lockscreen.style.alignItems = 'flex-end';
+        lockscreen.style.justifyContent = 'flex-end';
         clock.style.textAlign = 'right';
         lockscreen.style.paddingRight = '5vw';
       } else {
-        lockscreen.style.alignItems = 'center';
+        lockscreen.style.justifyContent = 'center';
         clock.style.textAlign = 'center';
       }
     }
