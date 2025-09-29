@@ -15,21 +15,21 @@
     
     html, body { 
       width: 100vw; 
-      height: 100dvh; 
+      height: 100vh; 
       overflow: hidden; 
       touch-action: none; 
       -webkit-user-select: none; 
       user-select: none; 
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif; 
       background: #000;
+      margin: 0;
+      padding: 0;
     }
     
     .lockscreen {
       position: fixed;
       top: 0;
       left: 0;
-      right: 0;
-      bottom: 0;
       width: 100vw;
       height: 100vh;
       background: #000;
@@ -39,9 +39,7 @@
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      /* Full screen coverage behind status bar */
-      margin-top: calc(-1 * env(safe-area-inset-top));
-      padding-top: env(safe-area-inset-top);
+      z-index: 1;
     }
     
     .clock {
@@ -93,16 +91,11 @@
     // Apply background
     function applyBackground() {
       if (config.useBackground && config.backgroundImage) {
-        // Ensure the image is properly applied as CSS background
         lockscreen.style.backgroundImage = `url("${config.backgroundImage}")`;
-        lockscreen.style.backgroundSize = 'cover';
-        lockscreen.style.backgroundPosition = 'center';
-        lockscreen.style.backgroundRepeat = 'no-repeat';
-        console.log('Background applied:', config.backgroundImage.substring(0, 50) + '...');
+        console.log('Background applied successfully');
       } else {
         lockscreen.style.backgroundImage = '';
-        lockscreen.style.backgroundColor = '#000';
-        console.log('No background applied - useBackground:', config.useBackground, 'hasImage:', !!config.backgroundImage);
+        console.log('No background - useBackground:', config.useBackground, 'hasImage:', !!config.backgroundImage);
       }
     }
 
