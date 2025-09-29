@@ -7,81 +7,62 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Timewarp — Perform</title>
   <style>
-    html, body { 
+    * { 
       margin: 0; 
       padding: 0; 
-      width: 100dvw; 
-      height: 100dvh; 
-      background: #000; 
+      box-sizing: border-box; 
+    }
+    
+    html, body { 
+      width: 100vw; 
+      height: 100vh; 
       overflow: hidden; 
       touch-action: none; 
       -webkit-user-select: none; 
       user-select: none; 
-      font-family: -apple-system, system-ui, sans-serif; 
-    }
-    
-    #root { 
-      position: fixed; 
-      inset: 0; 
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif; 
       background: #000;
-      z-index: 2;
     }
     
-    .clock-display {
-      position: absolute;
+    .lockscreen {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 20vh;
+    }
+    
+    .clock {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
       font-variant-numeric: tabular-nums;
       user-select: none;
       pointer-events: none;
       white-space: nowrap;
-      z-index: 3;
-    }
-    
-    .toast { 
-      position: fixed; 
-      left: 50%; 
-      bottom: 28%; 
-      transform: translateX(-50%); 
-      background: #0f1733; 
-      border: 1px solid #2a386c; 
-      color: #eef2ff; 
-      padding: 8px 12px; 
-      border-radius: 10px; 
-      display: none; 
-      z-index: 4;
+      text-align: center;
+      text-shadow: 0 1px 10px rgba(0,0,0,0.5);
     }
   </style>
 </head>
 <body>
-  <!-- Fullscreen background image (same pattern as swipe trick) -->
-  <img id="backgroundImg" style="
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100dvw !important;
-    height: calc(100dvh + env(safe-area-inset-bottom)) !important;
-    object-fit: cover !important;
-    pointer-events: none !important;
-    z-index: 1 !important;
-    display: none !important;
-    background: black !important;
-    margin-bottom: calc(-1 * env(safe-area-inset-bottom)) !important;
-  ">
-
-  <div id="root">
-    <!-- Clock display -->
-    <div id="clockDisplay" class="clock-display">12:00</div>
-    
-    <!-- Toast for status messages -->
-    <div id="toast" class="toast" aria-hidden="true">Status</div>
+  <div class="lockscreen" id="lockscreen">
+    <div class="clock" id="clock">12:00</div>
   </div>
 
   <script src="../../assets/js/storage.js?v=1"></script>
   <script src="../../assets/js/gestures.js?v=1"></script>
   <script>
-    // Load saved config
-    const saved = Storage.load('timewarp', {
+    // Load configuration
+    const config = Storage.load('timewarp', {
       useBackground: false,
       backgroundImage: '',
-      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif',
       fontWeight: '400',
       fontSize: 12,
       letterSpacing: 0,
@@ -92,253 +73,211 @@
       rollbackDuration: 1
     });
 
-    // DOM elements
-    const root = document.getElementById('root');
-    const clockDisplay = document.getElementById('clockDisplay');
-    const toast = document.getElementById('toast');
-    const backgroundImg = document.getElementById('backgroundImg');
+    // Elements
+    const lockscreen = document.getElementById('lockscreen');
+    const clock = document.getElementById('clock');
 
     // State
-    let currentDisplayTime = new Date();
+    let currentTime = new Date();
     let isRollingBack = false;
     let rollbackTimer = null;
-    let realTimeSync = null;
-    let swipeBuffer = '';
-    let rollingBackWithDelay = false;
+    let realTimeTimer = null;
+    let inputBuffer = '';
+    let pendingRollback = false;
 
-    // Utility functions
-    const showToast = (msg) => { 
-      toast.textContent = msg; 
-      toast.style.display = 'block'; 
-      setTimeout(() => toast.style.display = 'none', 900); 
-    };
+    // Apply background
+    function applyBackground() {
+      if (config.useBackground && config.backgroundImage) {
+        lockscreen.style.backgroundImage = `url(${config.backgroundImage})`;
+      }
+    }
 
-    const formatTime = (date, showAmPm = false) => {
+    // Apply clock styling
+    function applyClockStyle() {
+      clock.style.fontFamily = config.fontFamily;
+      clock.style.fontWeight = config.fontWeight;
+      clock.style.fontSize = config.fontSize + 'vw';
+      clock.style.letterSpacing = config.letterSpacing + 'em';
+      clock.style.color = config.clockColor;
+      
+      // Position the clock based on settings
+      lockscreen.style.paddingTop = config.verticalOffset + 'vh';
+      
+      if (config.horizontalAlignment === 'left') {
+        lockscreen.style.alignItems = 'flex-start';
+        clock.style.textAlign = 'left';
+        lockscreen.style.paddingLeft = '5vw';
+      } else if (config.horizontalAlignment === 'right') {
+        lockscreen.style.alignItems = 'flex-end';
+        clock.style.textAlign = 'right';
+        lockscreen.style.paddingRight = '5vw';
+      } else {
+        lockscreen.style.alignItems = 'center';
+        clock.style.textAlign = 'center';
+      }
+    }
+
+    // Format time for display
+    function formatTime(date) {
       const hours = date.getHours();
       const minutes = date.getMinutes();
       
-      if (showAmPm) {
+      if (config.showAmPm) {
         const displayHours = hours === 0 ? 12 : (hours > 12 ? hours - 12 : hours);
         const amPm = hours >= 12 ? 'PM' : 'AM';
-        const minutesStr = minutes.toString().padStart(2, '0');
-        return `${displayHours}:${minutesStr} ${amPm}`;
+        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${amPm}`;
       } else {
         const displayHours = hours === 0 ? 12 : (hours > 12 ? hours - 12 : hours);
-        const minutesStr = minutes.toString().padStart(2, '0');
-        return `${displayHours}:${minutesStr}`;
+        return `${displayHours}:${minutes.toString().padStart(2, '0')}`;
       }
-    };
+    }
 
-    const updateClockDisplay = () => {
-      const timeStr = formatTime(currentDisplayTime, saved.showAmPm);
-      clockDisplay.textContent = timeStr;
-    };
+    // Update clock display
+    function updateClock() {
+      clock.textContent = formatTime(currentTime);
+    }
 
-    const applyClockStyle = () => {
-      clockDisplay.style.fontFamily = saved.fontFamily;
-      clockDisplay.style.fontWeight = saved.fontWeight;
-      clockDisplay.style.fontSize = saved.fontSize + 'vw';
-      clockDisplay.style.letterSpacing = saved.letterSpacing + 'em';
-      clockDisplay.style.color = saved.clockColor;
-      clockDisplay.style.top = saved.verticalOffset + 'vh';
-      
-      // Horizontal alignment
-      if (saved.horizontalAlignment === 'left') {
-        clockDisplay.style.left = '5vw';
-        clockDisplay.style.right = 'auto';
-        clockDisplay.style.transform = 'translateX(0)';
-        clockDisplay.style.textAlign = 'left';
-      } else if (saved.horizontalAlignment === 'right') {
-        clockDisplay.style.left = 'auto';
-        clockDisplay.style.right = '5vw';
-        clockDisplay.style.transform = 'translateX(0)';
-        clockDisplay.style.textAlign = 'right';
-      } else {
-        clockDisplay.style.left = '50vw';
-        clockDisplay.style.right = 'auto';
-        clockDisplay.style.transform = 'translateX(-50%)';
-        clockDisplay.style.textAlign = 'center';
-      }
-    };
+    // Start real-time updates
+    function startRealTimeSync() {
+      if (realTimeTimer) clearInterval(realTimeTimer);
+      realTimeTimer = setInterval(() => {
+        if (!isRollingBack) {
+          currentTime = new Date();
+          updateClock();
+        }
+      }, 1000);
+    }
 
-    const applyBackground = () => {
-      if (saved.useBackground && saved.backgroundImage) {
-        backgroundImg.src = saved.backgroundImage;
-        backgroundImg.style.display = 'block';
-      } else {
-        backgroundImg.style.display = 'none';
-        backgroundImg.src = '';
-      }
-    };
-
-    const startRollbackAnimation = () => {
-      if (isRollingBack || rollingBackWithDelay) return;
+    // Start rollback animation
+    function startRollback() {
+      if (isRollingBack || pendingRollback) return;
       
       const now = new Date();
-      const diffMinutes = Math.floor((currentDisplayTime - now) / (1000 * 60));
+      const diffMinutes = Math.floor((currentTime - now) / (1000 * 60));
       
       if (diffMinutes <= 0) {
-        // Already at current time, sync up
-        currentDisplayTime = new Date();
-        updateClockDisplay();
+        currentTime = new Date();
+        updateClock();
         startRealTimeSync();
         return;
       }
 
-      rollingBackWithDelay = true;
-      showToast('Starting rollback in 5 seconds...');
+      pendingRollback = true;
       
-      // 5 second delay before starting rollback
+      // 5 second delay
       setTimeout(() => {
-        rollingBackWithDelay = false;
+        pendingRollback = false;
         isRollingBack = true;
         
-        const totalDuration = saved.rollbackDuration * 1000; // Convert to milliseconds
-        const stepInterval = Math.max(40, Math.min(600, totalDuration / diffMinutes)); // Clamp between 40ms and 600ms
-        
-        showToast(`Rolling back ${diffMinutes} minutes...`);
+        const totalDuration = config.rollbackDuration * 1000;
+        const stepInterval = Math.max(40, Math.min(600, totalDuration / diffMinutes));
         
         rollbackTimer = setInterval(() => {
-          // Decrement by one minute
-          currentDisplayTime.setMinutes(currentDisplayTime.getMinutes() - 1);
-          updateClockDisplay();
+          currentTime.setMinutes(currentTime.getMinutes() - 1);
+          updateClock();
           
-          // Check if we've reached current time
-          const newDiff = Math.floor((currentDisplayTime - new Date()) / (1000 * 60));
+          const newDiff = Math.floor((currentTime - new Date()) / (1000 * 60));
           if (newDiff <= 0) {
             clearInterval(rollbackTimer);
             isRollingBack = false;
-            
-            // Sync to exact current time
-            currentDisplayTime = new Date();
-            updateClockDisplay();
-            
-            // Start real-time sync
+            currentTime = new Date();
+            updateClock();
             startRealTimeSync();
-            showToast('Time synchronized!');
           }
         }, stepInterval);
       }, 5000);
-    };
+    }
 
-    const startRealTimeSync = () => {
-      if (realTimeSync) clearInterval(realTimeSync);
+    // Handle swipe input (birthday trick style)
+    function handleSwipe(angle) {
+      if (isRollingBack || pendingRollback) return;
       
-      realTimeSync = setInterval(() => {
-        if (!isRollingBack) {
-          currentDisplayTime = new Date();
-          updateClockDisplay();
-        }
-      }, 1000); // Update every second for smooth real-time sync
-    };
-
-    const stopRealTimeSync = () => {
-      if (realTimeSync) {
-        clearInterval(realTimeSync);
-        realTimeSync = null;
-      }
-    };
-
-    // Simple digit mapping from swipe angles (like birthday trick)
-    const hourMap = { 12:0, 1:1, 2:2, 3:3, 4:4, 5:5, 6:6, 7:7, 8:8, 9:9 };
-    
-    const toCW = deg => ((deg + 90) % 360 + 360) % 360;       // up=0, CW+
-    const cwToHour = cw => ((Math.round(cw/30) % 12) || 12);   // 1..12
-    const getDigit = angle => {
-      const clockDeg = toCW(angle);
-      const hour = cwToHour(clockDeg);
-      return hourMap[hour] !== undefined ? hourMap[hour] : null;
-    };
-
-    const handleSwipe = (angle) => {
-      if (isRollingBack || rollingBackWithDelay) return;
+      // Convert angle to clock position and then to digit
+      const normalizeAngle = (a) => ((a + 90) % 360 + 360) % 360;
+      const angleToHour = (a) => ((Math.round(a / 30) % 12) || 12);
+      const hourToDigit = (h) => {
+        const map = { 12: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9 };
+        return map[h] !== undefined ? map[h] : null;
+      };
       
-      const digit = getDigit(angle);
+      const clockAngle = normalizeAngle(angle);
+      const hour = angleToHour(clockAngle);
+      const digit = hourToDigit(hour);
+      
       if (digit !== null) {
-        swipeBuffer += String(digit);
+        inputBuffer += String(digit);
         
-        // Auto-submit when we have 1-2 digits (up to 99 minutes)
-        const minutes = parseInt(swipeBuffer, 10);
-        if (minutes > 0 && swipeBuffer.length <= 2) {
-          // Add minutes to current real time
+        // Auto-submit on valid input (1-2 digits, max 99 minutes)
+        const minutes = parseInt(inputBuffer, 10);
+        if (minutes > 0 && inputBuffer.length <= 2) {
+          // Jump to future time
           const now = new Date();
-          const futureTime = new Date(now.getTime() + minutes * 60 * 1000);
+          currentTime = new Date(now.getTime() + minutes * 60 * 1000);
+          updateClock();
           
-          // Update display time
-          currentDisplayTime = futureTime;
-          updateClockDisplay();
+          // Clear real-time sync since we're in future mode
+          if (realTimeTimer) {
+            clearInterval(realTimeTimer);
+            realTimeTimer = null;
+          }
           
-          // Stop real-time sync since we're now in "future" mode
-          stopRealTimeSync();
-          
-          showToast(`Jumped forward ${minutes} minutes`);
-          
-          // Clear buffer
-          swipeBuffer = '';
+          inputBuffer = '';
         }
       }
-    };
+    }
 
-    const handleTap = () => {
-      if (rollingBackWithDelay) {
-        // Cancel the pending rollback
-        rollingBackWithDelay = false;
-        showToast('Rollback cancelled');
+    // Handle tap to trigger rollback
+    function handleTap() {
+      if (pendingRollback) {
+        pendingRollback = false;
         return;
       }
       
-      if (isRollingBack) return; // Don't interrupt ongoing rollback
+      if (isRollingBack) return;
       
       const now = new Date();
-      const diffMinutes = Math.floor((currentDisplayTime - now) / (1000 * 60));
+      const diffMinutes = Math.floor((currentTime - now) / (1000 * 60));
       
       if (diffMinutes > 0) {
-        // We're in future time, start rollback
-        startRollbackAnimation();
+        startRollback();
       } else {
-        // Clear any buffer or just show ready status
-        swipeBuffer = '';
-        showToast('Ready for input');
+        inputBuffer = '';
       }
-    };
+    }
 
-    // Initialize display
-    const init = () => {
-      currentDisplayTime = new Date();
+    // Initialize
+    function init() {
+      currentTime = new Date();
       applyBackground();
       applyClockStyle();
-      updateClockDisplay();
+      updateClock();
       startRealTimeSync();
-    };
-
-    // Wire gestures
-    Gestures.onSwipe(handleSwipe, root);
-    Gestures.onTap(handleTap, root);
-
-    // Prevent context menu and other interactions
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('selectstart', e => e.preventDefault());
-
-    // Initialize everything
-    init();
-
-    // Handle visibility changes to keep time in sync
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && !isRollingBack && !rollingBackWithDelay) {
-        const now = new Date();
-        const diffMinutes = Math.floor((currentDisplayTime - now) / (1000 * 60));
-        
-        if (Math.abs(diffMinutes) <= 1) {
-          // Close enough to real time, sync up
-          currentDisplayTime = now;
-          updateClockDisplay();
-          startRealTimeSync();
+      
+      // Setup gesture handlers
+      Gestures.onSwipe(handleSwipe, lockscreen);
+      Gestures.onTap(handleTap, lockscreen);
+      
+      // Prevent context menu and selection
+      document.addEventListener('contextmenu', e => e.preventDefault());
+      document.addEventListener('selectstart', e => e.preventDefault());
+      
+      // Handle visibility changes
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && !isRollingBack && !pendingRollback) {
+          const now = new Date();
+          const diffMinutes = Math.floor((currentTime - now) / (1000 * 60));
+          
+          if (Math.abs(diffMinutes) <= 1) {
+            currentTime = now;
+            updateClock();
+            startRealTimeSync();
+          }
         }
-      }
-    });
+      });
+    }
 
-    // Debug logging
-    console.log('Timewarp initialized with config:', saved);
+    // Start the app
+    init();
   </script>
 </body>
 </html>
