@@ -36,7 +36,7 @@
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      padding-top: 20vh;
+      /* Remove hardcoded padding-top - will be set by JavaScript */
     }
     
     .clock {
@@ -88,7 +88,14 @@
     // Apply background
     function applyBackground() {
       if (config.useBackground && config.backgroundImage) {
-        lockscreen.style.backgroundImage = `url(${config.backgroundImage})`;
+        // Ensure the image is properly applied as CSS background
+        lockscreen.style.backgroundImage = `url("${config.backgroundImage}")`;
+        lockscreen.style.backgroundSize = 'cover';
+        lockscreen.style.backgroundPosition = 'center';
+        lockscreen.style.backgroundRepeat = 'no-repeat';
+      } else {
+        lockscreen.style.backgroundImage = '';
+        lockscreen.style.backgroundColor = '#000';
       }
     }
 
