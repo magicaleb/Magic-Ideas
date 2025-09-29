@@ -23,10 +23,8 @@
     #root { 
       position: fixed; 
       inset: 0; 
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      background-color: #000;
+      background: #000;
+      z-index: 2;
     }
     
     .clock-display {
@@ -35,6 +33,7 @@
       user-select: none;
       pointer-events: none;
       white-space: nowrap;
+      z-index: 3;
     }
     
     .toast { 
@@ -48,10 +47,25 @@
       padding: 8px 12px; 
       border-radius: 10px; 
       display: none; 
+      z-index: 4;
     }
   </style>
 </head>
 <body>
+  <!-- Fullscreen background image (same pattern as swipe trick) -->
+  <img id="backgroundImg" style="
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100dvw !important;
+    height: calc(100dvh + env(safe-area-inset-bottom)) !important;
+    object-fit: cover !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+    display: none !important;
+    background: black !important;
+    margin-bottom: calc(-1 * env(safe-area-inset-bottom)) !important;
+  ">
+
   <div id="root">
     <!-- Clock display -->
     <div id="clockDisplay" class="clock-display">12:00</div>
@@ -82,6 +96,7 @@
     const root = document.getElementById('root');
     const clockDisplay = document.getElementById('clockDisplay');
     const toast = document.getElementById('toast');
+    const backgroundImg = document.getElementById('backgroundImg');
 
     // State
     let currentDisplayTime = new Date();
@@ -148,11 +163,11 @@
 
     const applyBackground = () => {
       if (saved.useBackground && saved.backgroundImage) {
-        root.style.backgroundImage = `url(${saved.backgroundImage})`;
-        root.style.backgroundColor = 'transparent';
+        backgroundImg.src = saved.backgroundImage;
+        backgroundImg.style.display = 'block';
       } else {
-        root.style.backgroundImage = '';
-        root.style.backgroundColor = '#000';
+        backgroundImg.style.display = 'none';
+        backgroundImg.src = '';
       }
     };
 
