@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <title>Time Travel — Magic Ideas</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="bg" class="hidden">Upload a screenshot (clock removed) to begin</div>
+
+    <div id="controls" class="panel">
+      <label class="file">
+        Screenshot (clock removed):
+        <input type="file" id="screenshotInput" accept="image/*">
+      </label>
+
+      <div class="row">
+        <label>Font size (px): <input id="fontSize" type="number" value="26" min="10" max="120"></label>
+        <label>Weight: <input id="fontWeight" type="number" value="600" min="100" max="900"></label>
+        <label>Letter spacing (px): <input id="letterSpacing" type="number" value="-1" step="0.1"></label>
+      </div>
+
+      <div class="row">
+        <label>Offset X (px): <input id="offsetX" type="number" value="0"></label>
+        <label>Offset Y (px): <input id="offsetY" type="number" value="0"></label>
+        <label>12/24: <select id="hourFormat"><option value="12">12</option><option value="24">24</option></select></label>
+      </div>
+
+      <div class="row">
+        <button id="debugToggle">Show Zones</button>
+        <button id="resetBtn">Reset</button>
+        <button id="startBtn">Start (tap anywhere)</button>
+      </div>
+
+      <div class="info">
+        <div>Selected minutes to travel back: <span id="selected">0</span></div>
+        <div class="small">Secret zones: bottom-left sixth = +2 min, middle-left sixth = +1 min. Tap elsewhere to start.</div>
+      </div>
+    </div>
+
+    <div id="clock" aria-hidden="true">00:00</div>
+
+    <div id="countdown" class="hidden">3</div>
+
+    <div id="zones" class="hidden">
+      <div class="zone" id="zone-2">+2</div>
+      <div class="zone" id="zone-1">+1</div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
