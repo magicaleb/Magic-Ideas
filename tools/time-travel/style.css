@@ -2,8 +2,9 @@
 html, body {
     margin: 0;
     padding: 0;
-    width: 100vw;
-    height: 100dvh;
+    width: 100%;                 /* fix overflow bug */
+    min-height: 100dvh;          /* use min-height */
+    height: -webkit-fill-available; /* fallback for Safari */
     overflow: hidden;
 }
 
@@ -13,4 +14,13 @@ body {
     background-position: center center;
     background-repeat: no-repeat;
     color: #333;
+}
+
+/* Safe-area handling so it truly bleeds edge-to-edge */
+body {
+    padding:
+      env(safe-area-inset-top, 0)
+      env(safe-area-inset-right, 0)
+      env(safe-area-inset-bottom, 0)
+      env(safe-area-inset-left, 0);
 }
