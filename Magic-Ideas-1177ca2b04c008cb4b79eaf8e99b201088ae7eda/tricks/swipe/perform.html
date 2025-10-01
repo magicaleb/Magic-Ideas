@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0b1020">
+  <title>Swipe — Perform</title>
+  <link rel="stylesheet" href="../../assets/css/base.css?v=2">
+  <style>
+    /* PWA-first clean reset */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      background: #0b1020 !important;
+      overflow: hidden !important;
+      position: fixed !important;
+      inset: 0 !important;
+    }
+    
+    /* Main container - simple and clean */
+    .perform-root {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      align-items: center !important;
+      background: #0b1020 !important;
+      touch-action: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      z-index: 2 !important;
+    }
+    
+    /* When fake homescreen is active, make root transparent */
+    .perform-root.fake-active {
+      background: transparent !important;
+    }
+    
+    /* Center the digits */
+    .digits-wrap {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      pointer-events: none !important;
+    }
+    
+    .digits {
+      font-size: 4.4rem !important;
+      letter-spacing: 6px !important;
+      color: rgba(255,255,255,0.95) !important;
+      font-weight: 800 !important;
+      text-align: center !important;
+    }
+    
+    /* Bottom left indicator - no safe areas */
+    .last {
+      position: fixed !important;
+      bottom: -168px !important;
+      left: 12px !important;
+      color: rgba(255,255,255,0.7) !important;
+      font-size: 0.9rem !important;
+      z-index: 3 !important;
+    }
+    
+    /* Toast notification */
+    .toast {
+      position: fixed !important;
+      left: 50% !important;
+      bottom: 30% !important;
+      transform: translateX(-50%) !important;
+      background: #0f1733 !important;
+      border: 1px solid #2a386c !important;
+      color: #eef2ff !important;
+      padding: 8px 12px !important;
+      border-radius: 10px !important;
+      display: none !important;
+      z-index: 3 !important;
+    }
+    
+    /* Flash animation */
+    .flash {
+      animation: flash 240ms ease !important;
+    }
+    
+    @keyframes flash {
+      0% { transform: scale(1); }
+      50% { transform: scale(0.96); }
+      100% { transform: scale(1); }
+    }
+  </style>
+  </style>
+</head>
+<body>
+  <!-- Simple image element for fake homescreen -->
+  <img id="fakeHomescreenImg" style="
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+    display: none !important;
+  " alt="">
+  
+  <div id="root" class="perform-root" role="application">
+    <div class="digits-wrap">
+      <div id="digits" class="digits" aria-live="polite">—</div>
+    </div>
+  <div id="last" class="last">—</div>
+    <div id="toast" class="toast" aria-hidden="true">Saved</div>
+    
+    <!-- Debug info visible on screen -->
+    <div id="debug" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 5px; font-size: 12px; z-index: 999; border-radius: 4px;">
+      <div>Mode: <span id="debugMode">Loading...</span></div>
+      <div>Image: <span id="debugImage">Loading...</span></div>
+      <div>Display: <span id="debugDisplay">Loading...</span></div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/storage.js"></script>
+  <script src="../../assets/js/gestures.js"></script>
+  <script src="../../assets/js/swipe.js"></script>
+  <script>
+    // Clean, final Perform page wiring — uses existing Storage, Gestures and Swipe modules.
+    const root = document.getElementById('root');
+    const digitsEl = document.getElementById('digits');
+    const lastEl = document.getElementById('last');
+    const toast = document.getElementById('toast');
+    const fakeHomescreenImg = document.getElementById('fakeHomescreenImg');
+
+    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'' };
+    let cfg = Storage.load('swipe', defaults);
+
+    const showToast = (msg, ms=900)=>{ toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none', ms); };
+
+    // Simple fake homescreen implementation with img element
+    function applyFakeHomescreen() {
+      const debugMode = document.getElementById('debugMode');
+      const debugImage = document.getElementById('debugImage');
+      const debugDisplay = document.getElementById('debugDisplay');
+      
+      console.log('=== DEBUG INFO ===');
+      console.log('cfg.fakeHomescreen:', cfg.fakeHomescreen);
+      console.log('cfg.homescreenImage exists:', !!cfg.homescreenImage);
+      console.log('cfg.homescreenImage length:', cfg.homescreenImage ? cfg.homescreenImage.length : 0);
+      console.log('fakeHomescreenImg element:', fakeHomescreenImg);
+      
+      // Update debug display
+      debugMode.textContent = cfg.fakeHomescreen ? 'ON' : 'OFF';
+      debugImage.textContent = cfg.homescreenImage ? 'YES' : 'NO';
+      
+      if (cfg.fakeHomescreen && cfg.homescreenImage) {
+        // Use img element instead of CSS background
+        fakeHomescreenImg.src = cfg.homescreenImage;
+        fakeHomescreenImg.style.display = 'block';
+        root.classList.add('fake-active');
+        debugDisplay.textContent = 'ACTIVE';
+        console.log('✅ Fake homescreen img should be visible');
+        console.log('Image src set to:', cfg.homescreenImage.substring(0, 50) + '...');
+      } else {
+        fakeHomescreenImg.style.display = 'none';
+        fakeHomescreenImg.src = '';
+        root.classList.remove('fake-active');
+        debugDisplay.textContent = 'INACTIVE';
+        console.log('❌ Fake homescreen disabled');
+      }
+    }
+
+    // Initialize and refresh on focus
+    applyFakeHomescreen();
+    window.addEventListener('focus', () => {
+      cfg = Storage.load('swipe', defaults);
+      applyFakeHomescreen();
+    });
+
+    const paint = v => { digitsEl.textContent = (v || '—'); };
+    const doFlash = ()=>{ digitsEl.classList.remove('flash'); void digitsEl.offsetWidth; digitsEl.classList.add('flash'); };
+
+    // Start Swipe engine with minimal hooks
+    let lastSubmitted = '';
+
+    const hooks = {
+      onDigit(d, buffer){ paint(buffer); if(d!=null) doFlash(); },
+      onClear(){ paint(''); showToast('Cleared'); },
+      onSubmit(value, route){
+  lastSubmitted = value || '';
+  lastEl.textContent = (value || '—');
+        paint('');
+        // route can be 'clipboard', 'shortcut', 'clipboard+shortcut', 'clipboard-failed' or 'none'
+        if(route && route.indexOf('clipboard') !== -1 && route.indexOf('clipboard-failed') === -1) {
+          showToast('Copied to clipboard');
+        }
+        else if(route === 'clipboard-failed'){
+          showToast('Clipboard blocked');
+        }
+        else if(route && route.indexOf('shortcut') !== -1) showToast('Sent to Shortcut');
+        else showToast('Submitted');
+      },
+      onStatus(msg){ showToast(msg); }
+    };
+
+    const swipe = Swipe.start(cfg, hooks);
+
+    // Ensure selection/zooming is reduced on mobile
+    document.documentElement.style.webkitTouchCallout='none';
+    document.documentElement.style.webkitUserSelect='none';
+
+    // Accessibility: focus root to allow PointerEvents to be captured
+    root.tabIndex = -1;
+    root.focus();
+  </script>
+
+  </body>
+  </html>

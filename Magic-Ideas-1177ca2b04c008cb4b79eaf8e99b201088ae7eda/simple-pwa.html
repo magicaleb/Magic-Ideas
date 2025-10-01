@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Image Background</title>
+</head>
+<body style="margin:0; padding:0; width:100vw; height:100vh; background:red; display:flex; align-items:center; justify-content:center; font-family:system-ui; overflow:hidden; position:fixed; top:0; left:0; right:0; bottom:0;">
+    
+    <div style="text-align: center;">
+        <input type="file" id="imageInput" accept="image/*" style="margin-bottom: 15px; padding: 10px; font-size: 16px; background: white; border-radius: 8px;">
+        <br>
+        <button id="uploadBtn" style="padding: 15px 30px; font-size: 18px; border: none; border-radius: 8px; background: white; color: black; cursor: pointer;">
+            Set as Background
+        </button>
+    </div>
+
+    <script>
+        const body = document.body;
+        const imageInput = document.getElementById('imageInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        
+        // Prevent zoom/pan gestures
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+            // Prevent all scrolling
+            e.preventDefault();
+        }, { passive: false });
+        
+        // Prevent scrolling on desktop
+        document.addEventListener('wheel', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+        
+        // Prevent scrolling with keyboard
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || 
+                e.key === 'PageUp' || e.key === 'PageDown' ||
+                e.key === 'Home' || e.key === 'End' || e.key === ' ') {
+                e.preventDefault();
+            }
+        });
+        
+        uploadBtn.addEventListener('click', () => {
+            const file = imageInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    body.style.backgroundImage = `url(${e.target.result})`;
+                    body.style.backgroundSize = 'cover';
+                    body.style.backgroundPosition = 'center';
+                    body.style.backgroundRepeat = 'no-repeat';
+                    body.style.backgroundColor = 'black'; // Fallback color
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    </script>
+
+</body>
+</html>

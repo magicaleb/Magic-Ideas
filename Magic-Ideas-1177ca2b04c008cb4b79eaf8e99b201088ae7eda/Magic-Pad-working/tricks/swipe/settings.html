@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Swipe Input — Settings</title>
+  <link rel="stylesheet" href="../../assets/css/base.css">
+</head>
+<body>
+  <div class="container stack">
+    <h2>Swipe Input — Settings</h2>
+
+    <div class="card stack" style="gap:12px;font-size:1.05rem">
+      <div class="stack" style="gap:6px">
+        <label>Auto-submit delay (seconds)</label>
+        <input id="delay" type="number" min="1" max="60" step="1" inputmode="numeric" style="width:6.5rem;padding:8px;font-size:1rem">
+      </div>
+
+      <div class="stack" style="gap:6px">
+        <label>Enter name of Shortcut to auto-run after input</label>
+        <input id="shortcut" type="text" placeholder="e.g., City List" style="padding:8px;font-size:1rem">
+      </div>
+
+      <div class="row" style="align-items:center;gap:8px">
+        <input id="clipboard" type="checkbox" style="width:auto">
+        <label for="clipboard" style="font-size:1rem">Copy result to clipboard</label>
+      </div>
+
+      <div class="row" style="justify-content:center;margin-top:6px">
+        <a id="perform" href="perform.html"><button class="xl" style="min-width:240px;padding:14px 22px;font-size:1.08rem">Perform</button></a>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;padding:6px 10px;" class="card">
+      <div style="font-size:1rem;font-weight:600;margin-bottom:6px">Controls</div>
+      <div style="font-size:0.98rem;line-height:1.4">
+        <div>• Double-tap → Clear</div>
+        <div>• Two-finger down → Exit to Settings</div>
+        <div>• Two-finger tap → Submit now</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/storage.js"></script>
+  <script>
+    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'' };
+    const $ = id => document.getElementById(id);
+
+    const cfg = Storage.load('swipe', defaults);
+    $('delay').value = cfg.delay;
+    $('shortcut').value = cfg.shortcut;
+    $('clipboard').checked = !!cfg.clipboard;
+
+    const save = () => Storage.save('swipe', {
+      delay: Math.max(1, +$('delay').value || defaults.delay),
+      shortcut: ($('shortcut').value || '').trim(),
+      clipboard: !!$('clipboard').checked,
+      postShortcut: cfg.postShortcut || ''
+    });
+    ['delay','shortcut','clipboard'].forEach(id=>{
+      const el=$(id); el.addEventListener('input', save); el.addEventListener('change', save);
+    });
+
+    document.getElementById('perform').addEventListener('click', ()=>{ save(); });
+  </script>
+</body>
+</html>

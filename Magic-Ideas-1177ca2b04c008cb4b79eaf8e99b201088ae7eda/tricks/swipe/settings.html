@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Swipe — Settings</title>
+  <link rel="stylesheet" href="../../assets/css/base.css?v=1">
+  <style>
+    /* PWA-first layout for settings */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      background: #0b1020 !important;
+      overflow: auto !important;
+      position: fixed !important;
+      inset: 0 !important;
+    }
+    
+    .settings-root {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      padding: 20px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      box-sizing: border-box !important;
+    }
+    
+    .settings-card {
+      width: 100% !important;
+      max-width: 480px !important;
+      margin: 0 auto !important;
+    }
+    
+    .form-row {
+      display: flex !important;
+      gap: 12px !important;
+      align-items: center !important;
+    }
+    
+    .small {
+      font-size: 0.95rem !important;
+      color: #8ea0c7 !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="settings-root">
+    <div class="settings-card">
+      <h2>Swipe Input — Settings</h2>
+      <div class="card stack">
+        <div class="beta-watermark">Newest</div>
+        <label class="small">Auto-submit delay (seconds)</label>
+        <input id="delay" type="number" min="1" max="60" step="1" inputmode="numeric" style="width:6.5rem;padding:8px;font-size:1rem">
+
+  <label class="small">Shortcut name (optional)</label>
+  <input id="shortcut" class="responsive-input" type="text" placeholder="Shortcut name" style="padding:8px;font-size:1rem">
+
+        <div class="row" style="align-items:center;gap:8px">
+          <input id="clipboard" type="checkbox">
+          <label for="clipboard" class="small">Copy result to clipboard</label>
+        </div>
+
+        <div class="row" style="align-items:center;gap:8px">
+          <input id="fakeHomescreen" type="checkbox">
+          <label for="fakeHomescreen" class="small">Enable Fake Homescreen</label>
+        </div>
+
+        <label class="small">Upload homescreen image (optional)</label>
+        <input id="homescreenImage" type="file" accept="image/*">
+
+        <!-- Background Time! Feature -->
+        <div class="row" style="align-items:center;gap:8px;margin-top:16px;padding:16px;border:2px solid #60a5fa;border-radius:12px">
+          <input id="backgroundTime" type="checkbox">
+          <label for="backgroundTime" class="small" style="color:#60a5fa;font-weight:bold">🧪 Background Time! (Test Mode)</label>
+        </div>
+        
+        <label class="small">Upload test background image</label>
+        <input id="backgroundTestImage" type="file" accept="image/*">
+
+        <div style="display:flex;gap:12px;justify-content:center;margin-top:8px">
+          <button id="save" class="ghost">Save</button>
+          <button id="backgroundSandbox" class="xl" style="background:#60a5fa;display:none">Background Sandbox</button>
+          <a id="performLink" href="perform.html"><button id="performButton" class="xl">Perform</button></a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/storage.js"></script>
+  <script>
+    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'' };
+    const $ = id => document.getElementById(id);
+    let state = Storage.load('swipe', defaults);
+
+    // hydrate
+    $('delay').value = state.delay;
+    $('shortcut').value = state.shortcut;
+    $('clipboard').checked = !!state.clipboard;
+    $('fakeHomescreen').checked = !!state.fakeHomescreen;
+
+    const persist = () => { Storage.save('swipe', state); };
+
+    $('delay').addEventListener('input', ()=>{ state.delay = Math.max(1, +$('delay').value || defaults.delay); persist(); });
+    $('shortcut').addEventListener('input', ()=>{ state.shortcut = ($('shortcut').value||'').trim(); persist(); });
+    $('clipboard').addEventListener('change', ()=>{ state.clipboard = !!$('clipboard').checked; persist(); });
+    $('fakeHomescreen').addEventListener('change', ()=>{ state.fakeHomescreen = !!$('fakeHomescreen').checked; persist(); });
+
+    // Background Time! feature
+    const backgroundTimeCheckbox = $('backgroundTime');
+    const backgroundSandboxButton = $('backgroundSandbox');
+    const backgroundTestImageInput = $('backgroundTestImage');
+    
+    backgroundTimeCheckbox.addEventListener('change', () => {
+      if (backgroundTimeCheckbox.checked) {
+        backgroundSandboxButton.style.display = 'block';
+      } else {
+        backgroundSandboxButton.style.display = 'none';
+      }
+    });
+    
+    backgroundTestImageInput.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        localStorage.setItem('backgroundTestImage', r.result);
+        alert('Background test image saved!');
+      };
+      r.readAsDataURL(f);
+    });
+    
+    backgroundSandboxButton.addEventListener('click', () => {
+      window.location.href = '../../background-sandbox.html';
+    });
+
+    const imgEl = $('homescreenImage');
+    if(imgEl){
+      imgEl.addEventListener('change', e=>{
+        const f = e.target.files && e.target.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = ()=>{ state.homescreenImage = r.result; persist(); alert('Image saved'); };
+        r.readAsDataURL(f);
+      });
+    }
+
+    $('save').addEventListener('click', e=>{ e.preventDefault(); persist(); alert('Settings saved'); });
+
+    // ensure perform link saves current state before navigation
+    $('performLink').addEventListener('click', e=>{ e.preventDefault(); persist(); window.location.href = 'perform.html'; });
+  </script>
+</body>
+</html>
