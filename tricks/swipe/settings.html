@@ -2,18 +2,23 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <title>Swipe Input — Settings</title>
+
+  <!-- Critical fullscreen meta tags -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Swipe Input — Settings</title>
+
   <link rel="stylesheet" href="../../assets/css/base.css">
   <style>
-    /* Full-screen approach like simple-pwa.html */
     html, body {
       margin: 0;
       padding: 0;
-      width: 100vw;
-      height: 100vh;
+      width: 100%;
+      min-height: 100dvh;
+      height: -webkit-fill-available;
+      overflow: hidden;
+      background: transparent;
     }
   </style>
 </head>
@@ -24,7 +29,6 @@
     <div class="card stack" style="gap:12px;font-size:1.05rem">
       <div class="stack" style="gap:6px">
         <label style="font-size:1.05rem">Auto-submit delay (seconds)</label>
-        <!-- spin picker: native number input with step arrows; styled by base.css -->
         <input id="delay" type="number" min="1" max="60" step="1" inputmode="numeric" style="width:6.5rem;padding:8px;font-size:1rem">
       </div>
 
@@ -38,8 +42,6 @@
         <label for="clipboard" style="font-size:1rem">Copy result to clipboard</label>
       </div>
 
-    
-
       <div class="row" style="align-items:center;gap:8px">
         <input id="fakeHomescreen" type="checkbox" style="width:auto">
         <label for="fakeHomescreen" style="font-size:1rem">Fake Homescreen (show uploaded image on Perform)</label>
@@ -47,7 +49,7 @@
 
       <div class="stack" style="gap:6px">
         <label style="font-size:0.95rem">Upload Homescreen Image (optional)</label>
-  <input id="homescreenImage" type="file" accept="image/*">
+        <input id="homescreenImage" type="file" accept="image/*">
       </div>
 
       <div class="row" style="justify-content:center;margin-top:6px">
@@ -66,50 +68,42 @@
   </div>
 
   <script src="../../assets/js/storage.js"></script>
-<script>
-  const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'' };
-  const $ = id => document.getElementById(id);
+  <script>
+    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'' };
+    const $ = id => document.getElementById(id);
 
-  // Live state (not a fixed snapshot)
-  let state = Storage.load('swipe', defaults);
+    let state = Storage.load('swipe', defaults);
 
-  // Hydrate controls
-  $('delay').value        = state.delay;
-  $('shortcut').value     = state.shortcut;
-  $('clipboard').checked  = !!state.clipboard;
-  const postEl = $('postShortcut'); if (postEl) postEl.value = state.postShortcut || '';
-  const fakeEl = $('fakeHomescreen'); if (fakeEl) fakeEl.checked = !!state.fakeHomescreen;
-  const imgEl  = $('homescreenImage');
+    $('delay').value        = state.delay;
+    $('shortcut').value     = state.shortcut;
+    $('clipboard').checked  = !!state.clipboard;
+    const postEl = $('postShortcut'); if (postEl) postEl.value = state.postShortcut || '';
+    const fakeEl = $('fakeHomescreen'); if (fakeEl) fakeEl.checked = !!state.fakeHomescreen;
+    const imgEl  = $('homescreenImage');
 
-  // Persist helper: always write the current state
-  const persist = () => Storage.save('swipe', state);
+    const persist = () => Storage.save('swipe', state);
 
-  // Wire inputs -> update state -> persist
-  $('delay').addEventListener('input',  () => { state.delay    = Math.max(1, +$('delay').value || defaults.delay); persist(); });
-  $('shortcut').addEventListener('input', () => { state.shortcut = ($('shortcut').value || '').trim(); persist(); });
-  $('clipboard').addEventListener('change', () => { state.clipboard = !!$('clipboard').checked; persist(); });
-  if (postEl) postEl.addEventListener('input', () => { state.postShortcut = (postEl.value || '').trim(); persist(); });
-  if (fakeEl) fakeEl.addEventListener('change', () => { state.fakeHomescreen = !!fakeEl.checked; persist(); });
+    $('delay').addEventListener('input',  () => { state.delay    = Math.max(1, +$('delay').value || defaults.delay); persist(); });
+    $('shortcut').addEventListener('input', () => { state.shortcut = ($('shortcut').value || '').trim(); persist(); });
+    $('clipboard').addEventListener('change', () => { state.clipboard = !!$('clipboard').checked; persist(); });
+    if (postEl) postEl.addEventListener('input', () => { state.postShortcut = (postEl.value || '').trim(); persist(); });
+    if (fakeEl) fakeEl.addEventListener('change', () => { state.fakeHomescreen = !!fakeEl.checked; persist(); });
 
-  // File → dataURL → update state.homescreenImage → persist
-  if (imgEl) {
-    imgEl.addEventListener('change', e => {
-      const f = e.target.files && e.target.files[0];
-      if (!f) return;
-      const r = new FileReader();
-      r.onload = () => { state.homescreenImage = r.result; persist(); };
-      r.readAsDataURL(f);   // (JPEG/PNG under ~5–8 MB works in localStorage; use smaller if needed)
+    if (imgEl) {
+      imgEl.addEventListener('change', e => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = () => { state.homescreenImage = r.result; persist(); };
+        r.readAsDataURL(f);
+      });
+    }
+
+    document.getElementById('perform').addEventListener('click', e => {
+      e.preventDefault();
+      persist();
+      window.location.href = 'perform.html';
     });
-  }
-
-  // Perform: save current state, then navigate
-  document.getElementById('perform').addEventListener('click', e => {
-    e.preventDefault();
-    persist();
-    window.location.href = 'perform.html';
-  });
-</script>
- <!-- </div>
-  </div> -->
+  </script>
 </body>
 </html>
