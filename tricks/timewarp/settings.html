@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Timewarp — Settings</title>
+  <link rel="stylesheet" href="../../assets/css/base.css?v=1">
+  <style>
+    /* PWA-first layout for settings */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+      min-height: 100% !important;
+      background: #0b1020 !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+    }
+    
+    .settings-root {
+      width: 100% !important;
+      min-height: 100vh !important;
+      padding: 20px !important;
+      display: flex !important;
+      align-items: flex-start !important;
+      justify-content: center !important;
+      box-sizing: border-box !important;
+    }
+    
+    .settings-card {
+      width: 100% !important;
+      max-width: 480px !important;
+      margin: 20px auto !important;
+      padding-bottom: 40px !important;
+    }
+
+    .color-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    input[type="color"] {
+      width: 50px;
+      height: 40px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    
+    .font-preview {
+      padding: 10px;
+      background: #1a2332;
+      border-radius: 8px;
+      margin-top: 8px;
+      text-align: center;
+      color: #cde6ff;
+      font-size: 2rem;
+    }
+    
+    .alignment-buttons {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .alignment-buttons button {
+      flex: 1;
+      padding: 10px;
+      font-size: 0.9rem;
+    }
+    
+    .alignment-buttons button.active {
+      background: var(--accent);
+      color: #05111b;
+    }
+  </style>
+</head>
+<body>
+  <div class="settings-root">
+    <div class="settings-card">
+      <div class="container stack">
+        <h2>Timewarp — Settings</h2>
+
+        <!-- Background Settings -->
+        <div class="card stack" style="gap:12px;font-size:1.05rem">
+          <h3 style="margin:0;color:var(--accent);font-size:1.1rem">Background</h3>
+          
+          <div class="stack" style="gap:6px">
+            <label>
+              <input type="checkbox" id="useBackground" style="margin-right:8px">
+              Use custom background (lock screen screenshot)
+            </label>
+          </div>
+          
+          <div class="stack" style="gap:6px">
+            <label>Background Image</label>
+            <input type="file" id="backgroundImage" accept="image/*" style="width:100%;padding:8px;font-size:1rem">
+            <div style="font-size:0.85rem;color:var(--muted)">Upload a screenshot of your lock screen with the clock area erased</div>
+          </div>
+        </div>
+
+        <!-- Clock Appearance -->
+        <div class="card stack" style="gap:12px;font-size:1.05rem">
+          <h3 style="margin:0;color:var(--accent);font-size:1.1rem">Clock Appearance</h3>
+          
+          <div class="stack" style="gap:6px">
+            <label>Font Family</label>
+            <select id="fontFamily" style="width:100%;padding:12px;border-radius:8px;border:1px solid #26325f;background:#0f1630;color:var(--text)">
+              <option value="-apple-system, BlinkMacSystemFont, sans-serif">System (Default)</option>
+              <option value="SF Pro Display, -apple-system, sans-serif">SF Pro Display</option>
+              <option value="Helvetica Neue, sans-serif">Helvetica Neue</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="Times New Roman, serif">Times New Roman</option>
+              <option value="Courier New, monospace">Courier New</option>
+            </select>
+          </div>
+          
+          <div class="stack" style="gap:6px">
+            <label>Font Weight</label>
+            <select id="fontWeight" style="width:100%;padding:12px;border-radius:8px;border:1px solid #26325f;background:#0f1630;color:var(--text)">
+              <option value="300">Light (300)</option>
+              <option value="400">Normal (400)</option>
+              <option value="500">Medium (500)</option>
+              <option value="600">Semi-Bold (600)</option>
+              <option value="700">Bold (700)</option>
+              <option value="800">Extra Bold (800)</option>
+            </select>
+          </div>
+          
+          <div class="stack" style="gap:6px">
+            <label>Font Size (vw)</label>
+            <input id="fontSize" type="number" min="5" max="30" step="0.5" value="12" style="width:6.5rem;padding:8px;font-size:1rem">
+            <div style="font-size:0.85rem;color:var(--muted)">Size as percentage of screen width (5-30)</div>
+          </div>
+          
+          <div class="stack" style="gap:6px">
+            <label>Letter Spacing (em)</label>
+            <input id="letterSpacing" type="number" min="-0.1" max="0.5" step="0.01" value="0" style="width:6.5rem;padding:8px;font-size:1rem">
+          </div>
+          
+          <div class="stack" style="gap:6px">
+            <label>Vertical Position (vh from top)</label>
+            <input id="verticalOffset" type="number" min="0" max="80" step="1" value="20" style="width:6.5rem;padding:8px;font-size:1rem">
+          </div>
+          
+          <div class="stack" style="gap:6px">
+            <label>Horizontal Alignment</label>
+            <div class="alignment-buttons">
+              <button type="button" id="alignLeft" class="ghost">Left</button>
+              <button type="button" id="alignCenter" class="ghost active">Center</button>
+              <button type="button" id="alignRight" class="ghost">Right</button>
+            </div>
+          </div>
+          
+          <div class="stack" style="gap:6px">
+            <label>Clock Color</label>
+            <div class="color-input-wrapper">
+              <input type="color" id="clockColor" value="#ffffff">
+              <input type="text" id="clockColorHex" value="#ffffff" placeholder="#ffffff" style="flex:1;padding:8px">
+            </div>
+          </div>
+          
+          <div class="stack" style="gap:6px">
+            <label>
+              <input type="checkbox" id="showAmPm" style="margin-right:8px">
+              Show AM/PM
+            </label>
+          </div>
+          
+          <div class="font-preview" id="fontPreview">12:34</div>
+        </div>
+
+        <!-- Animation Settings -->
+        <div class="card stack" style="gap:12px;font-size:1.05rem">
+          <h3 style="margin:0;color:var(--accent);font-size:1.1rem">Animation</h3>
+          
+          <div class="stack" style="gap:6px">
+            <label>Rollback Duration (seconds)</label>
+            <input id="rollbackDuration" type="number" min="0.5" max="10" step="0.1" value="1" style="width:6.5rem;padding:8px;font-size:1rem">
+            <div style="font-size:0.85rem;color:var(--muted)">Total time for rolling back to current time</div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="stack" style="gap:8px">
+          <button id="perform" class="xl">Start Performing</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/storage.js?v=1"></script>
+  <script>
+    const defaults = {
+      useBackground: false,
+      backgroundImage: '',
+      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+      fontWeight: '400',
+      fontSize: 12,
+      letterSpacing: 0,
+      verticalOffset: 20,
+      horizontalAlignment: 'center',
+      clockColor: '#ffffff',
+      showAmPm: false,
+      rollbackDuration: 1
+    };
+    
+    const $ = id => document.getElementById(id);
+
+    // Live state (not a fixed snapshot)
+    let state = Storage.load('timewarp', defaults);
+
+    // Hydrate controls
+    $('useBackground').checked = !!state.useBackground;
+    $('fontFamily').value = state.fontFamily;
+    $('fontWeight').value = state.fontWeight;
+    $('fontSize').value = state.fontSize;
+    $('letterSpacing').value = state.letterSpacing;
+    $('verticalOffset').value = state.verticalOffset;
+    $('clockColor').value = state.clockColor;
+    $('clockColorHex').value = state.clockColor;
+    $('showAmPm').checked = !!state.showAmPm;
+    $('rollbackDuration').value = state.rollbackDuration;
+
+    // Set active alignment button
+    const setActiveAlignment = (alignment) => {
+      ['Left', 'Center', 'Right'].forEach(align => {
+        $('align' + align).classList.remove('active');
+      });
+      $('align' + alignment.charAt(0).toUpperCase() + alignment.slice(1)).classList.add('active');
+    };
+    setActiveAlignment(state.horizontalAlignment);
+
+    // Persist helper: always write the current state
+    const persist = () => Storage.save('timewarp', state);
+
+    // Update font preview
+    const updatePreview = () => {
+      const preview = $('fontPreview');
+      const timeText = state.showAmPm ? '12:34 PM' : '12:34';
+      preview.textContent = timeText;
+      preview.style.fontFamily = state.fontFamily;
+      preview.style.fontWeight = state.fontWeight;
+      preview.style.fontSize = (state.fontSize * 0.3) + 'vw'; // Scale down for preview
+      preview.style.letterSpacing = state.letterSpacing + 'em';
+      preview.style.color = state.clockColor;
+      preview.style.textAlign = state.horizontalAlignment;
+    };
+
+    // Wire inputs -> update state -> persist -> update preview
+    $('useBackground').addEventListener('change', () => {
+      state.useBackground = !!$('useBackground').checked;
+      persist();
+    });
+
+    $('fontFamily').addEventListener('change', () => {
+      state.fontFamily = $('fontFamily').value;
+      persist();
+      updatePreview();
+    });
+
+    $('fontWeight').addEventListener('change', () => {
+      state.fontWeight = $('fontWeight').value;
+      persist();
+      updatePreview();
+    });
+
+    $('fontSize').addEventListener('input', () => {
+      state.fontSize = Math.max(5, Math.min(30, +$('fontSize').value || defaults.fontSize));
+      persist();
+      updatePreview();
+    });
+
+    $('letterSpacing').addEventListener('input', () => {
+      state.letterSpacing = Math.max(-0.1, Math.min(0.5, +$('letterSpacing').value || defaults.letterSpacing));
+      persist();
+      updatePreview();
+    });
+
+    $('verticalOffset').addEventListener('input', () => {
+      state.verticalOffset = Math.max(0, Math.min(80, +$('verticalOffset').value || defaults.verticalOffset));
+      persist();
+    });
+
+    // Alignment buttons
+    ['left', 'center', 'right'].forEach(alignment => {
+      $('align' + alignment.charAt(0).toUpperCase() + alignment.slice(1)).addEventListener('click', () => {
+        state.horizontalAlignment = alignment;
+        setActiveAlignment(alignment);
+        persist();
+        updatePreview();
+      });
+    });
+
+    // Color inputs (sync both)
+    $('clockColor').addEventListener('input', () => {
+      state.clockColor = $('clockColor').value;
+      $('clockColorHex').value = state.clockColor;
+      persist();
+      updatePreview();
+    });
+
+    $('clockColorHex').addEventListener('input', () => {
+      const colorValue = $('clockColorHex').value;
+      if (colorValue.match(/^#[0-9A-Fa-f]{6}$/)) {
+        state.clockColor = colorValue;
+        $('clockColor').value = state.clockColor;
+        persist();
+        updatePreview();
+      }
+    });
+
+    $('showAmPm').addEventListener('change', () => {
+      state.showAmPm = !!$('showAmPm').checked;
+      persist();
+      updatePreview();
+    });
+
+    $('rollbackDuration').addEventListener('input', () => {
+      state.rollbackDuration = Math.max(0.5, Math.min(10, +$('rollbackDuration').value || defaults.rollbackDuration));
+      persist();
+    });
+
+    // File → dataURL → update state.backgroundImage → persist
+    $('backgroundImage').addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        state.backgroundImage = r.result;
+        persist();
+      };
+      r.readAsDataURL(f);
+    });
+
+    // Perform: save current state, then navigate
+    $('perform').addEventListener('click', e => {
+      e.preventDefault();
+      persist();
+      window.location.href = 'perform.html';
+    });
+
+    // Initialize preview
+    updatePreview();
+  </script>
+</body>
+</html>

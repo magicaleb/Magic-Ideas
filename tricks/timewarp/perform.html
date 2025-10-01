@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Timewarp — Perform</title>
+  <style>
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+    }
+    
+    html, body { 
+      width: 100vw; 
+      height: 100vh; 
+      overflow: hidden; 
+      touch-action: none; 
+      -webkit-user-select: none; 
+      user-select: none; 
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif; 
+      background: #000;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .lockscreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      z-index: 1;
+    }
+    
+    .clock {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+      pointer-events: none;
+      white-space: nowrap;
+      text-align: center;
+      text-shadow: 0 1px 10px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="lockscreen" id="lockscreen">
+    <div class="clock" id="clock">12:00</div>
+  </div>
+
+  <script src="../../assets/js/storage.js?v=1"></script>
+  <script src="../../assets/js/gestures.js?v=1"></script>
+  <script>
+    // Load configuration
+    const config = Storage.load('timewarp', {
+      useBackground: true,  // Changed to true by default
+      backgroundImage: '',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif',
+      fontWeight: '400',
+      fontSize: 12,
+      letterSpacing: 0,
+      verticalOffset: 20,
+      horizontalAlignment: 'center',
+      clockColor: '#ffffff',
+      showAmPm: false,
+      rollbackDuration: 1
+    });
+
+    // Elements
+    const lockscreen = document.getElementById('lockscreen');
+    const clock = document.getElementById('clock');
+
+    // State
+    let currentTime = new Date();
+    let isRollingBack = false;
+    let rollbackTimer = null;
+    let realTimeTimer = null;
+    let inputBuffer = '';
+    let pendingRollback = false;
+
+    // Apply background
+    function applyBackground() {
+      if (config.useBackground && config.backgroundImage) {
+        lockscreen.style.backgroundImage = `url("${config.backgroundImage}")`;
+        console.log('Background applied successfully');
+      } else {
+        lockscreen.style.backgroundImage = '';
+        console.log('No background - useBackground:', config.useBackground, 'hasImage:', !!config.backgroundImage);
+      }
+    }
+
+    // Apply clock styling
+    function applyClockStyle() {
+      clock.style.fontFamily = config.fontFamily;
+      clock.style.fontWeight = config.fontWeight;
+      clock.style.fontSize = config.fontSize + 'vw';
+      clock.style.letterSpacing = config.letterSpacing + 'em';
+      clock.style.color = config.clockColor;
+      
+      // Position the clock based on settings
+      lockscreen.style.paddingTop = config.verticalOffset + 'vh';
+      
+      // Reset alignment properties first to avoid conflicts
+      lockscreen.style.alignItems = 'flex-start';
+      lockscreen.style.justifyContent = 'center';
+      lockscreen.style.paddingLeft = '0';
+      lockscreen.style.paddingRight = '0';
+      
+      // Apply horizontal alignment
+      if (config.horizontalAlignment === 'left') {
+        lockscreen.style.justifyContent = 'flex-start';
+        clock.style.textAlign = 'left';
+        lockscreen.style.paddingLeft = '5vw';
+      } else if (config.horizontalAlignment === 'right') {
+        lockscreen.style.justifyContent = 'flex-end';
+        clock.style.textAlign = 'right';
+        lockscreen.style.paddingRight = '5vw';
+      } else {
+        lockscreen.style.justifyContent = 'center';
+        clock.style.textAlign = 'center';
+      }
+    }
+
+    // Format time for display
+    function formatTime(date) {
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      
+      if (config.showAmPm) {
+        const displayHours = hours === 0 ? 12 : (hours > 12 ? hours - 12 : hours);
+        const amPm = hours >= 12 ? 'PM' : 'AM';
+        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${amPm}`;
+      } else {
+        const displayHours = hours === 0 ? 12 : (hours > 12 ? hours - 12 : hours);
+        return `${displayHours}:${minutes.toString().padStart(2, '0')}`;
+      }
+    }
+
+    // Update clock display
+    function updateClock() {
+      clock.textContent = formatTime(currentTime);
+    }
+
+    // Start real-time updates
+    function startRealTimeSync() {
+      if (realTimeTimer) clearInterval(realTimeTimer);
+      realTimeTimer = setInterval(() => {
+        if (!isRollingBack) {
+          currentTime = new Date();
+          updateClock();
+        }
+      }, 1000);
+    }
+
+    // Start rollback animation
+    function startRollback() {
+      if (isRollingBack || pendingRollback) return;
+      
+      const now = new Date();
+      const diffMinutes = Math.floor((currentTime - now) / (1000 * 60));
+      
+      if (diffMinutes <= 0) {
+        currentTime = new Date();
+        updateClock();
+        startRealTimeSync();
+        return;
+      }
+
+      pendingRollback = true;
+      
+      // 5 second delay
+      setTimeout(() => {
+        pendingRollback = false;
+        isRollingBack = true;
+        
+        const totalDuration = config.rollbackDuration * 1000;
+        const stepInterval = Math.max(40, Math.min(600, totalDuration / diffMinutes));
+        
+        rollbackTimer = setInterval(() => {
+          currentTime.setMinutes(currentTime.getMinutes() - 1);
+          updateClock();
+          
+          const newDiff = Math.floor((currentTime - new Date()) / (1000 * 60));
+          if (newDiff <= 0) {
+            clearInterval(rollbackTimer);
+            isRollingBack = false;
+            currentTime = new Date();
+            updateClock();
+            startRealTimeSync();
+          }
+        }, stepInterval);
+      }, 5000);
+    }
+
+    // Handle swipe input (birthday trick style)
+    function handleSwipe(angle) {
+      if (isRollingBack || pendingRollback) return;
+      
+      // Convert angle to clock position and then to digit
+      const normalizeAngle = (a) => ((a + 90) % 360 + 360) % 360;
+      const angleToHour = (a) => ((Math.round(a / 30) % 12) || 12);
+      const hourToDigit = (h) => {
+        const map = { 12: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9 };
+        return map[h] !== undefined ? map[h] : null;
+      };
+      
+      const clockAngle = normalizeAngle(angle);
+      const hour = angleToHour(clockAngle);
+      const digit = hourToDigit(hour);
+      
+      if (digit !== null) {
+        inputBuffer += String(digit);
+        
+        // Auto-submit on valid input (1-2 digits, max 99 minutes)
+        const minutes = parseInt(inputBuffer, 10);
+        if (minutes > 0 && inputBuffer.length <= 2) {
+          // Jump to future time
+          const now = new Date();
+          currentTime = new Date(now.getTime() + minutes * 60 * 1000);
+          updateClock();
+          
+          // Clear real-time sync since we're in future mode
+          if (realTimeTimer) {
+            clearInterval(realTimeTimer);
+            realTimeTimer = null;
+          }
+          
+          inputBuffer = '';
+        }
+      }
+    }
+
+    // Handle tap to trigger rollback
+    function handleTap() {
+      if (pendingRollback) {
+        pendingRollback = false;
+        return;
+      }
+      
+      if (isRollingBack) return;
+      
+      const now = new Date();
+      const diffMinutes = Math.floor((currentTime - now) / (1000 * 60));
+      
+      if (diffMinutes > 0) {
+        startRollback();
+      } else {
+        inputBuffer = '';
+      }
+    }
+
+    // Initialize
+    function init() {
+      currentTime = new Date();
+      applyBackground();
+      applyClockStyle();
+      updateClock();
+      startRealTimeSync();
+      
+      // Setup gesture handlers
+      Gestures.onSwipe(handleSwipe, lockscreen);
+      Gestures.onTap(handleTap, lockscreen);
+      
+      // Prevent context menu and selection
+      document.addEventListener('contextmenu', e => e.preventDefault());
+      document.addEventListener('selectstart', e => e.preventDefault());
+      
+      // Handle visibility changes
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && !isRollingBack && !pendingRollback) {
+          const now = new Date();
+          const diffMinutes = Math.floor((currentTime - now) / (1000 * 60));
+          
+          if (Math.abs(diffMinutes) <= 1) {
+            currentTime = now;
+            updateClock();
+            startRealTimeSync();
+          }
+        }
+      });
+    }
+
+    // Start the app
+    init();
+  </script>
+</body>
+</html>
