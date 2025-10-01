@@ -14,21 +14,14 @@
       margin: 0;
       padding: 0;
       width: 100vw;
-      height: 100vh;
+      height: 100dvh;
       background-size: cover;
       background-position: center center;
       background-repeat: no-repeat;
     }
-    #bg {
-      position: fixed;
-      inset: 0;
-      background-size: cover;
-      background-position: center center;
-      background-repeat: no-repeat;
-      z-index: -1;
-    }
-    #bg.hidden {
-      display: none;
+    #bg { position:fixed; inset:0; background-size:cover; background-position:center; background-repeat:no-repeat; z-index:0; }
+#bg.hidden { display:block; opacity:0.2; } /* or remove .hidden entirely */
+
     }
   </style>
 </head>
