@@ -4,9 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Swipe Input — Perform</title>
   <link rel="stylesheet" href="../../assets/css/base.css?v=28">
+  <style>
+    /* Full-screen approach like simple-pwa.html */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
 </head>
 <body>
   <!-- Minimal Perform screen: full-screen surface + digits + last-submitted badge -->
@@ -50,12 +59,17 @@
     // Paint digits in the main display
     const paintDigits = (val) => { digitsEl.textContent = (val || '—'); };
 
-    // Fake-home background
+    // Fake-home background - apply like simple-pwa.html for full-screen bleed
     function applyFake(){
   const cfg2 = Storage.load('swipe', { fakeHomescreen:false, homescreenImage:'' });
   if(cfg2.fakeHomescreen && cfg2.homescreenImage){
     performRoot.classList.add('fake-home');
     performRoot.style.backgroundImage = `url(${cfg2.homescreenImage})`;
+    // Apply directly to body like simple-pwa.html
+    document.body.style.backgroundImage = `url(${cfg2.homescreenImage})`;
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center center';
+    document.body.style.backgroundRepeat = 'no-repeat';
     document.documentElement.classList.add('fake-home');
     document.body.classList.add('fake-home');
     const lastVal = (lastEl.textContent && lastEl.textContent !== 'none') ? lastEl.textContent : '';
@@ -63,6 +77,8 @@
   } else {
     performRoot.classList.remove('fake-home');
     performRoot.style.backgroundImage = '';
+    // Clear body background too
+    document.body.style.backgroundImage = '';
     document.documentElement.classList.remove('fake-home');
     document.body.classList.remove('fake-home');
     if(lastTiny) lastTiny.style.display='none';

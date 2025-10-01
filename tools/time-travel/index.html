@@ -8,6 +8,29 @@
   <link rel="manifest" href="manifest.json">
   <title>Time Travel — Magic Ideas</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Override to ensure full-screen background display */
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+    }
+    #bg {
+      position: fixed;
+      inset: 0;
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+      z-index: -1;
+    }
+    #bg.hidden {
+      display: none;
+    }
+  </style>
 </head>
 <body>
   <div id="app">
