@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <title>Background PWA</title>
+    
+    <!-- PWA Manifest with display: standalone -->
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiQmFja2dyb3VuZCBQV0EiLCJzaG9ydF9uYW1lIjoiQmFja2dyb3VuZCIsImRlc2NyaXB0aW9uIjoiRnVsbCBzY3JlZW4gYmFja2dyb3VuZCBpbWFnZSBQV0EiLCJzdGFydF91cmwiOiIvIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJvcmllbnRhdGlvbiI6InBvcnRyYWl0IiwidGhlbWVfY29sb3IiOiIjMDAwMDAwIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwMDAwMDAiLCJzY29wZSI6Ii8iLCJpY29ucyI6W3sic3JjIjoiZGF0YTppbWFnZS9zdmcreG1sLCUzQ3N2ZyUyMHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyclMjB2aWV3Qm94PSczMCUyMDMwJTIwNTEyJTIwNTEyJyUzRSUzQ3JlY3QlMjB3aWR0aD0nNTEyJyUyMGhlaWdodD0nNTEyJyUyMGZpbGw9JyUyMzAwN0FGRiclMkYlM0UlM0N0ZXh0JTIweD0nMjU2JyUyMHk9JzMwMCclMjB0ZXh0LWFuY2hvcj0nbWlkZGxlJyUyMGZvbnQtZmFtaWx5PSdBcmlhbCclMjBmb250LXNpemU9JzIwMCclMjBmaWxsPSclMjNmZmYnJTNFJUYwJTlGJTkzJUIxJTNDJTJGdGV4dCUzRSUzQyUyRnN2ZyUzRSIsInNpemVzIjoiNTEyeDUxMiIsInR5cGUiOiJpbWFnZS9zdmcreG1sIn1dfQ==">
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%23007AFF'/%3E%3Ctext x='256' y='300' text-anchor='middle' font-family='Arial' font-size='200' fill='%23fff'%3E📱%3C/text%3E%3C/svg%3E">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100dvw;
+            height: 100dvh;
+            overflow: hidden;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #000;
+        }
+
+        .upload-interface {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+            z-index: 1000;
+        }
+
+        .upload-container {
+            text-align: center;
+            padding: 2rem;
+            background: color-mix(in srgb, white 10%, transparent);
+            border-radius: 16px;
+            backdrop-filter: blur(20px);
+        }
+
+        .upload-container h1 {
+            color: white;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .upload-button {
+            display: inline-block;
+            padding: 1rem 2rem;
+            background: white;
+            color: #007AFF;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+            border: none;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .upload-button:active {
+            transform: scale(0.95);
+        }
+
+        .clear-button {
+            display: block;
+            padding: 0.75rem 1.5rem;
+            background: color-mix(in srgb, white 20%, transparent);
+            color: white;
+            border: 1px solid color-mix(in srgb, white 30%, transparent);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin: 0 auto;
+            transition: transform 0.2s ease;
+        }
+
+        .clear-button:active {
+            transform: scale(0.95);
+        }
+
+        .background-container {
+            position: fixed;
+            inset: 0;
+            width: 100dvw;
+            height: 100dvh;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            pointer-events: none;
+            user-select: none;
+            touch-action: none;
+            display: none;
+            z-index: 1;
+        }
+
+        /* PWA Standalone Mode - True Full Screen */
+        @media (display-mode: standalone) {
+            .background-container {
+                /* Extend beyond safe areas for true edge-to-edge */
+                top: calc(-1 * env(safe-area-inset-top, 0px));
+                left: calc(-1 * env(safe-area-inset-left, 0px));
+                right: calc(-1 * env(safe-area-inset-right, 0px));
+                bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+                width: calc(100dvw + env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px));
+                height: calc(100dvh + env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px));
+            }
+        }
+
+        @media (display-mode: standalone) {
+            .background-container {
+                inset: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+                margin: calc(-1 * env(safe-area-inset-top, 0)) calc(-1 * env(safe-area-inset-right, 0)) calc(-1 * env(safe-area-inset-bottom, 0)) calc(-1 * env(safe-area-inset-left, 0));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="uploadInterface" class="upload-interface">
+        <div class="upload-container">
+            <h1>Upload Background Image</h1>
+            <input type="file" id="imageUpload" accept="image/*" class="file-input">
+            <label for="imageUpload" class="upload-button">Choose Image</label>
+            <br>
+            <button id="clearButton" class="clear-button">Clear Saved Image</button>
+        </div>
+    </div>
+
+    <div id="backgroundContainer" class="background-container"></div>
+
+    <script>
+        const uploadInterface = document.getElementById('uploadInterface');
+        const backgroundContainer = document.getElementById('backgroundContainer');
+        const imageUpload = document.getElementById('imageUpload');
+        const clearButton = document.getElementById('clearButton');
+        const STORAGE_KEY = 'pwa-background-image';
+
+        function loadSavedImage() {
+            const savedImage = localStorage.getItem(STORAGE_KEY);
+            if (savedImage) {
+                displayBackgroundImage(savedImage);
+                hideUploadInterface();
+            } else {
+                showUploadInterface();
+            }
+        }
+
+        function displayBackgroundImage(imageDataUrl) {
+            backgroundContainer.style.backgroundImage = `url("${imageDataUrl}")`;
+            backgroundContainer.style.display = 'block';
+        }
+
+        function hideUploadInterface() {
+            uploadInterface.style.display = 'none';
+        }
+
+        function showUploadInterface() {
+            uploadInterface.style.display = 'flex';
+            backgroundContainer.style.display = 'none';
+        }
+
+        function clearSavedImage() {
+            localStorage.removeItem(STORAGE_KEY);
+            showUploadInterface();
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Resize large images to prevent memory issues and improve performance
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = function() {
+                // Calculate dimensions (max 1920px for performance)
+                const maxSize = 1920;
+                let { width, height } = img;
+                
+                if (width > maxSize || height > maxSize) {
+                    if (width > height) {
+                        height = (height * maxSize) / width;
+                        width = maxSize;
+                    } else {
+                        width = (width * maxSize) / height;
+                        height = maxSize;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                localStorage.setItem(STORAGE_KEY, imageDataUrl);
+                displayBackgroundImage(imageDataUrl);
+                hideUploadInterface();
+            };
+            
+            img.src = URL.createObjectURL(file);
+        }
+
+        imageUpload.addEventListener('change', handleImageUpload);
+        clearButton.addEventListener('click', clearSavedImage);
+        document.addEventListener('DOMContentLoaded', loadSavedImage);
+    </script>
+</body>
+</html>
