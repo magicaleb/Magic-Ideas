@@ -2,23 +2,27 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Swipe Input — Perform</title>
+
+  <!-- Critical fullscreen meta tags -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Swipe Input — Perform</title>
+
   <link rel="stylesheet" href="../../assets/css/base.css?v=28">
   <style>
-    /* Full-screen approach like simple-pwa.html */
     html, body {
       margin: 0;
       padding: 0;
-      width: 100vw;
-      height: 100vh;
+      width: 100%;
+      min-height: 100dvh;
+      height: -webkit-fill-available; /* Safari fallback */
+      overflow: hidden;
+      background: transparent; /* no white bar */
     }
   </style>
 </head>
 <body>
-  <!-- Minimal Perform screen: full-screen surface + digits + last-submitted badge -->
   <div id="performRoot" class="perform-root">
     <div id="digitsWrap" class="perform-digits-wrap">
       <div class="perform-digits" id="digits">—</div>
@@ -32,18 +36,13 @@
     </div>
   </div>
 
-  <!-- small faint bottom-center toast used for status (cleared/submitted/copied) -->
   <div id="toast" style="position:fixed;left:50%;transform:translateX(-50%);bottom:8px;color:rgba(200,200,200,0.22);font-size:0.85rem;pointer-events:none;display:none">Saved</div>
 
   <script src="../../assets/js/storage.js?v=1"></script>
   <script src="../../assets/js/gestures.js?v=1"></script>
   <script src="../../assets/js/swipe.js?v=1"></script>
   <script>
-    // Load saved config (blackout removed; fields retained for compatibility)
-    const saved = Storage.load('swipe', { 
-      delay: 3, shortcut: '', clipboard: false, postShortcut: '',
-      fakeHomescreen: false, homescreenImage: ''
-    });
+    const saved = Storage.load('swipe', { delay: 3, shortcut: '', clipboard: false, postShortcut: '', fakeHomescreen: false, homescreenImage: '' });
 
     const performRoot = document.getElementById('performRoot');
     const digitsEl    = document.getElementById('digits');
@@ -56,38 +55,25 @@
       setTimeout(() => toast.style.display = 'none', 1200);
     };
 
-    // Paint digits in the main display
     const paintDigits = (val) => { digitsEl.textContent = (val || '—'); };
 
-    // Fake-home background - apply like simple-pwa.html for full-screen bleed
     function applyFake(){
-  const cfg2 = Storage.load('swipe', { fakeHomescreen:false, homescreenImage:'' });
-  if(cfg2.fakeHomescreen && cfg2.homescreenImage){
-    performRoot.classList.add('fake-home');
-    performRoot.style.backgroundImage = `url(${cfg2.homescreenImage})`;
-    // Apply directly to body like simple-pwa.html
-    document.body.style.backgroundImage = `url(${cfg2.homescreenImage})`;
-    document.body.style.backgroundSize = 'cover';
-    document.body.style.backgroundPosition = 'center center';
-    document.body.style.backgroundRepeat = 'no-repeat';
-    document.documentElement.classList.add('fake-home');
-    document.body.classList.add('fake-home');
-    const lastVal = (lastEl.textContent && lastEl.textContent !== 'none') ? lastEl.textContent : '';
-    if(lastTiny){ lastTiny.textContent = lastVal; lastTiny.style.display = lastVal ? 'block' : 'none'; }
-  } else {
-    performRoot.classList.remove('fake-home');
-    performRoot.style.backgroundImage = '';
-    // Clear body background too
-    document.body.style.backgroundImage = '';
-    document.documentElement.classList.remove('fake-home');
-    document.body.classList.remove('fake-home');
-    if(lastTiny) lastTiny.style.display='none';
-  }
-}
+      const cfg2 = Storage.load('swipe', { fakeHomescreen:false, homescreenImage:'' });
+      if(cfg2.fakeHomescreen && cfg2.homescreenImage){
+        performRoot.classList.add('fake-home');
+        performRoot.style.backgroundImage = `url(${cfg2.homescreenImage})`;
+        document.documentElement.classList.add('fake-home');
+        document.body.classList.add('fake-home');
+      } else {
+        performRoot.classList.remove('fake-home');
+        performRoot.style.backgroundImage = '';
+        document.documentElement.classList.remove('fake-home');
+        document.body.classList.remove('fake-home');
+      }
+    }
     applyFake();
     window.addEventListener('focus', applyFake);
 
-    // Start swipe engine with UI hooks
     window.__swipeHooks = Swipe.start(saved, {
       onDigit(d, buffer){ paintDigits(buffer); },
       onClear(){ paintDigits(''); toastMsg('Cleared'); },
