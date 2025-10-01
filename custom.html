@@ -66,108 +66,11 @@
             opacity: 0;
             transition: opacity 0.3s;
         }
-                .tiny-numbers.show {
-            opacity: 1;
-        }
-        
-        /* Debug overlay */
-        .debug-overlay {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.8);
-            color: #00ff00;
-            padding: 8px;
-            font-family: monospace;
-            font-size: 12px;
-            border-radius: 4px;
-            z-index: 9999;
-            display: none;
-            line-height: 1.3;
-        }
-        .debug-overlay.show { display: block; }
-                .debug-toggle {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            width: 100px;
-            height: 100px;
-            background: rgba(255,255,255,0.95);
-            border: 4px solid #000;
-            border-radius: 20px;
-            color: black;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 1001;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            touch-action: manipulation;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        }
-        .debug-toggle:active, .debug-toggle:focus {
-            background: rgba(255,255,0,0.95);
-            transform: scale(0.9);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
-        .back-button {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 100px;
-            height: 100px;
-            background: rgba(255,0,0,0.95);
-            border: 4px solid #000;
-            border-radius: 20px;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 1001;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            touch-action: manipulation;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        }
-        .back-button:active, .back-button:focus {
-            background: rgba(255,100,100,0.95);
-            transform: scale(0.9);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
-        .back-button.show { display: flex; }
-        .debug-overlay {
-            position: fixed;
-            top: 58px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.9);
-            color: #00ff00;
-            padding: 15px;
-            border-radius: 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.4;
-            z-index: 999;
-            display: none;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .debug-overlay.show { display: block; }
+        .tiny-numbers.show { opacity: 1; }
     </style>
 </head>
 <body>
     <div class="upload-screen" id="uploadScreen">
-        <div style="position:fixed;left:10px;bottom:10px;color:#ffffff;opacity:0.25;font-size:12px;font-weight:700;letter-spacing:0.06em;pointer-events:none;z-index:9999;">Test 1</div>
         <button class="upload-btn" onclick="selectImage()">Upload Background Image</button>
         <button class="remove-btn" onclick="removeImage()" id="removeBtn" style="display: none;">Remove Image</button>
         <input type="file" class="file-input" id="fileInput" accept="image/*">
@@ -175,74 +78,13 @@
     
     <div class="perform-screen" id="performScreen">
         <div class="tiny-numbers" id="tinyNumbers"></div>
-        <div class="debug-toggle" id="debugToggle">DEBUG</div>
-        <div class="back-button" id="backButton">BACK</div>
-        <div class="debug-overlay" id="debugOverlay">
-            <div><strong>VERSION:</strong> v2.5 - Ultra Simple Clipboard Test</div>
-            <div><strong>Buffer:</strong> <span id="debugBuffer">""</span></div>
-            <div><strong>Timer:</strong> <span id="debugTimer">none</span></div>
-            <div><strong>Swipe Count:</strong> <span id="debugSwipeCount">0</span></div>
-            <div><strong>Clipboard Status:</strong> <span id="debugClipboard">ready</span></div>
-            <div><strong>Last Copy:</strong> <span id="debugLastCopy">none</span></div>
-            <div><strong>Copy Attempts:</strong> <span id="debugCopyAttempts">0</span></div>
-            <div><strong>Copy Success:</strong> <span id="debugCopySuccess">0</span></div>
-            <div><strong>Environment:</strong> <span id="debugEnvironment">loading...</span></div>
-            <div><strong>Permissions:</strong> <span id="debugPermissions">checking...</span></div>
-            <div><strong>Secure Context:</strong> <span id="debugSecure">unknown</span></div>
-        </div>
     </div>
     
-    <script src="assets/js/storage.js"></script>
-    <script src="assets/js/gestures.js"></script>
-    <script src="assets/js/swipe.js"></script>
     <script>
-        let swipeEngine = null;
+        let sequence = '';
+        let startX = 0, startY = 0;
+        let twoFingerStart = 0;
         let isPerformMode = false;
-        let debugVisible = false;
-        let swipeCount = 0;
-        let copyAttempts = 0;
-        let copySuccesses = 0;
-        
-        function toggleDebug() {
-            debugVisible = !debugVisible;
-            document.getElementById('debugOverlay').classList.toggle('show', debugVisible);
-            document.getElementById('backButton').classList.toggle('show', debugVisible);
-            if (debugVisible) {
-                updateEnvironmentInfo();
-            }
-        }
-        
-        function goBack() {
-            window.location.href = 'index.html';
-        }
-        
-        function updateDebug(key, value) {
-            const el = document.getElementById(`debug${key}`);
-            if (el) el.textContent = value;
-        }
-        
-        function updateEnvironmentInfo() {
-            // Update environment info
-            const userAgent = navigator.userAgent.includes('iPhone') ? 'iPhone' : 
-                            navigator.userAgent.includes('iPad') ? 'iPad' : 
-                            navigator.userAgent.includes('Safari') ? 'Safari' : 'Desktop';
-            updateDebug('Environment', userAgent);
-            
-            // Check secure context
-            const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
-            updateDebug('Secure', isSecure ? 'Yes' : 'No');
-            
-            // Check clipboard permissions
-            if (navigator.permissions) {
-                navigator.permissions.query({name: 'clipboard-write'}).then(result => {
-                    updateDebug('Permissions', result.state);
-                }).catch(() => {
-                    updateDebug('Permissions', 'unavailable');
-                });
-            } else {
-                updateDebug('Permissions', 'not supported');
-            }
-        }
         
         function selectImage() {
             document.getElementById('fileInput').click();
@@ -259,48 +101,48 @@
         function showTinyNumbers(text) {
             const el = document.getElementById('tinyNumbers');
             el.textContent = text;
-            if (text === '') {
+            el.classList.add('show');
+            setTimeout(() => {
                 el.classList.remove('show');
-            } else {
-                el.classList.add('show');
-            }
-            updateDebug('Buffer', `"${text}"`);
+                setTimeout(() => {
+                    if (text !== '') {
+                        copyToClipboard(text);
+                        sequence = '';
+                    }
+                }, 100);
+            }, 1500);
         }
         
-        function startSwipeEngine() {
-            if (swipeEngine) return;
-            
-            swipeEngine = Swipe.start({
-                delay: 1,  // Changed from 3 to 1 second
-                clipboard: true
-            }, {
-                onDigit: (digit, buffer) => {
-                    swipeCount++;
-                    showTinyNumbers(buffer);
-                    updateDebug('Timer', 'armed (1s)');
-                    updateDebug('SwipeCount', swipeCount);
-                },
-                onSubmit: (value, route) => {
-                    console.log('Submitted:', value, 'via:', route);
-                    copyAttempts++;
-                    if (route.includes('clipboard') && !route.includes('failed')) {
-                        copySuccesses++;
-                    }
-                    updateDebug('LastCopy', value);
-                    updateDebug('Clipboard', route);
-                    updateDebug('Timer', 'none');
-                    updateDebug('CopyAttempts', copyAttempts);
-                    updateDebug('CopySuccess', copySuccesses);
-                },
-                onClear: () => {
-                    showTinyNumbers('');
-                    updateDebug('Timer', 'none');
-                },
-                onStatus: (message) => {
-                    console.log('Status:', message);
-                    updateDebug('Clipboard', message.toLowerCase());
+        function copyToClipboard(text) {
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text);
+                } else {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    textarea.style.position = 'fixed';
+                    textarea.style.left = '-999px';
+                    document.body.appendChild(textarea);
+                    textarea.focus();
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
                 }
-            });
+            } catch (err) {
+                console.log('Copy failed:', err);
+            }
+        }
+        
+        function getClockDigit(angle) {
+            // Convert angle to 12-hour clock position
+            // 0° (right) = 3 o'clock, 90° (down) = 6 o'clock, etc.
+            let clockAngle = (90 - angle + 360) % 360;
+            let hour = Math.round(clockAngle / 30) % 12;
+            
+            // Map to digits: 12 o'clock = 0, 1 o'clock = 1, etc.
+            if (hour === 0) return 0; // 12 o'clock
+            if (hour >= 1 && hour <= 9) return hour;
+            return null; // 10 and 11 o'clock not used
         }
         
         document.getElementById('fileInput').addEventListener('change', function(e) {
@@ -316,9 +158,50 @@
                 document.getElementById('uploadScreen').style.display = 'none';
                 document.getElementById('performScreen').style.display = 'block';
                 isPerformMode = true;
-                startSwipeEngine();
             };
             reader.readAsDataURL(file);
+        });
+        
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                twoFingerStart = Date.now();
+                return;
+            }
+            if (e.touches.length === 1) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2) {
+                const deltaY = e.touches[0].clientY - startY;
+                if (deltaY > 100 && Date.now() - twoFingerStart < 1000) {
+                    window.location.href = 'index.html';
+                }
+            }
+            e.preventDefault();
+        });
+        
+        document.addEventListener('touchend', (e) => {
+            if (!isPerformMode) return;
+            
+            if (e.changedTouches.length === 1) {
+                const endX = e.changedTouches[0].clientX;
+                const endY = e.changedTouches[0].clientY;
+                const deltaX = endX - startX;
+                const deltaY = endY - startY;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                
+                if (distance > 30) {
+                    const angle = Math.atan2(-deltaY, deltaX) * 180 / Math.PI;
+                    const digit = getClockDigit(angle);
+                    if (digit !== null) {
+                        sequence += digit;
+                        showTinyNumbers(sequence);
+                    }
+                }
+            }
         });
         
         // Check for existing background on load
@@ -330,41 +213,7 @@
                 document.getElementById('performScreen').style.display = 'block';
                 document.getElementById('removeBtn').style.display = 'block';
                 isPerformMode = true;
-                startSwipeEngine();
             }
-        });
-        
-        // Add mobile-friendly event listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            const debugToggle = document.getElementById('debugToggle');
-            const backButton = document.getElementById('backButton');
-            
-            // Debug toggle with multiple event types for better mobile support
-            ['touchend', 'click'].forEach(eventType => {
-                debugToggle.addEventListener(eventType, function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleDebug();
-                }, { passive: false });
-            });
-            
-            // Back button with multiple event types
-            ['touchend', 'click'].forEach(eventType => {
-                backButton.addEventListener(eventType, function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    goBack();
-                }, { passive: false });
-            });
-            
-            // Prevent double-tap zoom on buttons
-            debugToggle.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-            }, { passive: false });
-            
-            backButton.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-            }, { passive: false });
         });
     </script>
 </body>
