@@ -6,17 +6,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Color Tap</title>
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            overscroll-behavior: none;
-            touch-action: none;
-        }
-    </style>
 </head>
 <body style="margin:0; padding:0; width:100vw; height:100vh; background:red; display:flex; align-items:center; justify-content:center; font-family:system-ui;">
     
@@ -25,7 +14,7 @@
     </button>
 
     <script>
-    // 'body' already declared above, no need to redeclare
+        const body = document.body;
         const button = document.getElementById('colorButton');
         
         const colors = ['red', 'blue', 'green', 'purple', 'orange', 'pink', 'yellow', 'cyan'];
@@ -37,51 +26,5 @@
         });
     </script>
 
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Image Background</title>
-</head>
-<body style="margin:0; padding:0; width:100vw; height:100vh; background:red; display:flex; align-items:center; justify-content:center; font-family:system-ui;">
-    <div style="text-align: center;">
-        <input type="file" id="imageInput" accept="image/*" style="margin-bottom: 15px; padding: 10px; font-size: 16px; background: white; border-radius: 8px;">
-        <br>
-        <button id="uploadBtn" style="padding: 15px 30px; font-size: 18px; border: none; border-radius: 8px; background: white; color: black; cursor: pointer;">
-            Set as Background
-        </button>
-    </div>
-    <script>
-    const body = document.body;
-    const imageInput = document.getElementById('imageInput');
-    const uploadBtn = document.getElementById('uploadBtn');
-        // Prevent zoom/pan gestures
-        document.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 1) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-        document.addEventListener('touchmove', (e) => {
-            if (e.touches.length > 1) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-        uploadBtn.addEventListener('click', () => {
-            const file = imageInput.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                body.style.background = 'black';
-                body.style.backgroundImage = `url('${e.target.result}')`;
-                body.style.backgroundSize = 'cover';
-                body.style.backgroundPosition = 'center';
-                body.style.backgroundRepeat = 'no-repeat';
-            };
-            reader.readAsDataURL(file);
-        });
-    </script>
 </body>
 </html>
