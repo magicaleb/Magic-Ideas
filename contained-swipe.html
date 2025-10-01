@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Contained Swipe Input</title>
+    <style>
+        /* Reset and full-screen layout */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            overscroll-behavior: none;
+            font-family: -apple-system, system-ui, sans-serif;
+            background: #0b1020;
+            color: #eef2ff;
+        }
+
+        /* Settings page styles */
+        .settings-page {
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .settings-page h1 {
+            font-size: 2rem;
+            margin-bottom: 24px;
+            font-weight: 700;
+        }
+
+        .settings-page h2 {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .card {
+            background: #121a33;
+            border: 1px solid #1f2a53;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #8ea0c7;
+            font-size: 0.95rem;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #26325f;
+            background: #0f1630;
+            color: #eef2ff;
+            font-size: 16px;
+        }
+
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(90deg, #60a5fa, #6ee7b7);
+            color: #05111b;
+            font-weight: 700;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        button:active {
+            opacity: 0.8;
+        }
+
+        .info-card {
+            background: #0f1733;
+            border: 1px solid #1f2a53;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+
+        .info-card h3 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .info-card p {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #8ea0c7;
+            margin-bottom: 8px;
+        }
+
+        /* Perform page styles */
+        .perform-page {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            background: #000;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .perform-page.fake-home {
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+        }
+
+        .digits-display {
+            font-size: 4rem;
+            letter-spacing: 6px;
+            color: rgba(200, 200, 200, 0.35);
+            font-variant-numeric: tabular-nums;
+            margin-bottom: 18vh;
+            text-align: center;
+        }
+
+        .perform-page.fake-home .digits-display {
+            font-size: 0.8rem;
+            color: #fff;
+            position: fixed;
+            right: 12px;
+            bottom: 8px;
+            margin: 0;
+        }
+
+        .last-submitted {
+            margin-bottom: 6vh;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .perform-page.fake-home .last-submitted {
+            display: none;
+        }
+
+        .last-value {
+            font-size: 1.2rem;
+            padding: 8px 16px;
+            background: #0f1733;
+            color: #cde6ff;
+            border-radius: 999px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0f1733;
+            border: 1px solid #2a386c;
+            color: #eef2ff;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Settings Page -->
+    <div id="settingsPage" class="settings-page">
+        <h1>Swipe Input Settings</h1>
+        
+        <div class="card">
+            <div class="form-group">
+                <label for="delay">Auto-submit delay (seconds)</label>
+                <input id="delay" type="number" min="1" max="60" value="3">
+            </div>
+
+            <div class="form-group">
+                <label for="shortcut">iOS Shortcut name (optional)</label>
+                <input id="shortcut" type="text" placeholder="e.g., City List">
+            </div>
+
+            <div class="checkbox-group">
+                <input id="clipboard" type="checkbox">
+                <label for="clipboard">Copy result to clipboard</label>
+            </div>
+
+            <div class="checkbox-group">
+                <input id="fakeHomescreen" type="checkbox">
+                <label for="fakeHomescreen">Fake Homescreen mode</label>
+            </div>
+
+            <div class="form-group">
+                <label for="homescreenImage">Upload homescreen image (optional)</label>
+                <input id="homescreenImage" type="file" accept="image/*">
+            </div>
+
+            <button id="startPerform">Start Perform Mode</button>
+        </div>
+
+        <div class="info-card">
+            <h3>How to Use:</h3>
+            <p><strong>Swipe gestures:</strong> Imagine a clock face. Swipe towards 12 o'clock for 0, 1 o'clock for 1, etc. Only digits 0-9 work (12, 1-9 positions).</p>
+            <p><strong>Double-tap:</strong> Clear the current input buffer.</p>
+            <p><strong>Two-finger tap:</strong> Submit immediately (without waiting for auto-submit).</p>
+            <p><strong>Two-finger down:</strong> Exit perform mode and return to settings.</p>
+        </div>
+    </div>
+
+    <!-- Perform Page -->
+    <div id="performPage" class="perform-page hidden">
+        <div class="digits-display" id="digits">—</div>
+        <div class="last-submitted">
+            <div style="font-size: 0.85rem; opacity: 0.9;">Last submitted:</div>
+            <div class="last-value" id="lastValue">none</div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // ===== STORAGE UTILITY =====
+        const Storage = {
+            load(key, defaults) {
+                try {
+                    const raw = localStorage.getItem('swipe.' + key);
+                    return raw ? JSON.parse(raw) : defaults;
+                } catch {
+                    return defaults;
+                }
+            },
+            save(key, obj) {
+                try {
+                    localStorage.setItem('swipe.' + key, JSON.stringify(obj));
+                } catch {}
+            }
+        };
+
+        // ===== GESTURE DETECTION =====
+        const Gestures = (() => {
+            const MIN_SWIPE_PX = 30;
+            const DOUBLE_TAP_MS = 300;
+            const TWO_TAP_MS = 250;
+            const TWO_TAP_MAX_MOVE = 30;
+            const TWO_DOWN_MS = 150;
+
+            let swipeStartX = null;
+            let swipeStartY = null;
+            let lastTapTime = 0;
+            let twoFingerTapStart = 0;
+            let twoFingerTapStartPos = null;
+            let singleTouchStartTime = 0;
+
+            const callbacks = {
+                onSwipe: null,
+                onDoubleTap: null,
+                onTwoFingerTap: null,
+                onTwoFingerDown: null
+            };
+
+            const dist2 = (x1, y1, x2, y2) => {
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                return dx * dx + dy * dy;
+            };
+
+            const normalizeAngle = (deg) => {
+                let a = deg % 360;
+                if (a >= 180) a -= 360;
+                if (a < -180) a += 360;
+                return a;
+            };
+
+            // Initialize touch listeners
+            const init = () => {
+                document.body.addEventListener('touchstart', handleTouchStart, { passive: true });
+                document.body.addEventListener('touchend', handleTouchEnd, { passive: true });
+            };
+
+            const handleTouchStart = (e) => {
+                if (e.touches.length === 1) {
+                    const t = e.touches[0];
+                    swipeStartX = t.clientX;
+                    swipeStartY = t.clientY;
+                    singleTouchStartTime = Date.now();
+                } else if (e.touches.length === 2) {
+                    twoFingerTapStart = Date.now();
+                    twoFingerTapStartPos = Array.from(e.touches).map(t => ({
+                        x: t.clientX,
+                        y: t.clientY
+                    }));
+                }
+            };
+
+            const handleTouchEnd = (e) => {
+                // Handle swipe
+                if (swipeStartX !== null && swipeStartY !== null && e.changedTouches.length === 1) {
+                    const t = e.changedTouches[0];
+                    const ex = t.clientX;
+                    const ey = t.clientY;
+                    
+                    if (dist2(swipeStartX, swipeStartY, ex, ey) >= MIN_SWIPE_PX * MIN_SWIPE_PX) {
+                        const dx = ex - swipeStartX;
+                        const dy = ey - swipeStartY;
+                        const angle = normalizeAngle(Math.atan2(dy, dx) * 180 / Math.PI);
+                        if (callbacks.onSwipe) callbacks.onSwipe(angle);
+                    }
+                    swipeStartX = null;
+                    swipeStartY = null;
+                }
+
+                // Handle double-tap (only single-finger taps)
+                if (e.changedTouches.length === 1 && e.touches.length === 0) {
+                    const now = Date.now();
+                    if (now - lastTapTime <= DOUBLE_TAP_MS) {
+                        if (callbacks.onDoubleTap) callbacks.onDoubleTap();
+                        lastTapTime = 0;
+                    } else {
+                        lastTapTime = now;
+                    }
+                }
+
+                // Handle two-finger tap
+                if (twoFingerTapStart > 0) {
+                    const elapsed = Date.now() - twoFingerTapStart;
+                    if (elapsed <= TWO_TAP_MS) {
+                        let moved = false;
+                        for (let i = 0; i < e.changedTouches.length; i++) {
+                            const t = e.changedTouches[i];
+                            const ref = twoFingerTapStartPos[i] || twoFingerTapStartPos[0];
+                            if (!ref) continue;
+                            const dx = t.clientX - ref.x;
+                            const dy = t.clientY - ref.y;
+                            if (dx * dx + dy * dy > TWO_TAP_MAX_MOVE * TWO_TAP_MAX_MOVE) {
+                                moved = true;
+                                break;
+                            }
+                        }
+                        if (!moved && callbacks.onTwoFingerTap) {
+                            callbacks.onTwoFingerTap();
+                        }
+                    }
+                    twoFingerTapStart = 0;
+                    twoFingerTapStartPos = null;
+                }
+
+                // Handle two-finger down (quick second finger)
+                if (e.touches.length === 2 && singleTouchStartTime > 0) {
+                    if (Date.now() - singleTouchStartTime <= TWO_DOWN_MS) {
+                        if (callbacks.onTwoFingerDown) callbacks.onTwoFingerDown();
+                        singleTouchStartTime = 0;
+                    }
+                }
+            };
+
+            return {
+                init,
+                onSwipe: (cb) => { callbacks.onSwipe = cb; },
+                onDoubleTap: (cb) => { callbacks.onDoubleTap = cb; },
+                onTwoFingerTap: (cb) => { callbacks.onTwoFingerTap = cb; },
+                onTwoFingerDown: (cb) => { callbacks.onTwoFingerDown = cb; }
+            };
+        })();
+
+        // ===== SWIPE ENGINE =====
+        const SwipeEngine = (() => {
+            let buffer = '';
+            let timer = null;
+            let config = {};
+            let hooks = {};
+
+            // Convert angle to clock-wise degrees (0 = up/12 o'clock, increasing clockwise)
+            const toCW = (deg) => ((deg + 90) % 360 + 360) % 360;
+
+            // Convert clock-wise degrees to hour (1-12)
+            const cwToHour = (cw) => {
+                const hour = Math.round(cw / 30) % 12;
+                return hour === 0 ? 12 : hour;
+            };
+
+            // Map hour to digit (12=0, 1-9=1-9, 10 and 11 ignored)
+            const hourMap = (h) => {
+                if (h === 12) return 0;
+                if (h >= 1 && h <= 9) return h;
+                return null; // 10 and 11 ignored
+            };
+
+            // Copy text to clipboard
+            const copyText = async (text) => {
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(text);
+                        return true;
+                    }
+                } catch {}
+                
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.setAttribute('readonly', '');
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    const ok = document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    return ok;
+                } catch {
+                    return false;
+                }
+            };
+
+            const callHook = (fn, ...args) => {
+                try {
+                    if (fn) fn(...args);
+                } catch {}
+            };
+
+            const paintDigits = () => {
+                callHook(hooks.onDigit, null, buffer || '');
+            };
+
+            const armTimer = () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => submit(), config.delay * 1000);
+            };
+
+            const submit = async () => {
+                if (!buffer) return;
+                
+                const value = buffer;
+                buffer = '';
+                clearTimeout(timer);
+                timer = null;
+                paintDigits();
+
+                let route = 'none';
+
+                // Copy to clipboard if enabled
+                if (config.clipboard) {
+                    const ok = await copyText(value);
+                    if (ok) {
+                        route = 'clipboard';
+                    } else {
+                        callHook(hooks.onStatus, 'Clipboard blocked');
+                    }
+                }
+
+                // Run iOS shortcut if specified
+                if (config.shortcut) {
+                    const url = `shortcuts://run-shortcut?name=${encodeURIComponent(config.shortcut)}&input=text&text=${encodeURIComponent(value)}`;
+                    route = 'shortcut';
+                    try {
+                        window.location.href = url;
+                    } catch {}
+                }
+
+                callHook(hooks.onSubmit, value, route);
+            };
+
+            const clearAll = () => {
+                buffer = '';
+                clearTimeout(timer);
+                timer = null;
+                callHook(hooks.onClear);
+                paintDigits();
+            };
+
+            const start = (cfg, hks) => {
+                config = cfg;
+                hooks = hks;
+
+                // Setup gesture callbacks
+                Gestures.onSwipe((angle) => {
+                    const digit = hourMap(cwToHour(toCW(angle)));
+                    if (digit === null) return;
+                    
+                    buffer += String(digit);
+                    callHook(hooks.onDigit, digit, buffer);
+                    armTimer();
+                });
+
+                Gestures.onDoubleTap(() => {
+                    clearAll();
+                });
+
+                Gestures.onTwoFingerTap(() => {
+                    submit();
+                });
+
+                Gestures.onTwoFingerDown(() => {
+                    clearAll();
+                    showSettings();
+                });
+
+                paintDigits();
+            };
+
+            return { start, submitNow: () => submit(), clear: () => clearAll() };
+        })();
+
+        // ===== UI CONTROLLER =====
+        const settingsPage = document.getElementById('settingsPage');
+        const performPage = document.getElementById('performPage');
+        const digitsEl = document.getElementById('digits');
+        const lastValueEl = document.getElementById('lastValue');
+        const toastEl = document.getElementById('toast');
+
+        const delayInput = document.getElementById('delay');
+        const shortcutInput = document.getElementById('shortcut');
+        const clipboardInput = document.getElementById('clipboard');
+        const fakeHomescreenInput = document.getElementById('fakeHomescreen');
+        const homescreenImageInput = document.getElementById('homescreenImage');
+        const startPerformBtn = document.getElementById('startPerform');
+
+        let currentConfig = Storage.load('config', {
+            delay: 3,
+            shortcut: '',
+            clipboard: false,
+            fakeHomescreen: false,
+            homescreenImage: ''
+        });
+
+        // Load settings into form
+        const loadSettings = () => {
+            delayInput.value = currentConfig.delay;
+            shortcutInput.value = currentConfig.shortcut;
+            clipboardInput.checked = currentConfig.clipboard;
+            fakeHomescreenInput.checked = currentConfig.fakeHomescreen;
+        };
+
+        // Save settings
+        const saveSettings = () => {
+            currentConfig.delay = Math.max(1, parseInt(delayInput.value) || 3);
+            currentConfig.shortcut = shortcutInput.value.trim();
+            currentConfig.clipboard = clipboardInput.checked;
+            currentConfig.fakeHomescreen = fakeHomescreenInput.checked;
+            Storage.save('config', currentConfig);
+        };
+
+        // Handle image upload
+        homescreenImageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    currentConfig.homescreenImage = event.target.result;
+                    Storage.save('config', currentConfig);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Auto-save on input changes
+        delayInput.addEventListener('input', saveSettings);
+        shortcutInput.addEventListener('input', saveSettings);
+        clipboardInput.addEventListener('change', saveSettings);
+        fakeHomescreenInput.addEventListener('change', saveSettings);
+
+        // Show toast notification
+        const showToast = (message) => {
+            toastEl.textContent = message;
+            toastEl.classList.add('show');
+            setTimeout(() => {
+                toastEl.classList.remove('show');
+            }, 1500);
+        };
+
+        // Apply fake homescreen styling
+        const applyFakeHomescreen = () => {
+            if (currentConfig.fakeHomescreen && currentConfig.homescreenImage) {
+                performPage.classList.add('fake-home');
+                performPage.style.backgroundImage = `url(${currentConfig.homescreenImage})`;
+            } else {
+                performPage.classList.remove('fake-home');
+                performPage.style.backgroundImage = '';
+            }
+        };
+
+        // Show settings page
+        const showSettings = () => {
+            settingsPage.classList.remove('hidden');
+            performPage.classList.add('hidden');
+        };
+
+        // Show perform page
+        const showPerform = () => {
+            saveSettings();
+            settingsPage.classList.add('hidden');
+            performPage.classList.remove('hidden');
+            applyFakeHomescreen();
+            
+            // Start swipe engine
+            SwipeEngine.start(currentConfig, {
+                onDigit(digit, buffer) {
+                    digitsEl.textContent = buffer || '—';
+                },
+                onClear() {
+                    digitsEl.textContent = '—';
+                    showToast('Cleared');
+                },
+                onSubmit(value, route) {
+                    lastValueEl.textContent = value || 'none';
+                    digitsEl.textContent = '—';
+                    
+                    if (route === 'clipboard') {
+                        showToast('Copied to clipboard');
+                    } else if (route === 'shortcut') {
+                        showToast('Sent to Shortcut');
+                    } else {
+                        showToast('Submitted');
+                    }
+                },
+                onStatus(msg) {
+                    showToast(msg);
+                }
+            });
+        };
+
+        // Event listeners
+        startPerformBtn.addEventListener('click', showPerform);
+
+        // Initialize
+        Gestures.init();
+        loadSettings();
+    </script>
+</body>
+</html>
