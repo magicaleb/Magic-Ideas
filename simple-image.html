@@ -14,17 +14,13 @@
       margin: 0;
       padding: 0;
       width: 100%;
-      min-height: 100dvh;             /* modern safe-area aware unit */
-      height: -webkit-fill-available; /* Safari standalone fallback */
-      background: #000;               /* fallback if no image */
+      min-height: 100dvh;             /* modern */
+      height: -webkit-fill-available; /* Safari fallback */
+      background: #000;
       overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-family: system-ui, sans-serif;
     }
 
+    /* Background image container */
     #imageDisplay {
       width: 100%;
       height: 100%;
@@ -34,9 +30,21 @@
       position: relative;
     }
 
+    #displayedImage {
+      display: none;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
     #placeholder {
       text-align: center;
       color: white;
+      padding:
+        env(safe-area-inset-top, 20px)
+        env(safe-area-inset-right, 20px)
+        env(safe-area-inset-bottom, 20px)
+        env(safe-area-inset-left, 20px);
     }
 
     #placeholder p {
@@ -55,17 +63,12 @@
       cursor: pointer;
     }
 
-    #displayedImage {
-      display: none;
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-    }
-
     #changeButton {
       display: none;
       position: absolute;
-      bottom: 40px;
+      bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+      left: 50%;
+      transform: translateX(-50%);
       z-index: 10;
     }
 
@@ -81,11 +84,10 @@
       <button id="uploadButton">Upload Image</button>
     </div>
     <img id="displayedImage">
+    <button id="changeButton">Change Image</button>
   </div>
 
   <input type="file" id="imageInput" accept="image/*">
-
-  <button id="changeButton">Change Image</button>
 
   <script>
     const body = document.body;
@@ -95,7 +97,6 @@
     const placeholder = document.getElementById('placeholder');
     const displayedImage = document.getElementById('displayedImage');
 
-    // Load saved image if available
     const loadSavedImage = () => {
       const savedImage = localStorage.getItem('uploadedImage');
       if (savedImage) displayImage(savedImage);
@@ -106,7 +107,6 @@
       displayedImage.style.display = 'block';
       placeholder.style.display = 'none';
       changeButton.style.display = 'block';
-      body.style.background = '#000'; // pure black around image
     };
 
     imageInput.addEventListener('change', (e) => {
