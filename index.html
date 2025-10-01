@@ -8,12 +8,30 @@
   <meta name="theme-color" content="#0b1020">
   <title>Magic Pad</title>
   <link rel="stylesheet" href="assets/css/base.css">
+  <style>
+    /* Full-screen approach like simple-pwa.html */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
 </head>
 <body>
-  <div class="safe">
-    <div class="container">
-      <h1>Magic Pad</h1>
+  <div class="container">
+    <h1>Magic Pad</h1>
+    
+    <h2>Tricks</h2>
+    <div class="stack">
       <a href="tricks/swipe/settings.html"><button class="xl">Swipe Input</button></a>
+      <a href="tricks/hangman/draw.html"><button class="xl">Hangman Drawing</button></a>
+    </div>
+    
+    <h2>Tools</h2>
+    <div class="stack">
+      <a href="tools/time-travel/index.html"><button class="xl">Time Travel</button></a>
+      <a href="simple-pwa.html"><button class="xl">Simple PWA Demo</button></a>
     </div>
   </div>
 </body>
