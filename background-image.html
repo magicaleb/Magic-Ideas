@@ -5,35 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Full Screen Background</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        * 
         }
 
         html, body {
             height: 100%;
             width: 100%;
             overflow: hidden;
-            position: fixed;
+            position: cover;
         }
 
         body {
             background-size: cover;          /* fill screen without distortion */
-            background-position: center;     /* keep image centered */
+            background-position: cover;     /* keep image centered */
             background-repeat: no-repeat;    /* no tiling */
             background-attachment: fixed;    /* stay fixed during scroll */
         }
 
         #uploader {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 1000;
+            top: 0px;
+            left: 0px;
+            z-index: -1;
             background: rgba(0,0,0,0.6);
             color: white;
-            padding: 6px;
-            border-radius: 4px;
+            padding: 0px;
+            border-radius: 0px;
         }
 
         @media (display-mode: standalone), (display-mode: fullscreen) {
