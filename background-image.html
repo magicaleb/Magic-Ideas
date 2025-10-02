@@ -10,41 +10,55 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
-        body, html {
+
+        html, body {
             height: 100%;
             width: 100%;
             overflow: hidden;
             position: fixed;
         }
-        
+
         body {
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
+            background-size: cover;          /* fill screen without distortion */
+            background-position: center;     /* keep image centered */
+            background-repeat: no-repeat;    /* no tiling */
+            background-attachment: fixed;    /* stay fixed during scroll */
         }
-        
-        /* Add these for PWA display modes */
+
+        #uploader {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            padding: 6px;
+            border-radius: 4px;
+        }
+
         @media (display-mode: standalone), (display-mode: fullscreen) {
             body {
-                /* Ensures content is safe within the screen edges on notched devices */
-                padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+                padding: env(safe-area-inset-top) env(safe-area-inset-right) 
+                         env(safe-area-inset-bottom) env(safe-area-inset-left);
             }
         }
     </style>
 </head>
 <body>
+    <input type="file" id="uploader" accept="image/*">
+
     <script>
-        // Function to load and set the background image
-        function setBackgroundImage(imagePath) {
-            document.body.style.backgroundImage = `url('${imagePath}')`;
-        }
-        
-        // Replace 'your-home-screen-image.png' with your actual image path
-        window.onload = function() {
-            setBackgroundImage('your-home-screen-image.png');
-        };
+        const uploader = document.getElementById('uploader');
+        uploader.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                document.body.style.backgroundImage = `url('${event.target.result}')`;
+            };
+            reader.readAsDataURL(file);
+        });
     </script>
 </body>
 </html>
