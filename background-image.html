@@ -19,6 +19,7 @@
         }
         
         body {
+            background-color: transparent;
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -37,14 +38,52 @@
 <body>
     <script>
         // Function to load and set the background image
-        function setBackgroundImage(imagePath) {
-            document.body.style.backgroundImage = `url('${imagePath}')`;
+        function setBackgroundImage(imageDataUrl) {
+            document.body.style.backgroundImage = `url('${imageDataUrl}')`;
         }
         
-        // Replace 'your-home-screen-image.png' with your actual image path
+        // Check if there's a saved image in localStorage
         window.onload = function() {
-            setBackgroundImage('your-home-screen-image.png');
+            const savedImage = localStorage.getItem('backgroundImage');
+            if (savedImage) {
+                setBackgroundImage(savedImage);
+            }
         };
+        
+        // Listen for file input (you can trigger this programmatically or via hidden input)
+        // Create a hidden file input for uploading background
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imageDataUrl = event.target.result;
+                setBackgroundImage(imageDataUrl);
+                // Save to localStorage for persistence
+                localStorage.setItem('backgroundImage', imageDataUrl);
+            };
+            reader.readAsDataURL(file);
+        });
+        
+        // Trigger file input on triple tap (or you can expose it another way)
+        let tapCount = 0;
+        let tapTimer = null;
+        document.body.addEventListener('click', function() {
+            tapCount++;
+            if (tapCount === 3) {
+                fileInput.click();
+                tapCount = 0;
+            }
+            clearTimeout(tapTimer);
+            tapTimer = setTimeout(() => { tapCount = 0; }, 500);
+        });
     </script>
 </body>
 </html>
