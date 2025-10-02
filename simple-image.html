@@ -12,7 +12,7 @@
 <style>
   :root{
     /* safe-area CSS variables */
-    --safe-top: env(safe-area-inset-top, 0px);
+   
     --safe-bot: env(safe-area-inset-bottom, 0px);
   }
 
@@ -41,10 +41,10 @@
   #bgimg{
     position:absolute;
     left:0; right:0;
-    top: calc(-1 * var(--safe-top));
+    
     bottom: calc(-1 * var(--safe-bot));
     width:100%;
-    height: calc(100% + var(--safe-top) + var(--safe-bot));
+    height:100%
     object-fit: cover;
     object-position: center;
     pointer-events:none;
