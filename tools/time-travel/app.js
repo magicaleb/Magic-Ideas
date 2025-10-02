@@ -11,20 +11,14 @@
             const reader = new FileReader();
             reader.onload = function(event) {
                 const imageUrl = event.target.result;
-                // Apply to both bg element and body for full coverage
+                // Apply only to bg element
                 bgElement.style.backgroundImage = `url("${imageUrl}")`;
                 bgElement.style.backgroundSize = 'cover';
                 bgElement.style.backgroundPosition = 'center center';
                 bgElement.style.backgroundRepeat = 'no-repeat';
                 bgElement.classList.remove('hidden');
                 
-                // Also apply to body to ensure full-screen background
-                document.body.style.backgroundImage = `url("${imageUrl}")`;
-                document.body.style.backgroundSize = 'cover';
-                document.body.style.backgroundPosition = 'center center';
-                document.body.style.backgroundRepeat = 'no-repeat';
-                
-                console.log('Background image applied to #bg and body');
+                console.log('Background image applied to #bg');
             };
             reader.readAsDataURL(file);
         });
