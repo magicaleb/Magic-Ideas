@@ -19,11 +19,40 @@
         }
         
         body {
-            background-color: transparent;
+            background: #1a1a1a;
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             background-attachment: fixed;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #uploadBtn {
+            padding: 20px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #uploadBtn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+        
+        #uploadBtn.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #fileInput {
+            display: none;
         }
         
         /* Add these for PWA display modes */
@@ -36,10 +65,17 @@
     </style>
 </head>
 <body>
+    <button id="uploadBtn">Choose Background Image</button>
+    <input type="file" id="fileInput" accept="image/*">
+    
     <script>
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
+        
         // Function to load and set the background image
         function setBackgroundImage(imageDataUrl) {
             document.body.style.backgroundImage = `url('${imageDataUrl}')`;
+            uploadBtn.classList.add('hidden');
         }
         
         // Check if there's a saved image in localStorage
@@ -50,14 +86,12 @@
             }
         };
         
-        // Listen for file input (you can trigger this programmatically or via hidden input)
-        // Create a hidden file input for uploading background
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
-        fileInput.style.display = 'none';
-        document.body.appendChild(fileInput);
+        // Click button to open file chooser
+        uploadBtn.addEventListener('click', function() {
+            fileInput.click();
+        });
         
+        // Handle file selection
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files?.[0];
             if (!file) return;
@@ -72,17 +106,9 @@
             reader.readAsDataURL(file);
         });
         
-        // Trigger file input on triple tap (or you can expose it another way)
-        let tapCount = 0;
-        let tapTimer = null;
-        document.body.addEventListener('click', function() {
-            tapCount++;
-            if (tapCount === 3) {
-                fileInput.click();
-                tapCount = 0;
-            }
-            clearTimeout(tapTimer);
-            tapTimer = setTimeout(() => { tapCount = 0; }, 500);
+        // Double-click anywhere to show button again (to change image)
+        document.body.addEventListener('dblclick', function() {
+            uploadBtn.classList.remove('hidden');
         });
     </script>
 </body>
