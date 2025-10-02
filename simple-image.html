@@ -33,7 +33,7 @@
   }
 
   /* Stage holds background image element and UI */
-  #stage{ position:fixed; inset:0; z-index:0; }
+  #stage{ position:fixed; inset:-1; z-index:-1; }
 
   /* Use an <img> that we can shift by safe-area values.
      This approach hides the captured status bar in screenshots
@@ -48,7 +48,7 @@
     object-fit: cover;
     object-position: center;
     pointer-events:none;
-    z-index:0;
+    z-index:1;
     display:none;
     -webkit-user-drag:none;
   }
