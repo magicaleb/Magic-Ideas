@@ -4,183 +4,118 @@
   <meta charset="UTF-8" />
   <title>Edge-to-Edge Wallpaper</title>
 
-  <!-- 
-    Meta tags needed for iOS PWA to go full edge-to-edge:
-
-    - viewport-fit=cover: lets the page extend into the "safe areas"
-      like the status bar and home indicator space.
-    - apple-mobile-web-app-capable=yes: tells iOS to launch from
-      the homescreen without Safari UI (standalone mode).
-    - apple-mobile-web-app-status-bar-style=black-translucent:
-      makes the status bar overlay content so you can "bleed under" it.
-  -->
+  <!-- iOS fullscreen -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
   <style>
-    /* 
-      html/body need to take up the *entire* device screen.
-      No margins or scrollbars. Black background so loading is clean.
-    */
+    /* Fill true viewport. No body padding. No 100vh. */
     html, body {
       margin: 0;
       padding: 0;
-      height: 100%;
-      min-height: 100dvh;             /* modern CSS unit that includes iOS viewport quirks */
-      height: -webkit-fill-available; /* older Safari fallback */
-      background: #000;               /* prevents flashes of white */
-      overflow: hidden;               /* no scrolling */
-      -webkit-touch-callout: none;    /* block copy/paste menu on long press */
+      width: 100%;
+      height: -webkit-fill-available;  /* old Safari */
+      min-height: 100dvh;              /* modern */
+      background: #000;                /* fallback while loading */
+      overflow: hidden;
+      -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     }
 
-    /* 
-      The stage fills the whole screen, even under the status bar and home indicator.
-      We use position:fixed + inset:0 to guarantee it.
-      Content is centered using CSS grid.
-    */
-    #stage {
-      position: fixed;
-      inset: 0;              /* top:0; right:0; bottom:0; left:0 shorthand */
-      display: grid;
-      place-items: center;   /* center placeholder content */
-      background: #000;
-      touch-action: manipulation; /* optimizes taps */
+    /* Full-bleed background layer (image applied here) */
+    #bg {
+      position: absolute;   /* avoids rare iOS fixed bugs */
+      inset: 0;
+      background: #000 center / cover no-repeat;
+      pointer-events: none; /* do not block taps */
+      z-index: 0;
     }
 
-    /* 
-      Placeholder UI is shown until an image is uploaded.
-      We remove safe-area padding because we want edge-to-edge visuals.
-    */
-    #placeholder {
+    /* UI on top; respects safe areas */
+    #ui {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      width: 100%;
       display: grid;
-      gap: 16px;
       place-items: center;
       color: #fff;
+      padding:
+        env(safe-area-inset-top, 16px)
+        env(safe-area-inset-right, 16px)
+        env(safe-area-inset-bottom, 16px)
+        env(safe-area-inset-left, 16px);
       text-align: center;
-      padding: 0;  /* nothing pushes it down from the top */
+      gap: 16px;
     }
 
-    /* 
-      Upload button shown initially inside placeholder.
-    */
-    #uploadButton {
-      padding: 16px 28px;
+    button {
+      padding: 14px 22px;
       font-size: 18px;
       border: 0;
       border-radius: 12px;
       background: #fff;
       color: #000;
+      cursor: pointer;
     }
 
-    /* 
-      The wallpaper image itself.
-      - position absolute + inset:0 means it fills the screen.
-      - width/height 100% with object-fit:cover makes it crop to fill 
-        instead of leaving letterboxing.
-      - pointer-events:none ensures taps go "through" the image so you
-        can still catch clicks on the stage.
-    */
-    #wallpaper {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;     /* critical: makes it a true wallpaper */
-      display: none;         /* hidden until first upload */
-      pointer-events: none;  /* does not block touch events */
-    }
-
-    /* 
-      Hidden file input. It opens the system file picker when triggered.
-    */
     #imageInput { display: none; }
   </style>
 </head>
 <body>
-  <div id="stage">
-    <!-- Shown until the user uploads an image -->
+  <!-- Background target -->
+  <div id="bg"></div>
+
+  <!-- Minimal UI -->
+  <div id="ui">
     <div id="placeholder">
       <p>No image uploaded</p>
       <button id="uploadButton" type="button">Upload Image</button>
     </div>
-
-    <!-- Wallpaper image (hidden until first load) -->
-    <img id="wallpaper" alt="">
+    <button id="changeButton" type="button" style="display:none">Change Image</button>
   </div>
 
-  <!-- File picker (hidden) -->
+  <!-- Hidden picker -->
   <input type="file" id="imageInput" accept="image/*">
 
   <script>
-    // Grab references to elements we need
-    const stage = document.getElementById('stage');
-    const placeholder = document.getElementById('placeholder');
+    const bg = document.getElementById('bg');
     const uploadButton = document.getElementById('uploadButton');
+    const changeButton = document.getElementById('changeButton');
+    const placeholder = document.getElementById('placeholder');
     const imageInput = document.getElementById('imageInput');
-    const wallpaper = document.getElementById('wallpaper');
 
-    /**
-     * Displays the image as fullscreen wallpaper.
-     * - Sets wallpaper src
-     * - Waits for image to load before showing
-     * - Hides placeholder
-     * - Adds click-to-change on the whole stage
-     */
-    function displayImage(src) {
-      wallpaper.src = src;
-      wallpaper.onload = () => {
-        wallpaper.style.display = 'block';  // reveal the wallpaper
-        placeholder.style.display = 'none'; // hide placeholder UI
-
-        // From now on, tapping anywhere reopens the file picker
-        stage.addEventListener('click', openPicker, { once: false });
-      };
+    function setBackground(dataUrl) {
+      bg.style.backgroundImage = `url("${dataUrl}")`;
+      placeholder.style.display = 'none';
+      changeButton.style.display = 'inline-block';
     }
 
-    /**
-     * Opens the hidden file picker
-     */
     function openPicker() { imageInput.click(); }
 
-    /**
-     * Handles when the user selects a file from the picker.
-     * - Only accepts images
-     * - Converts to base64 using FileReader
-     * - Saves in localStorage for persistence
-     * - Displays the image
-     */
     imageInput.addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
-      if (!file || !file.type.startsWith('image/')) return; // skip non-images
-
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const data = ev.target.result; // base64-encoded image
-        try { localStorage.setItem('uploadedImage', data); } catch (e) {
-          // If storage quota exceeded, fail silently
-        }
-        displayImage(data);
+      const f = e.target.files && e.target.files[0];
+      if (!f || !f.type.startsWith('image/')) return;
+      const r = new FileReader();
+      r.onload = ev => {
+        const data = ev.target.result;
+        try { localStorage.setItem('uploadedImage', data); } catch {}
+        setBackground(data);
       };
-      reader.readAsDataURL(file);
-
-      // Reset input so you can reselect the same file later
+      r.readAsDataURL(f);
       e.target.value = '';
     });
 
-    // Upload button inside placeholder opens the picker
     uploadButton.addEventListener('click', openPicker);
+    changeButton.addEventListener('click', openPicker);
 
-    /**
-     * Initialization:
-     * - If there’s a previously saved image in localStorage,
-     *   load it immediately so wallpaper persists between launches.
-     */
-    (function init() {
+    // Restore on launch
+    (function init(){
       const saved = localStorage.getItem('uploadedImage');
-      if (saved) displayImage(saved);
+      if (saved) setBackground(saved);
     })();
   </script>
 </body>
