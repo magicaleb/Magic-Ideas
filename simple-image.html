@@ -1,122 +1,186 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Edge-to-Edge Wallpaper</title>
+<meta charset="utf-8" />
+<title>Screenshot -> Edge-to-Edge</title>
 
-  <!-- iOS fullscreen -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- Required for PWA/fullscreen safe-area behavior -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-  <style>
-    /* Fill true viewport. No body padding. No 100vh. */
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: -webkit-fill-available;  /* old Safari */
-      min-height: 100dvh;              /* modern */
-      background: #000;                /* fallback while loading */
-      overflow: hidden;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-    }
+<style>
+  :root{
+    /* safe-area CSS variables */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bot: env(safe-area-inset-bottom, 0px);
+  }
 
-    /* Full-bleed background layer (image applied here) */
-    #bg {
-      position: absolute;   /* avoids rare iOS fixed bugs */
-      inset: 0;
-      background: #000 center / cover no-repeat;
-      pointer-events: none; /* do not block taps */
-      z-index: 0;
-    }
+  html,body{
+    margin:0;
+    padding:0;
+    width:100%;
+    /* Combined rules to cover multiple iOS versions */
+    height:-webkit-fill-available;
+    min-height:100dvh;
+    min-height:100%;
+    background:#000;
+    overflow:hidden;
+    -webkit-touch-callout:none;
+    -webkit-user-select:none;
+    user-select:none;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
 
-    /* UI on top; respects safe areas */
-    #ui {
-      position: relative;
-      z-index: 1;
-      height: 100%;
-      width: 100%;
-      display: grid;
-      place-items: center;
-      color: #fff;
-      padding:
-        env(safe-area-inset-top, 16px)
-        env(safe-area-inset-right, 16px)
-        env(safe-area-inset-bottom, 16px)
-        env(safe-area-inset-left, 16px);
-      text-align: center;
-      gap: 16px;
-    }
+  /* Stage holds background image element and UI */
+  #stage{ position:fixed; inset:0; z-index:0; }
 
-    button {
-      padding: 14px 22px;
-      font-size: 18px;
-      border: 0;
-      border-radius: 12px;
-      background: #fff;
-      color: #000;
-      cursor: pointer;
-    }
+  /* Use an <img> that we can shift by safe-area values.
+     This approach hides the captured status bar in screenshots
+     by pulling the image up by the live top inset and extending its bottom. */
+  #bgimg{
+    position:absolute;
+    left:0; right:0;
+    top: calc(-1 * var(--safe-top));
+    bottom: calc(-1 * var(--safe-bot));
+    width:100%;
+    height: calc(100% + var(--safe-top) + var(--safe-bot));
+    object-fit: cover;
+    object-position: center;
+    pointer-events:none;
+    z-index:0;
+    display:none;
+    -webkit-user-drag:none;
+  }
 
-    #imageInput { display: none; }
-  </style>
+  /* UI sits above background and uses safe-area padding */
+  #ui{
+    position:relative;
+    z-index:2;
+    width:100%;
+    height:100%;
+    display:grid;
+    place-items:center;
+    padding:
+      env(safe-area-inset-top,16px)
+      env(safe-area-inset-right,16px)
+      env(safe-area-inset-bottom,16px)
+      env(safe-area-inset-left,16px);
+    color:#fff;
+    text-align:center;
+    gap:12px;
+    box-sizing:border-box;
+    pointer-events:auto;
+  }
+
+  button{
+    padding:12px 20px;
+    border-radius:12px;
+    border:0;
+    background:#fff;
+    color:#000;
+    font-size:16px;
+  }
+
+  /* small controls row */
+  .row{ display:flex; gap:8px; align-items:center; justify-content:center; }
+
+  /* optional debug / reset */
+  #reset{ background:#f33; color:#fff; }
+</style>
 </head>
 <body>
-  <!-- Background target -->
-  <div id="bg"></div>
-
-  <!-- Minimal UI -->
-  <div id="ui">
-    <div id="placeholder">
-      <p>No image uploaded</p>
-      <button id="uploadButton" type="button">Upload Image</button>
-    </div>
-    <button id="changeButton" type="button" style="display:none">Change Image</button>
+  <div id="stage">
+    <img id="bgimg" alt="background">
   </div>
 
-  <!-- Hidden picker -->
-  <input type="file" id="imageInput" accept="image/*">
+  <div id="ui">
+    <div id="placeholder">
+      <div style="font-size:18px;margin-bottom:8px">No image uploaded</div>
+      <div class="row">
+        <button id="uploadBtn">Upload Screenshot</button>
+        <button id="loadWallpaper" title="Use original wallpaper (if available)">Use Wallpaper</button>
+      </div>
+    </div>
 
-  <script>
-    const bg = document.getElementById('bg');
-    const uploadButton = document.getElementById('uploadButton');
-    const changeButton = document.getElementById('changeButton');
-    const placeholder = document.getElementById('placeholder');
-    const imageInput = document.getElementById('imageInput');
+    <div id="controls" style="display:none;">
+      <div style="font-size:16px;margin-bottom:6px">Tap anywhere to change image</div>
+      <div class="row">
+        <button id="reset">Clear</button>
+      </div>
+    </div>
+  </div>
 
-    function setBackground(dataUrl) {
-      bg.style.backgroundImage = `url("${dataUrl}")`;
+  <input id="picker" type="file" accept="image/*" style="display:none">
+
+<script>
+  const picker = document.getElementById('picker');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const bgimg = document.getElementById('bgimg');
+  const placeholder = document.getElementById('placeholder');
+  const controls = document.getElementById('controls');
+  const resetBtn = document.getElementById('reset');
+  const loadWallpaper = document.getElementById('loadWallpaper');
+
+  function showBackground(dataUrl){
+    bgimg.src = dataUrl;
+    // wait for load to avoid flash
+    bgimg.onload = () => {
+      bgimg.style.display = 'block';
       placeholder.style.display = 'none';
-      changeButton.style.display = 'inline-block';
-    }
+      controls.style.display = 'block';
+      // make whole stage clickable to change image
+      document.body.addEventListener('click', openPicker);
+    };
+  }
 
-    function openPicker() { imageInput.click(); }
+  function clearBackground(){
+    try { localStorage.removeItem('uploadedScreenshot'); } catch(e){}
+    bgimg.src = '';
+    bgimg.style.display = 'none';
+    placeholder.style.display = 'block';
+    controls.style.display = 'none';
+    document.body.removeEventListener('click', openPicker);
+  }
 
-    imageInput.addEventListener('change', (e) => {
-      const f = e.target.files && e.target.files[0];
-      if (!f || !f.type.startsWith('image/')) return;
-      const r = new FileReader();
-      r.onload = ev => {
-        const data = ev.target.result;
-        try { localStorage.setItem('uploadedImage', data); } catch {}
-        setBackground(data);
-      };
-      r.readAsDataURL(f);
-      e.target.value = '';
-    });
+  function openPicker(e){
+    // avoid triggering when clicking interactive controls
+    if(e && e.target && (e.target.closest('button'))) return;
+    picker.click();
+  }
 
-    uploadButton.addEventListener('click', openPicker);
-    changeButton.addEventListener('click', openPicker);
+  picker.addEventListener('change', (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if(!f || !f.type.startsWith('image/')) return;
+    const r = new FileReader();
+    r.onload = (e) => {
+      const data = e.target.result;
+      try { localStorage.setItem('uploadedScreenshot', data); } catch(e){}
+      showBackground(data);
+    };
+    r.readAsDataURL(f);
+    // reset input so same file can be selected again
+    picker.value = '';
+  });
 
-    // Restore on launch
-    (function init(){
-      const saved = localStorage.getItem('uploadedImage');
-      if (saved) setBackground(saved);
-    })();
-  </script>
+  uploadBtn.addEventListener('click', () => picker.click());
+  resetBtn.addEventListener('click', clearBackground);
+
+  // Optional: attempt to use the device wallpaper image if you stored it previously.
+  loadWallpaper.addEventListener('click', ()=>{
+    const wallpaper = localStorage.getItem('uploadedWallpaper') || null;
+    if(wallpaper) showBackground(wallpaper);
+    else alert('No wallpaper saved in storage.');
+  });
+
+  // Restore on load
+  (function init(){
+    const saved = localStorage.getItem('uploadedScreenshot');
+    if(saved) showBackground(saved);
+  })();
+
+  // Safety note visible to user console
+  console.log("Edge-to-edge loader ready. Add to home screen to test as a standalone PWA.");
+</script>
 </body>
 </html>
