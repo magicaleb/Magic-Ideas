@@ -114,6 +114,9 @@
                     // Apply immediately
                     setBackgroundImage(imageData);
                 };
+                reader.onerror = function(e) {
+                    alert('Failed to read the file. Please try again or choose a different image.');
+                };
                 reader.readAsDataURL(file);
             });
         };
