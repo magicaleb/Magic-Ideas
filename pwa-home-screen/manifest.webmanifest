@@ -1,0 +1,17 @@
+{
+  "name": "Fake iPhone Home Screen",
+  "short_name": "Dummy Home",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "description": "Create a convincing dummy of your iPhone Home Screen that uses your own screenshot as the wallpaper.",
+  "icons": [
+    {
+      "src": "icons/home-screen-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
