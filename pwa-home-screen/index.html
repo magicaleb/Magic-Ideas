@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <title>Dummy iPhone Home Screen</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./icons/home-screen-icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+    <meta
+      name="description"
+      content="Upload a screenshot of your iPhone Home Screen, set it as the wallpaper, and add the page to your device as a deceptive dummy."
+    />
+  </head>
+  <body>
+    <main>
+      <section
+        class="home-screen"
+        data-show-blur="false"
+        data-show-dock="true"
+        data-jiggle="false"
+      >
+        <header class="status-bar">
+          <span id="status-time">9:41</span>
+          <div class="status-meta">
+            <span>Dummy Mode</span>
+            <button
+              type="button"
+              id="done-button"
+              class="status-action"
+              aria-label="Stop icon jiggle"
+              aria-hidden="true"
+              tabindex="-1"
+            >
+              Done
+            </button>
+          </div>
+        </header>
+        <div class="wallpaper-placeholder" id="wallpaper-placeholder" role="status" aria-hidden="false">
+          <p>Upload your latest Home Screen screenshot to nail the fake.</p>
+          <p class="placeholder-hint">Tip: long-press any icon to enter jiggle mode.</p>
+        </div>
+        <div class="app-grid" id="app-grid"></div>
+        <footer class="dock" id="dock">
+          <div class="dock-icon" id="dock-icons"></div>
+          <span>Hold to jiggle</span>
+        </footer>
+      </section>
+      <section class="control-panel" aria-live="polite">
+        <h1>Load your wallpaper</h1>
+        <label for="screenshot-input">
+          Upload the screenshot of your current Home Screen
+          <input
+            id="screenshot-input"
+            type="file"
+            accept="image/png, image/jpeg, image/heic, image/heif"
+          />
+        </label>
+        <div class="toggle-row">
+          <span>Blur wallpaper for depth effect</span>
+          <input type="checkbox" id="blur-toggle" />
+        </div>
+        <div class="toggle-row">
+          <span>Icon jiggle animation</span>
+          <input type="checkbox" id="jiggle-toggle" />
+        </div>
+        <div class="toggle-row">
+          <span>Show dock</span>
+          <input type="checkbox" id="dock-toggle" checked />
+        </div>
+        <div class="button-row">
+          <button type="button" id="reset-button">Reset wallpaper</button>
+          <button type="button" id="fullscreen-button">Go fullscreen</button>
+          <button type="button" id="instructions-button">Add to Home Screen help</button>
+        </div>
+        <p class="tips" id="tips">
+          1. Upload a clean screenshot of your real Home Screen (without notifications).<br />
+          2. Tap “Go fullscreen” to hide the controls before showing it off.<br />
+          3. Use “Add to Home Screen” in Safari to install this PWA and launch it like a normal app.
+        </p>
+      </section>
+    </main>
+    <dialog id="instructions-dialog" aria-labelledby="instructions-title">
+      <form method="dialog">
+        <h2 id="instructions-title">Add the dummy to your Home Screen</h2>
+        <ol>
+          <li>Open this page in Safari on your iPhone.</li>
+          <li>Tap the share icon and pick <strong>Add to Home Screen</strong>.</li>
+          <li>Name it something convincing and tap <strong>Add</strong>.</li>
+        </ol>
+        <p>Launch it from your Home Screen and go fullscreen before the big reveal.</p>
+        <button type="submit" value="cancel" class="dialog-close">Got it</button>
+      </form>
+    </dialog>
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>
