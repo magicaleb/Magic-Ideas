@@ -83,18 +83,18 @@ const Swipe = (() => {
       return diff === 1;
     }
 
-    processSwipe(angle, onComplete) {
+    processSwipe(angle) {
       const direction = this.angleToDirection(angle);
       if (!direction) return null;
 
       if (this.stage === 'first') {
-        return this.processFirstSwipe(direction, onComplete);
+        return this.processFirstSwipe(direction);
       } else {
-        return this.processSecondSwipe(direction, onComplete);
+        return this.processSecondSwipe(direction);
       }
     }
 
-    processFirstSwipe(direction, onComplete) {
+    processFirstSwipe(direction) {
       const directionMap = {
         'up': 12,
         'right': 3,
@@ -112,7 +112,7 @@ const Swipe = (() => {
       return null; // Not complete yet
     }
 
-    processSecondSwipe(direction, onComplete) {
+    processSecondSwipe(direction) {
       this.clearTimeout();
 
       let finalPosition = this.basePosition;
