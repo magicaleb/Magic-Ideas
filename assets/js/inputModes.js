@@ -178,18 +178,21 @@ class TwoSwipeMode {
     }
 
     /**
-     * Determine if second swipe is "forward" or "up" relative to first
+     * Determine if second swipe is clockwise relative to first
+     * Clockwise order: up -> right -> down -> left -> up
      */
     isForwardOrUp(secondDir, firstDir) {
-        // For horizontal first swipe: up is +1, down is -1
-        if (firstDir === 'left' || firstDir === 'right') {
-            return secondDir === 'up';
-        }
-        // For vertical first swipe: right is +1, left is -1
-        if (firstDir === 'up' || firstDir === 'down') {
-            return secondDir === 'right';
-        }
-        return false;
+        const clockwiseOrder = ['up', 'right', 'down', 'left'];
+        const firstIdx = clockwiseOrder.indexOf(firstDir);
+        const secondIdx = clockwiseOrder.indexOf(secondDir);
+        
+        if (firstIdx === -1 || secondIdx === -1) return false;
+        
+        // Calculate the difference
+        const diff = (secondIdx - firstIdx + 4) % 4;
+        
+        // diff = 1 means clockwise (next in sequence), which is +1
+        return diff === 1;
     }
 
     /**

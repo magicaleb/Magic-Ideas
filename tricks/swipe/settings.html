@@ -37,6 +37,11 @@
       </div>
 
       <div class="row" style="align-items:center;gap:8px">
+        <input id="useTwoSwipe" type="checkbox" style="width:auto" checked>
+        <label for="useTwoSwipe" style="font-size:1rem">Use Two-Swipe mode (default, more precise)</label>
+      </div>
+
+      <div class="row" style="align-items:center;gap:8px">
         <input id="clipboard" type="checkbox" style="width:auto">
         <label for="clipboard" style="font-size:1rem">Copy result to clipboard</label>
       </div>
@@ -64,17 +69,29 @@
         <div>• Two-finger tap → Submit now</div>
       </div>
     </div>
+
+    <div style="margin-top:12px;padding:6px 10px;" class="card">
+      <div style="font-size:1rem;font-weight:600;margin-bottom:6px">Input Modes</div>
+      <div style="font-size:0.98rem;line-height:1.4">
+        <div><strong>Two-Swipe (default):</strong> More precise</div>
+        <div style="margin-left:12px;font-size:0.9rem">1st swipe: Pick base (↑=12, →=3, ↓=6, ←=9)</div>
+        <div style="margin-left:12px;font-size:0.9rem">2nd swipe: Refine (clockwise=+1, counter-clockwise=-1, same=exact)</div>
+        <div style="margin-top:6px"><strong>Clock Face (legacy):</strong> Quick single swipe</div>
+        <div style="margin-left:12px;font-size:0.9rem">Swipe direction maps to clock position (12→0, 1-9→digits)</div>
+      </div>
+    </div>
   </div>
 
   <script src="../../assets/js/storage.js"></script>
   <script>
-    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'' };
+    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'', useTwoSwipe:true };
     const $ = id => document.getElementById(id);
 
     let state = Storage.load('swipe', defaults);
 
     $('delay').value        = state.delay;
     $('shortcut').value     = state.shortcut;
+    $('useTwoSwipe').checked = state.useTwoSwipe !== false; // default to true
     $('clipboard').checked  = !!state.clipboard;
     const postEl = $('postShortcut'); if (postEl) postEl.value = state.postShortcut || '';
     const fakeEl = $('fakeHomescreen'); if (fakeEl) fakeEl.checked = !!state.fakeHomescreen;
@@ -84,6 +101,7 @@
 
     $('delay').addEventListener('input',  () => { state.delay    = Math.max(1, +$('delay').value || defaults.delay); persist(); });
     $('shortcut').addEventListener('input', () => { state.shortcut = ($('shortcut').value || '').trim(); persist(); });
+    $('useTwoSwipe').addEventListener('change', () => { state.useTwoSwipe = !!$('useTwoSwipe').checked; persist(); });
     $('clipboard').addEventListener('change', () => { state.clipboard = !!$('clipboard').checked; persist(); });
     if (postEl) postEl.addEventListener('input', () => { state.postShortcut = (postEl.value || '').trim(); persist(); });
     if (fakeEl) fakeEl.addEventListener('change', () => { state.fakeHomescreen = !!fakeEl.checked; persist(); });
