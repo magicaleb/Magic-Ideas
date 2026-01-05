@@ -37,8 +37,8 @@
       </div>
 
       <div class="row" style="align-items:center;gap:8px">
-        <input id="useTwoSwipe" type="checkbox" style="width:auto" checked>
-        <label for="useTwoSwipe" style="font-size:1rem">Use Two-Swipe mode (default, more precise)</label>
+        <input id="useClockFace" type="checkbox" style="width:auto">
+        <label for="useClockFace" style="font-size:1rem">Use Clock Face mode (legacy, single swipe)</label>
       </div>
 
       <div class="row" style="align-items:center;gap:8px">
@@ -91,7 +91,7 @@
 
     $('delay').value        = state.delay;
     $('shortcut').value     = state.shortcut;
-    $('useTwoSwipe').checked = state.useTwoSwipe !== false; // default to true
+    $('useClockFace').checked = state.useTwoSwipe === false; // checked when two-swipe is disabled
     $('clipboard').checked  = !!state.clipboard;
     const postEl = $('postShortcut'); if (postEl) postEl.value = state.postShortcut || '';
     const fakeEl = $('fakeHomescreen'); if (fakeEl) fakeEl.checked = !!state.fakeHomescreen;
@@ -101,7 +101,7 @@
 
     $('delay').addEventListener('input',  () => { state.delay    = Math.max(1, +$('delay').value || defaults.delay); persist(); });
     $('shortcut').addEventListener('input', () => { state.shortcut = ($('shortcut').value || '').trim(); persist(); });
-    $('useTwoSwipe').addEventListener('change', () => { state.useTwoSwipe = !!$('useTwoSwipe').checked; persist(); });
+    $('useClockFace').addEventListener('change', () => { state.useTwoSwipe = !$('useClockFace').checked; persist(); }); // inverted logic
     $('clipboard').addEventListener('change', () => { state.clipboard = !!$('clipboard').checked; persist(); });
     if (postEl) postEl.addEventListener('input', () => { state.postShortcut = (postEl.value || '').trim(); persist(); });
     if (fakeEl) fakeEl.addEventListener('change', () => { state.fakeHomescreen = !!fakeEl.checked; persist(); });
