@@ -127,8 +127,6 @@
             border-radius: 8px;
             font-size: 1rem;
             cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
         }
 
         .back-button:hover {
@@ -151,7 +149,7 @@
     </style>
 </head>
 <body>
-    <a href="index.html" class="back-button">← Back</a>
+    <button class="back-button" data-href="index.html">← Back</button>
 
     <div class="demo-container">
         <h1>Gesture Input Demo</h1>
@@ -183,6 +181,20 @@
     <script src="assets/js/gestureDetector.js"></script>
     <script src="assets/js/inputModes.js"></script>
     <script>
+        // Handle back button navigation
+        document.addEventListener('DOMContentLoaded', () => {
+            const backButton = document.querySelector('.back-button[data-href]');
+            if (backButton) {
+                backButton.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const href = backButton.getAttribute('data-href');
+                    if (href) {
+                        window.location.href = href;
+                    }
+                });
+            }
+        });
+
         // Initialize input mode manager
         const inputModeManager = new InputModeManager();
         inputModeManager.initialize();

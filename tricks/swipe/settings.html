@@ -57,7 +57,7 @@
       </div>
 
       <div class="row" style="justify-content:center;margin-top:6px">
-        <a id="perform" href="perform.html"><button class="xl" style="min-width:240px;padding:14px 22px;font-size:1.08rem">Perform</button></a>
+        <button id="perform" class="xl" data-href="perform.html" style="min-width:240px;padding:14px 22px;font-size:1.08rem">Perform</button>
       </div>
     </div>
 
@@ -119,7 +119,10 @@
     document.getElementById('perform').addEventListener('click', e => {
       e.preventDefault();
       persist();
-      window.location.href = 'perform.html';
+      const href = e.currentTarget.getAttribute('data-href');
+      if (href) {
+        window.location.href = href;
+      }
     });
   </script>
 </body>

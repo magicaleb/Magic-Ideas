@@ -24,23 +24,38 @@
     
     <h2>Demos</h2>
     <div class="stack">
-      <a href="gesture-input-demo.html"><button class="xl">Gesture Input Demo (New!)</button></a>
+      <button class="xl" data-href="gesture-input-demo.html">Gesture Input Demo (New!)</button>
     </div>
     
     <h2>Tricks</h2>
     <div class="stack">
-      <a href="tricks/swipe/settings.html"><button class="xl">Swipe Input</button></a>
-      <a href="contained-swipe.html"><button class="xl">Contained Swipe Input</button></a>
-      <a href="tricks/hangman/draw.html"><button class="xl">Hangman Drawing</button></a>
+      <button class="xl" data-href="tricks/swipe/settings.html">Swipe Input</button>
+      <button class="xl" data-href="contained-swipe.html">Contained Swipe Input</button>
+      <button class="xl" data-href="tricks/hangman/draw.html">Hangman Drawing</button>
     </div>
     
     <h2>Tools</h2>
     <div class="stack">
-      <a href="tools/time-travel/index.html"><button class="xl">Time Travel</button></a>
-      <a href="simple-pwa.html"><button class="xl">Simple PWA Demo</button></a>
-      <a href="simple-image.html"><button class="xl">Simple Image Demo</button></a>
-      <a href="pwa-home-screen/index.html"><button class="xl">Dummy Home Screen PWA</button></a>
+      <button class="xl" data-href="tools/time-travel/index.html">Time Travel</button>
+      <button class="xl" data-href="simple-pwa.html">Simple PWA Demo</button>
+      <button class="xl" data-href="simple-image.html">Simple Image Demo</button>
+      <button class="xl" data-href="pwa-home-screen/index.html">Dummy Home Screen PWA</button>
     </div>
   </div>
+  <script>
+    // JavaScript-based navigation to prevent iOS UI elements
+    document.addEventListener('DOMContentLoaded', () => {
+      const buttons = document.querySelectorAll('button[data-href]');
+      buttons.forEach(button => {
+        button.addEventListener('click', (e) => {
+          e.preventDefault();
+          const href = button.getAttribute('data-href');
+          if (href) {
+            window.location.href = href;
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>
