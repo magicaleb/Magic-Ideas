@@ -80,8 +80,9 @@ class GestureDetector {
         const absDeltaX = Math.abs(deltaX);
         const absDeltaY = Math.abs(deltaY);
 
-        // Check if swipe meets minimum distance
-        if (absDeltaX < this.minSwipeDistance && absDeltaY < this.minSwipeDistance) {
+        // Check if swipe meets minimum distance (using total distance)
+        const totalDistance = Math.sqrt(absDeltaX * absDeltaX + absDeltaY * absDeltaY);
+        if (totalDistance < this.minSwipeDistance) {
             return;
         }
 

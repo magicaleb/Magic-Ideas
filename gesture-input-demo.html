@@ -248,11 +248,11 @@
         }
 
         // Load saved mode preference
-        const savedMode = localStorage.getItem('inputMode');
-        if (savedMode && (savedMode === 'clockface' || savedMode === 'twoswipe')) {
-            modeSelect.value = savedMode;
-            inputModeManager.setMode(savedMode, false);
-            instructionText.innerHTML = instructions[savedMode];
+        inputModeManager.loadSavedMode();
+        const currentMode = inputModeManager.getCurrentMode();
+        if (currentMode) {
+            modeSelect.value = currentMode.name;
+            instructionText.innerHTML = instructions[currentMode.name];
         }
 
         // Initial feedback update
