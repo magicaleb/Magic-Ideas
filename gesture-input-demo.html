@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0b1020">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Gesture Input Demo - Magic Ideas</title>
+    <link rel="stylesheet" href="assets/css/base.css">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: none;
+        }
+
+        body {
+            font-family: -apple-system, system-ui, sans-serif;
+            background: #0b1020;
+            color: #eef2ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .demo-container {
+            max-width: 600px;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            color: #eef2ff;
+        }
+
+        .mode-selector {
+            margin: 2rem 0;
+            padding: 1rem;
+            background: #121a33;
+            border-radius: 12px;
+            border: 1px solid #1f2a53;
+        }
+
+        .mode-selector label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #8ea0c7;
+            font-size: 1rem;
+        }
+
+        .mode-selector select {
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1rem;
+            border: 2px solid #26325f;
+            border-radius: 8px;
+            background: #0f1630;
+            color: #eef2ff;
+            outline: none;
+        }
+
+        .feedback-box {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: #121a33;
+            border-radius: 12px;
+            border: 2px solid #60a5fa;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .feedback-message {
+            font-size: 1.2rem;
+            color: #8ea0c7;
+            margin-bottom: 0.5rem;
+        }
+
+        .selected-position {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #60a5fa;
+            margin: 1rem 0;
+        }
+
+        .instruction {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #0f1630;
+            border-radius: 8px;
+            color: #8ea0c7;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .swipe-area {
+            margin-top: 2rem;
+            padding: 3rem;
+            background: linear-gradient(135deg, #1f2a53 0%, #26325f 100%);
+            border-radius: 12px;
+            border: 2px dashed #60a5fa;
+            text-align: center;
+            color: #8ea0c7;
+            font-size: 1.2rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .back-button {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            padding: 0.75rem 1.5rem;
+            background: #26325f;
+            color: #eef2ff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .back-button:hover {
+            background: #1f2a53;
+        }
+
+        @media (max-width: 600px) {
+            .demo-container {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .swipe-area {
+                padding: 2rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="index.html" class="back-button">← Back</a>
+
+    <div class="demo-container">
+        <h1>Gesture Input Demo</h1>
+
+        <div class="mode-selector">
+            <label for="modeSelect">Select Input Mode:</label>
+            <select id="modeSelect">
+                <option value="clockface">Clock Face (12 positions)</option>
+                <option value="twoswipe">Two-Swipe (12 positions)</option>
+            </select>
+        </div>
+
+        <div class="feedback-box">
+            <div class="feedback-message" id="feedbackMessage">Swipe in any direction</div>
+            <div class="selected-position" id="selectedPosition">—</div>
+        </div>
+
+        <div class="instruction" id="instructionText">
+            <strong>Clock Face Mode:</strong><br>
+            Swipe in any direction to select one of 12 positions (like a clock face).<br>
+            Each position is determined by the angle of your swipe.
+        </div>
+
+        <div class="swipe-area" id="swipeArea">
+            👆 Swipe Here
+        </div>
+    </div>
+
+    <script src="assets/js/gestureDetector.js"></script>
+    <script src="assets/js/inputModes.js"></script>
+    <script>
+        // Initialize input mode manager
+        const inputModeManager = new InputModeManager();
+        inputModeManager.initialize();
+
+        // Get UI elements
+        const modeSelect = document.getElementById('modeSelect');
+        const feedbackMessage = document.getElementById('feedbackMessage');
+        const selectedPosition = document.getElementById('selectedPosition');
+        const instructionText = document.getElementById('instructionText');
+        const swipeArea = document.getElementById('swipeArea');
+
+        // Instructions for each mode
+        const instructions = {
+            clockface: `
+                <strong>Clock Face Mode:</strong><br>
+                Swipe in any direction to select one of 12 positions (like a clock face).<br>
+                Each position is determined by the angle of your swipe.
+            `,
+            twoswipe: `
+                <strong>Two-Swipe Mode:</strong><br>
+                <strong>First Swipe:</strong> Select a base position from 4 cardinal directions:<br>
+                • Up → 12 o'clock &nbsp; • Right → 3 o'clock<br>
+                • Down → 6 o'clock &nbsp; • Left → 9 o'clock<br>
+                <strong>Second Swipe:</strong> Fine-tune your selection:<br>
+                • Same direction → Exact base position<br>
+                • Forward/Up → +1 position<br>
+                • Backward/Down → -1 position
+            `
+        };
+
+        // Update mode when selection changes
+        modeSelect.addEventListener('change', (e) => {
+            const modeName = e.target.value;
+            inputModeManager.setMode(modeName);
+            updateFeedback();
+            instructionText.innerHTML = instructions[modeName];
+            selectedPosition.textContent = '—';
+        });
+
+        // Handle gesture completion
+        inputModeManager.onCompletion((position) => {
+            selectedPosition.textContent = `${position}`;
+            feedbackMessage.textContent = `Selected: ${position} o'clock`;
+            
+            // Flash the swipe area
+            swipeArea.style.background = 'linear-gradient(135deg, #60a5fa 0%, #6ee7b7 100%)';
+            setTimeout(() => {
+                swipeArea.style.background = 'linear-gradient(135deg, #1f2a53 0%, #26325f 100%)';
+                updateFeedback();
+            }, 500);
+        });
+
+        // Update feedback based on current mode state
+        function updateFeedback() {
+            const state = inputModeManager.getState();
+            if (state) {
+                feedbackMessage.textContent = state.message;
+                
+                if (state.stage === 'second' && state.basePosition) {
+                    selectedPosition.textContent = `${state.basePosition}*`;
+                }
+            }
+        }
+
+        // Load saved mode preference
+        inputModeManager.loadSavedMode();
+        const currentMode = inputModeManager.getCurrentMode();
+        if (currentMode) {
+            modeSelect.value = currentMode.name;
+            instructionText.innerHTML = instructions[currentMode.name];
+        }
+
+        // Initial feedback update
+        updateFeedback();
+
+        // Prevent multi-touch zoom/pan gestures
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
