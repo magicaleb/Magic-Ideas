@@ -36,6 +36,7 @@ const Swipe = (() => {
   // Two-swipe mode state
   class TwoSwipeState {
     constructor() {
+      this.SECOND_SWIPE_TIMEOUT_MS = 3000; // 3 seconds to complete second swipe
       this.reset();
     }
 
@@ -107,7 +108,7 @@ const Swipe = (() => {
       this.stage = 'second';
 
       // Set timeout to reset if second swipe not completed
-      this.setTimeout(() => this.reset(), 3000);
+      this.setTimeout(() => this.reset(), this.SECOND_SWIPE_TIMEOUT_MS);
 
       return null; // Not complete yet
     }
@@ -118,8 +119,7 @@ const Swipe = (() => {
       let finalPosition = this.basePosition;
 
       if (direction === this.firstSwipeDirection) {
-        // Same direction = exact base position
-        finalPosition = this.basePosition;
+        // Same direction = exact base position (already set above)
       } else if (this.isClockwise(direction, this.firstSwipeDirection)) {
         // Clockwise = +1
         finalPosition = this.basePosition + 1;
