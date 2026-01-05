@@ -112,6 +112,17 @@ class TwoSwipeMode {
         };
         
         this.basePosition = directionMap[direction];
+        
+        // Handle invalid direction - reset and return
+        if (this.basePosition === undefined) {
+            this.reset();
+            return {
+                position: null,
+                complete: false,
+                stage: 'first'
+            };
+        }
+        
         this.firstSwipeDirection = direction;
         this.stage = 'second';
         
