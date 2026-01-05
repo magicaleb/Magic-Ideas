@@ -130,8 +130,19 @@ const Swipe = (() => {
         if (finalPosition < 1) finalPosition = 12;
       }
 
-      // Map to digit (12 -> 0, 1-9 -> 1-9, 10-11 -> null)
-      const digit = finalPosition === 12 ? 0 : (finalPosition >= 1 && finalPosition <= 9 ? finalPosition : null);
+      // Map to digit/position
+      // In two-swipe mode: 12->0, 1-11 are valid positions
+      // For positions 10 and 11, we'll output them as "10" and "11" strings
+      let digit;
+      if (finalPosition === 12) {
+        digit = 0;
+      } else if (finalPosition >= 1 && finalPosition <= 9) {
+        digit = finalPosition;
+      } else if (finalPosition === 10 || finalPosition === 11) {
+        digit = finalPosition; // Return 10 or 11 directly
+      } else {
+        digit = null;
+      }
 
       this.reset();
 
