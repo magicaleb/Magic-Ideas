@@ -91,7 +91,7 @@
 
     $('delay').value        = state.delay;
     $('shortcut').value     = state.shortcut;
-    $('useClockFace').checked = state.useTwoSwipe === false; // checked when two-swipe is disabled
+    $('useClockFace').checked = !state.useTwoSwipe; // checked when clock face mode is enabled
     $('clipboard').checked  = !!state.clipboard;
     const postEl = $('postShortcut'); if (postEl) postEl.value = state.postShortcut || '';
     const fakeEl = $('fakeHomescreen'); if (fakeEl) fakeEl.checked = !!state.fakeHomescreen;
@@ -101,7 +101,7 @@
 
     $('delay').addEventListener('input',  () => { state.delay    = Math.max(1, +$('delay').value || defaults.delay); persist(); });
     $('shortcut').addEventListener('input', () => { state.shortcut = ($('shortcut').value || '').trim(); persist(); });
-    $('useClockFace').addEventListener('change', () => { state.useTwoSwipe = !$('useClockFace').checked; persist(); }); // inverted logic
+    $('useClockFace').addEventListener('change', () => { state.useTwoSwipe = !$('useClockFace').checked; persist(); }); // inverted: checkbox enables clock face, state tracks two-swipe preference
     $('clipboard').addEventListener('change', () => { state.clipboard = !!$('clipboard').checked; persist(); });
     if (postEl) postEl.addEventListener('input', () => { state.postShortcut = (postEl.value || '').trim(); persist(); });
     if (fakeEl) fakeEl.addEventListener('change', () => { state.fakeHomescreen = !!fakeEl.checked; persist(); });
