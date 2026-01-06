@@ -16,6 +16,14 @@
       width: 100vw;
       height: 100dvh;
     }
+    
+    /* Prevent iOS from showing navigation UI on touch */
+    button[data-href] {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -44,18 +52,48 @@
   </div>
   <script>
     // JavaScript-based navigation to prevent iOS UI elements
-    document.addEventListener('DOMContentLoaded', () => {
-      const buttons = document.querySelectorAll('button[data-href]');
-      buttons.forEach(button => {
-        button.addEventListener('click', (e) => {
-          e.preventDefault();
-          const href = button.getAttribute('data-href');
-          if (href) {
-            window.location.href = href;
-          }
+    // Execute immediately without DOMContentLoaded to avoid race conditions on iOS PWA
+    (function() {
+      const attachNavigationHandlers = () => {
+        const buttons = document.querySelectorAll('button[data-href]');
+        buttons.forEach(button => {
+          // Handle both touch and click events to prevent iOS UI elements
+          const navigate = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const href = button.getAttribute('data-href');
+            if (href) {
+              window.location.href = href;
+            }
+          };
+          
+          // Prevent all touch events to block iOS UI
+          button.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }, { passive: false });
+          
+          button.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }, { passive: false });
+          
+          button.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }, { passive: false });
+          
+          button.addEventListener('click', navigate);
         });
-      });
-    });
+      };
+      
+      // If DOM is already loaded, run immediately; otherwise wait
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attachNavigationHandlers);
+      } else {
+        attachNavigationHandlers();
+      }
+    })();
   </script>
 </body>
 </html>
