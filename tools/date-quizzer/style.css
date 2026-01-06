@@ -1,0 +1,265 @@
+/* Date Quizzer Specific Styles */
+
+.subtitle {
+  color: var(--muted);
+  margin-top: -8px;
+  margin-bottom: 24px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Mode Selection */
+.mode-selection {
+  margin-top: 24px;
+}
+
+.mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.mode-desc {
+  font-size: 0.9rem;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* Quiz Container */
+.quiz-container {
+  margin-top: 24px;
+}
+
+.quiz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.btn-back {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid #2a386c;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-back:hover {
+  background: #1b254a;
+}
+
+.score {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.accuracy {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 4px 8px;
+  background: var(--card);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+/* Question Card */
+.question-card {
+  background: radial-gradient(115% 115% at 50% 0%, #16214b 0%, #0c132b 60%);
+  border: 1px solid #1f2a53;
+  border-radius: 20px;
+  padding: 40px 20px;
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.question-label {
+  font-size: 1.2rem;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.question-value {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Answer Grid */
+.answer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.answer-grid.single-column {
+  grid-template-columns: 1fr;
+}
+
+.answer-btn {
+  padding: 20px;
+  font-size: 1.2rem;
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  border: 2px solid #2a386c;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.answer-btn:hover {
+  background: #1b254a;
+  border-color: var(--accent2);
+}
+
+.answer-btn.correct {
+  background: linear-gradient(90deg, #10b981, #6ee7b7);
+  color: #05111b;
+  border-color: #10b981;
+}
+
+.answer-btn.incorrect {
+  background: var(--danger);
+  color: #fff;
+  border-color: #dc2626;
+}
+
+.answer-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Feedback */
+.feedback {
+  text-align: center;
+  padding: 24px;
+  margin-bottom: 24px;
+  border-radius: 16px;
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.feedback.correct {
+  background: rgba(16, 185, 129, 0.15);
+  border: 2px solid #10b981;
+}
+
+.feedback.incorrect {
+  background: rgba(248, 113, 113, 0.15);
+  border: 2px solid var(--danger);
+}
+
+.feedback-icon {
+  font-size: 3rem;
+  margin-bottom: 8px;
+}
+
+.feedback-text {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.feedback-detail {
+  margin-top: 8px;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+/* Next Container */
+.next-container {
+  text-align: center;
+}
+
+/* Memory Helper */
+.memory-container {
+  margin-top: 24px;
+}
+
+.memory-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.memory-card {
+  background: var(--card);
+  border: 1px solid #2a386c;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.memory-card:hover {
+  background: #1b254a;
+  border-color: var(--accent2);
+}
+
+.memory-card.highlighted {
+  border: 2px solid var(--accent);
+  background: rgba(110, 231, 183, 0.1);
+}
+
+.memory-year {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.memory-year .year-badges {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 0.7rem;
+  vertical-align: super;
+}
+
+.year-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  background: var(--accent2);
+  color: #05111b;
+  border-radius: 4px;
+  font-weight: 700;
+  margin-left: 4px;
+}
+
+.memory-doomsday {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .question-value {
+    font-size: 2.5rem;
+  }
+
+  .answer-btn {
+    font-size: 1rem;
+    padding: 16px;
+  }
+}
