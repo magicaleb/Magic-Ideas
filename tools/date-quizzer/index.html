@@ -31,9 +31,21 @@
           🗓️ Date → Weekday
           <span class="mode-desc">Given a date, calculate the day of week</span>
         </button>
+        <button class="xl mode-btn" data-mode="date-picker">
+          📅 Date Picker
+          <span class="mode-desc">Select a date to see its weekday</span>
+        </button>
         <button class="xl mode-btn" data-mode="memory-helper">
           🧠 Memory Helper
           <span class="mode-desc">Browse and memorize all doomsdays</span>
+        </button>
+        <button class="xl mode-btn" data-mode="statistics">
+          📊 Statistics
+          <span class="mode-desc">View your performance and progress</span>
+        </button>
+        <button class="xl mode-btn ghost" data-mode="settings">
+          ⚙️ Settings
+          <span class="mode-desc">Customize quiz options and filters</span>
         </button>
       </div>
     </div>
@@ -46,6 +58,14 @@
           Score: <span id="score">0</span> / <span id="total">0</span>
           <span class="accuracy" id="accuracy"></span>
         </div>
+      </div>
+
+      <!-- Progress Indicator -->
+      <div class="progress-indicator hidden" id="progressIndicator">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">Question 1 of 10</div>
       </div>
 
       <!-- Question Display -->
@@ -80,6 +100,204 @@
 
       <div class="memory-grid" id="memoryGrid">
         <!-- Memory cards will be generated dynamically -->
+      </div>
+    </div>
+
+    <!-- Date Picker -->
+    <div class="date-picker-container hidden" id="datePickerContainer">
+      <div class="quiz-header">
+        <button class="btn-back" id="btnBackDatePicker">← Back</button>
+        <h2>📅 Date Picker</h2>
+      </div>
+
+      <div class="date-picker-content">
+        <p class="subtitle">Select any date to see what day of the week it was</p>
+        
+        <div class="date-input-group">
+          <label for="dateInput">Select Date</label>
+          <input type="date" id="dateInput" class="date-input" min="1970-01-01" max="2029-12-31">
+        </div>
+
+        <div class="date-result hidden" id="dateResult">
+          <div class="result-card">
+            <div class="result-date" id="resultDate">January 1, 2000</div>
+            <div class="result-weekday" id="resultWeekday">Saturday</div>
+            <div class="result-details" id="resultDetails">
+              <div class="detail-item">
+                <span class="detail-label">Year:</span>
+                <span class="detail-value" id="resultYear">2000</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Doomsday:</span>
+                <span class="detail-value" id="resultDoomsday">Tuesday</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Leap Year:</span>
+                <span class="detail-value" id="resultLeap">Yes</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="statistics-container hidden" id="statisticsContainer">
+      <div class="quiz-header">
+        <button class="btn-back" id="btnBackStats">← Back</button>
+        <h2>📊 Statistics</h2>
+      </div>
+
+      <div class="stats-content" id="statsContent">
+        <!-- Overall Stats -->
+        <div class="stats-section">
+          <h3>Overall Performance</h3>
+          <div class="stats-cards">
+            <div class="stat-card">
+              <div class="stat-value" id="statTotal">0</div>
+              <div class="stat-label">Total Questions</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="statCorrect">0</div>
+              <div class="stat-label">Correct Answers</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="statAccuracy">0%</div>
+              <div class="stat-label">Accuracy</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="statStreak">0</div>
+              <div class="stat-label">Current Streak</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Decade Stats -->
+        <div class="stats-section">
+          <h3>Performance by Decade</h3>
+          <div class="decade-stats" id="decadeStats">
+            <!-- Decade stats will be generated dynamically -->
+          </div>
+        </div>
+
+        <!-- Weekday Confusion Matrix -->
+        <div class="stats-section">
+          <h3>Weekday Confusion Matrix</h3>
+          <p class="subtitle">Which days you confuse with each other</p>
+          <div class="confusion-matrix" id="confusionMatrix">
+            <!-- Matrix will be generated dynamically -->
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="stats-actions">
+          <button class="ghost" id="btnResetStats">Reset All Statistics</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="settings-container hidden" id="settingsContainer">
+      <div class="quiz-header">
+        <button class="btn-back" id="btnBackSettings">← Back</button>
+        <h2>⚙️ Settings</h2>
+      </div>
+
+      <div class="settings-content">
+        <!-- Quiz Filters -->
+        <div class="settings-section">
+          <h3>Quiz Filters</h3>
+          
+          <div class="setting-group">
+            <label>Filter by Decade</label>
+            <div class="checkbox-group" id="decadeFilters">
+              <label class="checkbox-label">
+                <input type="checkbox" value="1970" checked> 1970s
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" value="1980" checked> 1980s
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" value="1990" checked> 1990s
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" value="2000" checked> 2000s
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" value="2010" checked> 2010s
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" value="2020" checked> 2020s
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <label for="yearRangeStart">Custom Year Range</label>
+            <div class="row">
+              <input type="number" id="yearRangeStart" min="1970" max="2029" placeholder="Start Year">
+              <span>to</span>
+              <input type="number" id="yearRangeEnd" min="1970" max="2029" placeholder="End Year">
+            </div>
+          </div>
+        </div>
+
+        <!-- Quiz Options -->
+        <div class="settings-section">
+          <h3>Quiz Options</h3>
+          
+          <div class="setting-group">
+            <label for="quizLength">Questions per Session</label>
+            <select id="quizLength" class="select-input">
+              <option value="10">10 Questions</option>
+              <option value="20">20 Questions</option>
+              <option value="50">50 Questions</option>
+              <option value="-1">Unlimited</option>
+            </select>
+          </div>
+
+          <div class="setting-group">
+            <label for="difficulty">Difficulty Level</label>
+            <select id="difficulty" class="select-input">
+              <option value="easy">Easy - Milestone years only (0, 5)</option>
+              <option value="medium" selected>Medium - Random selection</option>
+              <option value="hard">Hard - Non-milestone years</option>
+            </select>
+          </div>
+
+          <div class="setting-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="practiceMode"> Practice Mode
+              <span class="setting-desc">Show answers with explanations</span>
+            </label>
+          </div>
+
+          <div class="setting-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="timedMode"> Timed Mode
+              <span class="setting-desc">Add timer to challenge speed</span>
+            </label>
+          </div>
+
+          <div class="setting-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="focusWeakAreas"> Focus on Weak Areas
+              <span class="setting-desc">Prioritize years/decades with low accuracy</span>
+            </label>
+          </div>
+
+          <div class="setting-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="keyboardShortcuts" checked> Keyboard Shortcuts
+              <span class="setting-desc">Use 1-7 for days, Enter for next</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="settings-actions">
+          <button class="xl" id="btnSaveSettings">Save Settings</button>
+        </div>
       </div>
     </div>
   </div>
