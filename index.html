@@ -9,12 +9,20 @@
   <title>Magic Pad</title>
   <link rel="stylesheet" href="assets/css/base.css">
   <style>
-    /* Full-screen approach like simple-pwa.html */
+    /* Override base.css to allow scrolling on index page */
     html, body {
       margin: 0;
       padding: 0;
       width: 100vw;
-      height: 100dvh;
+      min-height: 100dvh;
+      height: auto !important;
+      overflow: visible !important;
+      overflow-y: auto !important;
+    }
+    
+    /* Add safe-area padding for iOS */
+    .container {
+      padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
     }
     
     /* Prevent iOS from showing navigation UI on touch */
@@ -23,6 +31,8 @@
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
+      position: relative;
+      z-index: 10;
     }
   </style>
 </head>
@@ -68,21 +78,29 @@
             }
           };
           
-          // Prevent all touch events to block iOS UI
+          // Track touch start position to detect scrolling vs tapping
+          let touchStartY = 0;
+          let touchStartX = 0;
+          
           button.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+            touchStartY = e.touches[0].clientY;
+            touchStartX = e.touches[0].clientX;
+          }, { passive: true });
+          
+          button.addEventListener('touchmove', (e) => {
+            // Allow scrolling if user is moving vertically
+            const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
+            const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
+            
+            // Only prevent if movement is minimal (actual tap vs scroll)
+            if (deltaY < 10 && deltaX < 10) {
+              e.preventDefault();
+            }
           }, { passive: false });
           
           button.addEventListener('touchend', (e) => {
-            // Don't prevent - allow touch to convert to click
             e.stopPropagation();
-          }, { passive: false });
-          
-          button.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }, { passive: false });
+          }, { passive: true });
           
           button.addEventListener('click', navigate);
         });
