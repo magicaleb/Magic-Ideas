@@ -38,20 +38,31 @@
 
   // Load CSV data
   async function loadDoomsdays() {
-    const response = await fetch('doomsdays.csv');
-    const text = await response.text();
-    const lines = text.trim().split('\n');
-    
-    // Skip header
-    doomsdays = lines.slice(1).map(line => {
-      const [year, doomsday] = line.split(',');
-      return {
-        year: parseInt(year),
-        doomsday: doomsday.trim(),
-        isLeap: isLeapYear(parseInt(year)),
-        isMilestone: parseInt(year) % 5 === 0
-      };
-    });
+    try {
+      const response = await fetch('doomsdays.csv');
+      if (!response.ok) {
+        throw new Error(`Failed to load CSV: ${response.statusText}`);
+      }
+      const text = await response.text();
+      const lines = text.trim().split('\n');
+      
+      // Skip header and filter out empty lines
+      doomsdays = lines.slice(1)
+        .filter(line => line.trim().length > 0)
+        .map(line => {
+          const [year, doomsday] = line.split(',');
+          const yearNum = parseInt(year);
+          return {
+            year: yearNum,
+            doomsday: doomsday.trim(),
+            isLeap: isLeapYear(yearNum),
+            isMilestone: yearNum % 5 === 0
+          };
+        });
+    } catch (error) {
+      console.error('Error loading doomsdays:', error);
+      throw error;
+    }
   }
 
   // Check if year is leap year
@@ -161,11 +172,11 @@
     const correctAnswer = currentQuestion.year.toString();
     
     // Create options with correct year and 3 random wrong years
-    const wrongYears = doomsdays
+    const wrongYearsList = doomsdays
       .filter(d => d.year !== currentQuestion.year)
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3)
       .map(d => d.year.toString());
+    const shuffledWrongYears = shuffleArray(wrongYearsList);
+    const wrongYears = shuffledWrongYears.slice(0, 3);
     
     const options = shuffleArray([correctAnswer, ...wrongYears]);
     
