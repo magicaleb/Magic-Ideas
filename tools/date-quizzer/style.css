@@ -1,5 +1,15 @@
 /* Date Quizzer Specific Styles */
 
+/* Add top safe area inset to container for devices with notches */
+.container {
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  /* Enable scrolling for fullscreen mode */
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .subtitle {
   color: var(--muted);
   margin-top: -8px;
@@ -100,6 +110,8 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   margin-bottom: 24px;
+  /* Add bottom safe area inset to prevent buttons from being cut off */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .answer-grid.single-column {
@@ -189,6 +201,8 @@
 /* Next Container */
 .next-container {
   text-align: center;
+  /* Add bottom safe area inset for devices with home indicators */
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
 }
 
 /* Memory Helper */
@@ -200,6 +214,8 @@
   display: grid;
   gap: 12px;
   margin-top: 24px;
+  /* Add bottom safe area inset for scrollable content */
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
 }
 
 .memory-card {
