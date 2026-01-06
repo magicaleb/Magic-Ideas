@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0b1020">
+  <title>Date Quizzer — Magic Ideas</title>
+  <link rel="stylesheet" href="../../assets/css/base.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>📅 Date Quizzer</h1>
+    <p class="subtitle">Master the Doomsday algorithm by memorizing doomsdays and calculating dates!</p>
+
+    <!-- Mode Selection -->
+    <div class="mode-selection" id="modeSelection">
+      <h2>Choose Quiz Mode</h2>
+      <div class="stack">
+        <button class="xl mode-btn" data-mode="year-to-doomsday">
+          📆 Year → Doomsday
+          <span class="mode-desc">Given a year, select its doomsday</span>
+        </button>
+        <button class="xl mode-btn" data-mode="doomsday-to-year">
+          🔢 Doomsday → Year
+          <span class="mode-desc">Given a doomsday, find the year</span>
+        </button>
+        <button class="xl mode-btn" data-mode="date-to-weekday">
+          🗓️ Date → Weekday
+          <span class="mode-desc">Given a date, calculate the day of week</span>
+        </button>
+        <button class="xl mode-btn" data-mode="memory-helper">
+          🧠 Memory Helper
+          <span class="mode-desc">Browse and memorize all doomsdays</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Quiz Container -->
+    <div class="quiz-container hidden" id="quizContainer">
+      <div class="quiz-header">
+        <button class="btn-back" id="btnBack">← Back</button>
+        <div class="score">
+          Score: <span id="score">0</span> / <span id="total">0</span>
+          <span class="accuracy" id="accuracy"></span>
+        </div>
+      </div>
+
+      <!-- Question Display -->
+      <div class="question-card">
+        <div class="question-label" id="questionLabel">What is the doomsday for:</div>
+        <div class="question-value" id="questionValue">1984</div>
+      </div>
+
+      <!-- Answer Options -->
+      <div class="answer-grid" id="answerGrid">
+        <!-- Buttons will be generated dynamically -->
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback hidden" id="feedback">
+        <div class="feedback-icon" id="feedbackIcon">✓</div>
+        <div class="feedback-text" id="feedbackText">Correct!</div>
+      </div>
+
+      <!-- Next Button -->
+      <div class="next-container hidden" id="nextContainer">
+        <button class="xl" id="btnNext">Next Question →</button>
+      </div>
+    </div>
+
+    <!-- Memory Helper -->
+    <div class="memory-container hidden" id="memoryContainer">
+      <div class="quiz-header">
+        <button class="btn-back" id="btnBackMemory">← Back</button>
+        <h2>Memory Helper</h2>
+      </div>
+
+      <div class="memory-grid" id="memoryGrid">
+        <!-- Memory cards will be generated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
