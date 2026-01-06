@@ -89,12 +89,14 @@
           
           button.addEventListener('touchmove', (e) => {
             // Allow scrolling if user is moving vertically
-            const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
-            const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
-            
-            // Only prevent if movement is minimal (actual tap vs scroll)
-            if (deltaY < 10 && deltaX < 10) {
-              e.preventDefault();
+            if (e.touches && e.touches.length > 0) {
+              const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
+              const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
+              
+              // Only prevent if movement is minimal (actual tap vs scroll)
+              if (deltaY < 10 && deltaX < 10) {
+                e.preventDefault();
+              }
             }
           }, { passive: false });
           
