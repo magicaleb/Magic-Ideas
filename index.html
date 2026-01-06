@@ -16,6 +16,14 @@
       width: 100vw;
       height: 100dvh;
     }
+    
+    /* Prevent iOS from showing navigation UI on touch */
+    button[data-href] {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -59,9 +67,20 @@
             }
           };
           
-          // Attach touchstart with preventDefault to block iOS UI early
+          // Prevent all touch events to block iOS UI
           button.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            e.stopPropagation();
+          }, { passive: false });
+          
+          button.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }, { passive: false });
+          
+          button.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
           }, { passive: false });
           
           button.addEventListener('click', navigate);

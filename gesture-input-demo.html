@@ -18,6 +18,14 @@
             overscroll-behavior: none;
             touch-action: none;
         }
+        
+        /* Prevent iOS from showing navigation UI on touch */
+        .back-button[data-href] {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
 
         body {
             font-family: -apple-system, system-ui, sans-serif;
@@ -197,9 +205,20 @@
                         }
                     };
                     
-                    // Attach touchstart with preventDefault to block iOS UI early
+                    // Prevent all touch events to block iOS UI
                     backButton.addEventListener('touchstart', (e) => {
                         e.preventDefault();
+                        e.stopPropagation();
+                    }, { passive: false });
+                    
+                    backButton.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }, { passive: false });
+                    
+                    backButton.addEventListener('touchmove', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
                     }, { passive: false });
                     
                     backButton.addEventListener('click', navigate);
