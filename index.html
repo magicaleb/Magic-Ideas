@@ -75,7 +75,7 @@
           }, { passive: false });
           
           button.addEventListener('touchend', (e) => {
-            e.preventDefault();
+            // Don't prevent - allow touch to convert to click
             e.stopPropagation();
           }, { passive: false });
           
