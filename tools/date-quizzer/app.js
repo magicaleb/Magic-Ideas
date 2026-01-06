@@ -278,6 +278,11 @@
     currentMode = null;
   }
 
+  // Constants for weak area detection
+  const WEAK_ACCURACY_THRESHOLD = 0.6;
+  const MIN_ATTEMPTS_FOR_WEAK_DETECTION = 2;
+  const WEAK_AREA_WEIGHT = 0.7;
+
   // Get filtered doomsdays based on settings
   function getFilteredDoomsdays() {
     let filtered = [...doomsdays];
@@ -308,14 +313,14 @@
           const stats = statistics.yearStats[year];
           const total = stats.correct + stats.incorrect;
           const accuracy = total > 0 ? stats.correct / total : 1;
-          return accuracy < 0.6 && total >= 2; // Less than 60% accuracy with at least 2 attempts
+          return accuracy < WEAK_ACCURACY_THRESHOLD && total >= MIN_ATTEMPTS_FOR_WEAK_DETECTION;
         })
         .map(y => parseInt(y));
 
       if (weakYears.length > 0) {
         const weakDoomsdays = filtered.filter(d => weakYears.includes(d.year));
         // 70% weak areas, 30% random
-        if (weakDoomsdays.length > 0 && Math.random() < 0.7) {
+        if (weakDoomsdays.length > 0 && Math.random() < WEAK_AREA_WEIGHT) {
           filtered = weakDoomsdays;
         }
       }
@@ -615,11 +620,13 @@
   function handleDateSelection() {
     const dateInput = document.getElementById('dateInput');
     const dateResult = document.getElementById('dateResult');
-    const selectedDate = new Date(dateInput.value + 'T00:00:00');
     
     if (!dateInput.value) return;
+    
+    // Parse date from input value (YYYY-MM-DD format)
+    const [year, month, day] = dateInput.value.split('-').map(Number);
+    const selectedDate = new Date(year, month - 1, day);
 
-    const year = selectedDate.getFullYear();
     const dayOfWeek = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
     const dateStr = selectedDate.toLocaleDateString('en-US', { 
       month: 'long', 
