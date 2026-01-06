@@ -116,14 +116,26 @@
       });
     }
 
-    document.getElementById('perform').addEventListener('click', e => {
-      e.preventDefault();
-      persist();
-      const href = e.currentTarget.getAttribute('data-href');
-      if (href) {
-        window.location.href = href;
-      }
-    });
+    const performButton = document.getElementById('perform');
+    if (performButton) {
+      // Handle both touch and click events to prevent iOS UI elements
+      const navigate = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        persist();
+        const href = e.currentTarget.getAttribute('data-href');
+        if (href) {
+          window.location.href = href;
+        }
+      };
+      
+      // Attach touchstart with preventDefault to block iOS UI early
+      performButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+      }, { passive: false });
+      
+      performButton.addEventListener('click', navigate);
+    }
   </script>
 </body>
 </html>

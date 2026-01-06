@@ -182,18 +182,37 @@
     <script src="assets/js/inputModes.js"></script>
     <script>
         // Handle back button navigation
-        document.addEventListener('DOMContentLoaded', () => {
-            const backButton = document.querySelector('.back-button[data-href]');
-            if (backButton) {
-                backButton.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const href = backButton.getAttribute('data-href');
-                    if (href) {
-                        window.location.href = href;
-                    }
-                });
+        // Execute immediately without DOMContentLoaded to avoid race conditions on iOS PWA
+        (function() {
+            const attachBackButtonHandler = () => {
+                const backButton = document.querySelector('.back-button[data-href]');
+                if (backButton) {
+                    // Handle both touch and click events to prevent iOS UI elements
+                    const navigate = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const href = backButton.getAttribute('data-href');
+                        if (href) {
+                            window.location.href = href;
+                        }
+                    };
+                    
+                    // Attach touchstart with preventDefault to block iOS UI early
+                    backButton.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                    }, { passive: false });
+                    
+                    backButton.addEventListener('click', navigate);
+                }
+            };
+            
+            // If DOM is already loaded, run immediately; otherwise wait
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', attachBackButtonHandler);
+            } else {
+                attachBackButtonHandler();
             }
-        });
+        })();
 
         // Initialize input mode manager
         const inputModeManager = new InputModeManager();
