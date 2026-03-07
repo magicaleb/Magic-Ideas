@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#f2f2f7">
+  <title>Contacts</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app" aria-label="Contacts app">
+    <header class="topbar">
+      <h1>Contacts</h1>
+    </header>
+
+    <div class="search-wrap">
+      <label for="searchInput" class="sr-only">Search contacts</label>
+      <input id="searchInput" type="search" placeholder="Search" autocomplete="off">
+    </div>
+
+    <section id="listView" class="list-view" aria-label="Contact list"></section>
+
+    <aside id="alphaIndex" class="alpha-index" aria-label="Alphabet index"></aside>
+
+    <section id="detailView" class="detail-view hidden" aria-live="polite" aria-label="Contact details">
+      <div class="detail-header">
+        <button id="backBtn" class="back-btn" aria-label="Back to contacts">‹ Contacts</button>
+        <h2 id="detailName"></h2>
+      </div>
+
+      <div id="loadingCard" class="loading-card hidden" aria-hidden="true">
+        <div class="shimmer-line w40"></div>
+        <div class="shimmer-line"></div>
+        <div class="shimmer-line"></div>
+        <div class="shimmer-line w70"></div>
+      </div>
+
+      <div id="detailCard" class="detail-card hidden">
+        <div class="action-row">
+          <button class="action">call</button>
+          <button class="action">message</button>
+          <button class="action">FaceTime</button>
+          <button class="action">mail</button>
+        </div>
+
+        <div class="info-group">
+          <p class="label">phone</p>
+          <p id="detailPhone" class="value"></p>
+        </div>
+
+        <div class="info-group">
+          <p class="label">email</p>
+          <p id="detailEmail" class="value"></p>
+        </div>
+
+        <div class="info-group">
+          <p class="label">birthday</p>
+          <p id="detailBirthday" class="value"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
