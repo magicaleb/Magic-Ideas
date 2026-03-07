@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="430" height="932" viewBox="0 0 430 932">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e2947"/>
+      <stop offset="1" stop-color="#0b1123"/>
+    </linearGradient>
+  </defs>
+  <rect width="430" height="932" fill="url(#bg)"/>
+  <text x="24" y="56" fill="#fff" font-size="28" font-family="-apple-system,Segoe UI,sans-serif">iPhone Mirage — Settings</text>
+  <rect x="16" y="88" width="398" height="122" rx="16" fill="#121a35" stroke="#2d3968"/>
+  <text x="30" y="120" fill="#cfe0ff" font-size="15">Wallpaper image (optional)</text>
+  <rect x="30" y="136" width="370" height="46" rx="10" fill="#0c1430" stroke="#3a4d86"/>
+  <rect x="16" y="224" width="398" height="128" rx="16" fill="#121a35" stroke="#2d3968"/>
+  <text x="30" y="256" fill="#fff" font-size="20">Capture behavior</text>
+  <text x="30" y="286" fill="#cfe0ff" font-size="14">Trigger app: Utilities</text>
+  <rect x="16" y="366" width="398" height="300" rx="16" fill="#121a35" stroke="#2d3968"/>
+  <text x="30" y="398" fill="#fff" font-size="20">App value map</text>
+  <g fill="#0f1834" stroke="#304278">
+    <rect x="30" y="420" width="178" height="68" rx="12"/>
+    <rect x="222" y="420" width="178" height="68" rx="12"/>
+    <rect x="30" y="500" width="178" height="68" rx="12"/>
+    <rect x="222" y="500" width="178" height="68" rx="12"/>
+  </g>
+  <rect x="16" y="680" width="398" height="200" rx="16" fill="#121a35" stroke="#2d3968"/>
+  <text x="30" y="714" fill="#fff" font-size="20">Debug and verification</text>
+  <text x="30" y="744" fill="#98f8c5" font-size="15">Current captured input: 34</text>
+  <rect x="30" y="758" width="370" height="66" rx="10" fill="#0c1430" stroke="#3a4d86"/>
+</svg>
