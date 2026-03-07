@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>iPhone Mirage Settings</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body data-page="settings">
+  <main class="settings-shell">
+    <section class="settings-card">
+      <h1>iPhone Mirage — Settings</h1>
+      <p>Upload your iPhone 15 Pro Max wallpaper screenshot, assign values to each icon, and pick the trigger app that copies the captured sequence.</p>
+      <label for="wallpaperInput">Wallpaper image (optional)</label>
+      <input id="wallpaperInput" type="file" accept="image/*">
+    </section>
+
+    <section class="settings-card">
+      <h2>Capture behavior</h2>
+      <label for="triggerApp">Trigger app (copies the current captured value to clipboard)</label>
+      <select id="triggerApp"></select>
+      <p style="font-size:12px;margin-top:8px">Secret access from Perform mode: long-press <strong>Clock</strong> for 1+ second, then tap the top-left corner 3 times.</p>
+    </section>
+
+    <section class="settings-card">
+      <h2>App value map</h2>
+      <div id="appMap" class="app-map"></div>
+    </section>
+
+    <section class="settings-card">
+      <h2>Debug and verification</h2>
+      <p>Current captured input: <span id="currentResult" class="result-pill">(empty)</span></p>
+      <label for="clipboardProbe">Clipboard verification field (paste here after trigger app)</label>
+      <textarea id="clipboardProbe" rows="3" placeholder="Paste clipboard result here to verify"></textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+        <button id="resetBuffer" type="button">Reset captured input</button>
+        <button id="goPerform" type="button">Open Perform Mode</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="../../assets/js/storage.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
