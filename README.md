@@ -71,6 +71,17 @@ Interactive drawing trick for the classic hangman game.
 ### Time Travel
 A time manipulation utility.
 
+### Card Stack Trainer
+A colorful PWA trainer for memorized deck work with two-way recall drills, adaptive weak-spot practice, and progress statistics.
+
+- **Location**: `tools/card-stack-trainer/`
+- **Modes**:
+  - Number → Card
+  - Card → Number
+  - Mixed adaptive drills
+  - Stack Explorer
+  - Progress dashboard
+
 ### Simple PWA Demo
 Demonstrates Progressive Web App capabilities.
 
@@ -236,6 +247,7 @@ Magic-Ideas/
 │   │   └── perform.html
 │   └── hangman/                  # Hangman drawing
 ├── tools/
+│   ├── card-stack-trainer/       # Memorized deck PWA trainer
 │   └── time-travel/              # Time travel utility
 ├── gesture-input-demo.html       # Interactive demo of gesture input modes
 ├── contained-swipe.html          # Contained swipe variant
