@@ -213,12 +213,20 @@
       state.currentStreak  += 1;
       state.stats.bestStreak = Math.max(state.stats.bestStreak, state.currentStreak);
 
-      const { rank, suit } = parseCard(isNumericAnswer ? prompt.ask : prompt.answer);
-      const cardDisplay = isNumericAnswer
-        ? `${rank}${suit}`
-        : `#${prompt.answer}`;
+      let askDisplay, answerDisplay;
+      if (isNumericAnswer) {
+        // card-to-number: ask=card code, answer=position number
+        const { rank, suit } = parseCard(prompt.ask);
+        askDisplay = `${rank}${suit}`;
+        answerDisplay = `#${prompt.answer}`;
+      } else {
+        // number-to-card: ask=position number, answer=card code
+        const { rank, suit } = parseCard(prompt.answer);
+        askDisplay = `#${prompt.ask}`;
+        answerDisplay = `${rank}${suit}`;
+      }
 
-      els.feedback.innerHTML = `✅ Correct! &nbsp;<strong>${prompt.ask}</strong> ↔ <strong>${cardDisplay}</strong>`;
+      els.feedback.innerHTML = `✅ Correct! &nbsp;<strong>${askDisplay}</strong> ↔ <strong>${answerDisplay}</strong>`;
       els.feedback.className = 'feedback correct';
 
       if ((state.stats.missed[prompt.key] || 0) > 0) {
@@ -228,9 +236,15 @@
       state.currentStreak = 0;
       state.stats.missed[prompt.key] = (state.stats.missed[prompt.key] || 0) + 1;
 
-      const { rank, suit } = parseCard(isNumericAnswer ? prompt.answer : prompt.ask);
-      const cardDisplay = isNumericAnswer ? `${rank}${suit}` : `${rank}${suit}`;
-      const answerDisplay = isNumericAnswer ? cardDisplay : `#${prompt.answer}`;
+      let answerDisplay;
+      if (isNumericAnswer) {
+        // card-to-number: correct answer is the position number
+        answerDisplay = `#${prompt.answer}`;
+      } else {
+        // number-to-card: correct answer is the card
+        const { rank, suit } = parseCard(prompt.answer);
+        answerDisplay = `${rank}${suit}`;
+      }
 
       els.feedback.innerHTML = `❌ Not this time. &nbsp;Answer: <strong>${answerDisplay}</strong>`;
       els.feedback.className = 'feedback wrong';
@@ -370,7 +384,7 @@
         const { rank, suit } = parseCard(prompt.answer);
         display = `${rank}${suit}`;
       }
-      els.feedback.innerHTML = `💡 Answer: <strong>${prompt.answer}</strong>`;
+      els.feedback.innerHTML = `💡 Answer: <strong>${display}</strong>`;
       els.feedback.className = 'feedback reveal';
       els.feedback.classList.remove('hidden');
     });
