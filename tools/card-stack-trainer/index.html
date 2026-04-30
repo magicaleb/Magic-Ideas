@@ -79,8 +79,57 @@
       </div>
 
       <form class="answer-form" id="answerForm" autocomplete="off">
-        <label for="answerInput" id="answerLabel">Enter card (e.g. 5H)</label>
-        <input id="answerInput" inputmode="text" autocapitalize="characters" spellcheck="false" required>
+        <label id="answerLabel">Select your answer</label>
+        <input id="answerInput" type="hidden">
+
+        <!-- Card keypad: shown when answering with a card (number-to-card mode) -->
+        <div class="card-keypad" id="cardKeypad">
+          <div class="keypad-display" id="cardDisplay">
+            <span class="disp-rank" id="dispRank">?</span><span class="disp-suit" id="dispSuit">?</span>
+          </div>
+          <div class="keypad-ranks">
+            <button type="button" class="key-btn rank-btn" data-rank="A">A</button>
+            <button type="button" class="key-btn rank-btn" data-rank="2">2</button>
+            <button type="button" class="key-btn rank-btn" data-rank="3">3</button>
+            <button type="button" class="key-btn rank-btn" data-rank="4">4</button>
+            <button type="button" class="key-btn rank-btn" data-rank="5">5</button>
+            <button type="button" class="key-btn rank-btn" data-rank="6">6</button>
+            <button type="button" class="key-btn rank-btn" data-rank="7">7</button>
+            <button type="button" class="key-btn rank-btn" data-rank="8">8</button>
+            <button type="button" class="key-btn rank-btn" data-rank="9">9</button>
+            <button type="button" class="key-btn rank-btn" data-rank="T">10</button>
+            <button type="button" class="key-btn rank-btn" data-rank="J">J</button>
+            <button type="button" class="key-btn rank-btn" data-rank="Q">Q</button>
+            <button type="button" class="key-btn rank-btn" data-rank="K">K</button>
+          </div>
+          <div class="keypad-suits">
+            <button type="button" class="key-btn suit-btn suit-red" data-suit="H">♥</button>
+            <button type="button" class="key-btn suit-btn suit-red" data-suit="D">♦</button>
+            <button type="button" class="key-btn suit-btn suit-black" data-suit="C">♣</button>
+            <button type="button" class="key-btn suit-btn suit-black" data-suit="S">♠</button>
+          </div>
+          <button type="button" class="key-clear" id="cardClear">✕  Clear</button>
+        </div>
+
+        <!-- Number keypad: shown when answering with a position (card-to-number mode) -->
+        <div class="num-keypad hidden" id="numKeypad">
+          <div class="keypad-display" id="numDisplay">–</div>
+          <div class="keypad-nums">
+            <button type="button" class="key-btn num-btn" data-num="1">1</button>
+            <button type="button" class="key-btn num-btn" data-num="2">2</button>
+            <button type="button" class="key-btn num-btn" data-num="3">3</button>
+            <button type="button" class="key-btn num-btn" data-num="4">4</button>
+            <button type="button" class="key-btn num-btn" data-num="5">5</button>
+            <button type="button" class="key-btn num-btn" data-num="6">6</button>
+            <button type="button" class="key-btn num-btn" data-num="7">7</button>
+            <button type="button" class="key-btn num-btn" data-num="8">8</button>
+            <button type="button" class="key-btn num-btn" data-num="9">9</button>
+            <button type="button" class="key-btn num-btn" data-num="0">0</button>
+            <button type="button" class="key-btn key-back" id="numBack">⌫</button>
+          </div>
+          <button type="button" class="key-clear" id="numClear">✕  Clear</button>
+        </div>
+
         <button class="btn-check" type="submit">Check Answer</button>
       </form>
 

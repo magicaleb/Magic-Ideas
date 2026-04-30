@@ -61,7 +61,20 @@
     statBestStreak: document.getElementById('statBestStreak'),
     weakList:       document.getElementById('weakList'),
     btnReset:       document.getElementById('btnReset'),
+    // Keypads
+    cardKeypad:     document.getElementById('cardKeypad'),
+    numKeypad:      document.getElementById('numKeypad'),
+    dispRank:       document.getElementById('dispRank'),
+    dispSuit:       document.getElementById('dispSuit'),
+    numDisplay:     document.getElementById('numDisplay'),
+    cardClear:      document.getElementById('cardClear'),
+    numClear:       document.getElementById('numClear'),
+    numBack:        document.getElementById('numBack'),
   };
+
+  // Keypad selection state
+  const cardSel = { rank: null, suit: null };
+  let numVal = '';
 
   /* ── Timer ──────────────────────────────────────────────────── */
   const timer = setInterval(() => {
@@ -124,8 +137,9 @@
     els.questionValue.textContent = String(num);
     els.questionValue.classList.remove('is-red');
     els.questionSuit.classList.add('hidden');
-    els.answerLabel.textContent = 'Enter card  (e.g. 5H, KD, 10C)';
-    els.answerInput.inputMode = 'text';
+    els.answerLabel.textContent = 'Select the card at this position';
+    els.cardKeypad.classList.remove('hidden');
+    els.numKeypad.classList.add('hidden');
   }
 
   function showQuestionAsCard(code) {
@@ -137,7 +151,8 @@
     els.questionSuit.textContent = suit;
     els.questionSuit.className = `question-suit ${isRed ? 'is-red' : 'is-black'}`;
     els.answerLabel.textContent = 'Enter position  (1–52)';
-    els.answerInput.inputMode = 'numeric';
+    els.cardKeypad.classList.add('hidden');
+    els.numKeypad.classList.remove('hidden');
   }
 
   function setView(name) {
@@ -186,7 +201,8 @@
     }
 
     els.answerInput.value = '';
-    els.answerInput.focus();
+    resetCardKeypad();
+    resetNumKeypad();
     els.feedback.classList.add('hidden');
     els.btnNext.classList.remove('pulse');
     els.timerValue.textContent = '0.0s';
@@ -270,12 +286,9 @@
       tile.type = 'button';
       tile.className = `stack-tile${isRed ? ' red-card' : ''}${isMastered ? ' mastered' : ''}`;
 
-      const suitFront = isRed ? (card[1] === 'H' ? '♥' : '♦') : (card[1] === 'S' ? '♠' : '♣');
-
       tile.innerHTML = `
         <span class="face front">
           <span class="tile-pos">#${n}</span>
-          <span class="tile-suit-front">${suitFront}</span>
         </span>
         <span class="face back">
           <span class="tile-rank">${rank}</span>
@@ -333,6 +346,24 @@
     });
   }
 
+  /* ── Keypad helpers ──────────────────────────────────────────── */
+  function resetCardKeypad() {
+    cardSel.rank = null;
+    cardSel.suit = null;
+    els.dispRank.textContent = '?';
+    els.dispRank.className = 'disp-rank';
+    els.dispSuit.textContent = '?';
+    els.dispSuit.className = 'disp-suit';
+    document.querySelectorAll('.rank-btn.selected, .suit-btn.selected').forEach(b => b.classList.remove('selected'));
+    els.answerInput.value = '';
+  }
+
+  function resetNumKeypad() {
+    numVal = '';
+    els.numDisplay.textContent = '–';
+    els.answerInput.value = '';
+  }
+
   /* ── Event wiring ────────────────────────────────────────────── */
   function setupEvents() {
     document.querySelectorAll('.mode-card').forEach((btn) => {
@@ -369,8 +400,57 @@
 
     els.answerForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      evaluate(els.answerInput.value);
+      const val = els.answerInput.value.trim();
+      if (!val) return;
+      evaluate(val);
     });
+
+    // ── Card keypad ──
+    document.querySelectorAll('.rank-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        cardSel.rank = btn.dataset.rank;
+        document.querySelectorAll('.rank-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        const display = btn.dataset.rank === 'T' ? '10' : btn.dataset.rank;
+        els.dispRank.textContent = display;
+        els.dispRank.className = 'disp-rank active';
+        if (cardSel.rank && cardSel.suit) els.answerInput.value = cardSel.rank + cardSel.suit;
+      });
+    });
+
+    document.querySelectorAll('.suit-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        cardSel.suit = btn.dataset.suit;
+        document.querySelectorAll('.suit-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        const sym = SUIT_SYMBOL[btn.dataset.suit];
+        const isRed = RED_SUITS.has(btn.dataset.suit);
+        els.dispSuit.textContent = sym;
+        els.dispSuit.className = `disp-suit ${isRed ? 'is-red' : 'is-black'}`;
+        if (cardSel.rank && cardSel.suit) els.answerInput.value = cardSel.rank + cardSel.suit;
+      });
+    });
+
+    els.cardClear.addEventListener('click', resetCardKeypad);
+
+    // ── Number keypad ──
+    document.querySelectorAll('.num-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (numVal.length >= 2) return;
+        if (numVal === '' && btn.dataset.num === '0') return; // no leading zero
+        numVal += btn.dataset.num;
+        els.numDisplay.textContent = numVal;
+        els.answerInput.value = numVal;
+      });
+    });
+
+    els.numBack.addEventListener('click', () => {
+      numVal = numVal.slice(0, -1);
+      els.numDisplay.textContent = numVal || '–';
+      els.answerInput.value = numVal;
+    });
+
+    els.numClear.addEventListener('click', resetNumKeypad);
 
     els.btnReveal.addEventListener('click', () => {
       if (!state.currentPrompt) return;
@@ -401,9 +481,10 @@
 
     document.addEventListener('keydown', (e) => {
       if (els.trainer.classList.contains('hidden')) return;
-      if (e.key === 'Enter' && document.activeElement !== els.answerInput) {
+      if (e.key === 'Enter') {
         e.preventDefault();
-        evaluate(els.answerInput.value);
+        const val = els.answerInput.value.trim();
+        if (val) evaluate(val);
       }
       if (e.key.toLowerCase() === 'n') { e.preventDefault(); nextPrompt(); }
       if (e.key.toLowerCase() === 'r') { e.preventDefault(); els.btnReveal.click(); }
