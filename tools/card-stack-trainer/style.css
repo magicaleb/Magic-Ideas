@@ -251,7 +251,7 @@ html, body {
   border-radius: 28px;
   padding: 28px 24px 24px;
   text-align: center;
-  min-height: 46vh;
+  min-height: 28vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -625,6 +625,157 @@ html, body {
 
 .btn-reset:active {
   background: rgba(255, 100, 130, 0.2);
+}
+
+/* ── Custom keypads ───────────────────────────────────────────── */
+.card-keypad,
+.num-keypad {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.keypad-display {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-accent);
+  border-radius: 16px;
+  padding: 10px 20px;
+  text-align: center;
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.disp-rank {
+  color: var(--muted);
+  transition: color 0.15s;
+}
+
+.disp-rank.active {
+  color: var(--text);
+}
+
+.disp-suit {
+  color: var(--muted);
+  transition: color 0.15s;
+}
+
+.disp-suit.is-red  { color: var(--red-suit); }
+.disp-suit.is-black { color: var(--black-suit); }
+
+.keypad-ranks {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.keypad-suits {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.keypad-nums {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.key-btn {
+  border: 1px solid var(--line);
+  background: var(--panel-light);
+  color: var(--text);
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.1s, transform 0.1s, border-color 0.1s, box-shadow 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.key-btn:active {
+  transform: scale(0.93);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.rank-btn {
+  font-size: 1.05rem;
+  min-height: 44px;
+  padding: 8px 2px;
+}
+
+.rank-btn.selected {
+  background: rgba(196, 168, 255, 0.28);
+  border-color: var(--lav);
+  color: var(--lav);
+}
+
+.suit-btn {
+  font-size: 1.75rem;
+  min-height: 60px;
+  padding: 10px 4px;
+}
+
+.suit-btn.suit-red  { color: var(--red-suit); }
+.suit-btn.suit-black { color: var(--black-suit); }
+
+.suit-btn.selected {
+  background: rgba(255, 255, 255, 0.14);
+  border-width: 2px;
+  border-color: currentColor;
+}
+
+.num-btn {
+  font-size: 1.4rem;
+  min-height: 52px;
+  padding: 12px 4px;
+}
+
+.key-back {
+  font-size: 1.2rem;
+  min-height: 52px;
+  padding: 12px 4px;
+  border: 1px solid var(--line);
+  background: var(--panel-light);
+  color: var(--muted);
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.key-back:active {
+  transform: scale(0.93);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.key-clear {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 100, 130, 0.3);
+  background: rgba(255, 100, 130, 0.06);
+  color: var(--rose);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s, transform 0.1s;
+}
+
+.key-clear:active {
+  transform: scale(0.97);
+  background: rgba(255, 100, 130, 0.15);
 }
 
 /* ── Animations ──────────────────────────────────────────────── */
