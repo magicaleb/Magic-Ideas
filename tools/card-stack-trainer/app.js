@@ -46,8 +46,12 @@
   // srs[idx] = { interval: days (0=learning), due: epochMs }
   // Interval ladder: 0 (learning) → 1 → 3 → 7 → 14 → 30
 
-  const SRS_KEY       = 'stackMemorizeSRS';
-  const SRS_INTERVALS = [1, 3, 7, 14, 30];
+  const SRS_KEY              = 'stackMemorizeSRS';
+  const SRS_INTERVALS        = [1, 3, 7, 14, 30]; // days
+  const MS_PER_DAY           = 86_400_000;
+  const SESSION_SIZE         = 10;
+  const MAX_DUE_PER_SESSION  = 7;
+  const MAX_REQUEUES         = 3;
 
   function loadSRS() {
     try { return JSON.parse(localStorage.getItem(SRS_KEY) || '{}'); }
@@ -73,7 +77,7 @@
   function srsGotIt(srs, idx) {
     const cur         = srs[idx];
     const newInterval = srsNextInterval(cur ? cur.interval : 0);
-    srs[idx] = { interval: newInterval, due: Date.now() + newInterval * 86_400_000 };
+    srs[idx] = { interval: newInterval, due: Date.now() + newInterval * MS_PER_DAY };
   }
 
   function srsAgain(srs, idx) {
@@ -81,7 +85,7 @@
     const newInterval = srsPrevInterval(cur ? cur.interval : 0);
     srs[idx] = {
       interval: newInterval,
-      due: newInterval > 0 ? Date.now() + newInterval * 86_400_000 : Date.now(),
+      due: newInterval > 0 ? Date.now() + newInterval * MS_PER_DAY : Date.now(),
     };
   }
 
@@ -103,16 +107,15 @@
 
   function buildSessionQueue(srs) {
     const now = Date.now();
-    const MAX = 10;
 
     const due = STACK
       .map((_, i) => ({ idx: i, due: srs[i] ? srs[i].due : Infinity }))
       .filter(c => srs[c.idx] && c.due <= now)
       .sort((a, b) => a.due - b.due)
-      .slice(0, 7)
+      .slice(0, MAX_DUE_PER_SESSION)
       .map(c => c.idx);
 
-    const remaining = MAX - due.length;
+    const remaining = SESSION_SIZE - due.length;
     const newCards  = STACK
       .map((_, i) => i)
       .filter(i => !srs[i])
@@ -137,6 +140,7 @@
     currentIdx:   null,
     flipped:      false,
     srs:          null,
+    agained:      {},   // idx → times re-queued this session (caps at 3)
   };
 
   /* ── DOM references ──────────────────────────────────────────── */
@@ -410,6 +414,7 @@
     memSess.goodCount    = 0;
     memSess.againCount   = 0;
     memSess.flipped      = false;
+    memSess.agained      = {};
 
     if (!memSess.queue.length) {
       renderMemComplete(true);
@@ -486,9 +491,13 @@
     srsAgain(memSess.srs, memSess.currentIdx);
     saveSRS(memSess.srs);
     memSess.againCount += 1;
-    // Re-insert near the end so it comes back but not immediately
-    const insertAt = Math.max(0, memSess.queue.length - 2);
-    memSess.queue.splice(insertAt, 0, memSess.currentIdx);
+    // Re-insert near the end (max 3 re-queues per card to prevent infinite loops)
+    const times = (memSess.agained[memSess.currentIdx] || 0) + 1;
+    memSess.agained[memSess.currentIdx] = times;
+    if (times <= MAX_REQUEUES) {
+      const insertAt = Math.max(0, memSess.queue.length - 2);
+      memSess.queue.splice(insertAt, 0, memSess.currentIdx);
+    }
     showMemCard();
   }
 
