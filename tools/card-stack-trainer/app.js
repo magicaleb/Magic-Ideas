@@ -8,19 +8,18 @@
     'KH','AS','KD','AC'
   ];
 
-  const SUIT_SYMBOL = { H: '♥', D: '♦', C: '♣', S: '♠' };
+  const SUIT_SYMBOL  = { H: '♥', D: '♦', C: '♣', S: '♠' };
   const RANK_DISPLAY = { A: 'A', K: 'K', Q: 'Q', J: 'J', T: '10' };
-  const RED_SUITS = new Set(['H', 'D']);
+  const RED_SUITS    = new Set(['H', 'D']);
 
   function parseCard(code) {
-    const rank = RANK_DISPLAY[code[0]] ?? code[0];
-    const suit = SUIT_SYMBOL[code[1]] ?? code[1];
+    const rank  = RANK_DISPLAY[code[0]] ?? code[0];
+    const suit  = SUIT_SYMBOL[code[1]]  ?? code[1];
     const isRed = RED_SUITS.has(code[1]);
     return { rank, suit, isRed };
   }
 
-  const cardToNumber = new Map(STACK.map((card, i) => [card, i + 1]));
-
+  /* ── Drill stats ─────────────────────────────────────────────── */
   const state = {
     mode: null,
     currentPrompt: null,
@@ -31,45 +30,187 @@
     currentStreak: 0,
   };
 
+  function loadStats() {
+    const defaults = { attempts: 0, correct: 0, totalMs: 0, bestStreak: 0, missed: {} };
+    try {
+      const raw = localStorage.getItem('stackSprintStats');
+      return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
+    } catch { return defaults; }
+  }
+
+  function persistStats() {
+    localStorage.setItem('stackSprintStats', JSON.stringify(state.stats));
+  }
+
+  /* ── SRS engine ──────────────────────────────────────────────── */
+  // srs[idx] = { interval: days (0=learning), due: epochMs }
+  // Interval ladder: 0 (learning) → 1 → 3 → 7 → 14 → 30
+
+  const SRS_KEY              = 'stackMemorizeSRS';
+  const SRS_INTERVALS        = [1, 3, 7, 14, 30]; // days
+  const MS_PER_DAY           = 86_400_000;
+  const SESSION_SIZE         = 10;
+  const MAX_DUE_PER_SESSION  = 7;
+  const MAX_REQUEUES         = 3;
+
+  function loadSRS() {
+    try { return JSON.parse(localStorage.getItem(SRS_KEY) || '{}'); }
+    catch { return {}; }
+  }
+
+  function saveSRS(data) {
+    localStorage.setItem(SRS_KEY, JSON.stringify(data));
+  }
+
+  function srsNextInterval(cur) {
+    if (!cur) return 1;
+    const i = SRS_INTERVALS.indexOf(cur);
+    return i === -1 ? 1 : (i < SRS_INTERVALS.length - 1 ? SRS_INTERVALS[i + 1] : 30);
+  }
+
+  function srsPrevInterval(cur) {
+    if (!cur || cur <= 1) return 0;
+    const i = SRS_INTERVALS.indexOf(cur);
+    return i <= 0 ? 0 : SRS_INTERVALS[i - 1];
+  }
+
+  function srsGotIt(srs, idx) {
+    const cur         = srs[idx];
+    const newInterval = srsNextInterval(cur ? cur.interval : 0);
+    srs[idx] = { interval: newInterval, due: Date.now() + newInterval * MS_PER_DAY };
+  }
+
+  function srsAgain(srs, idx) {
+    const cur         = srs[idx];
+    const newInterval = srsPrevInterval(cur ? cur.interval : 0);
+    srs[idx] = {
+      interval: newInterval,
+      due: newInterval > 0 ? Date.now() + newInterval * MS_PER_DAY : Date.now(),
+    };
+  }
+
+  function srsGraduatedCount() {
+    const srs = loadSRS();
+    return STACK.filter((_, i) => srs[i] && srs[i].interval >= 1).length;
+  }
+
+  function srsDueCount() {
+    const srs = loadSRS();
+    const now = Date.now();
+    return STACK.filter((_, i) => srs[i] && srs[i].due <= now).length;
+  }
+
+  function srsNewCount() {
+    const srs = loadSRS();
+    return STACK.filter((_, i) => !srs[i]).length;
+  }
+
+  function buildSessionQueue(srs) {
+    const now = Date.now();
+
+    const due = STACK
+      .map((_, i) => ({ idx: i, due: srs[i] ? srs[i].due : Infinity }))
+      .filter(c => srs[c.idx] && c.due <= now)
+      .sort((a, b) => a.due - b.due)
+      .slice(0, MAX_DUE_PER_SESSION)
+      .map(c => c.idx);
+
+    const remaining = SESSION_SIZE - due.length;
+    const newCards  = STACK
+      .map((_, i) => i)
+      .filter(i => !srs[i])
+      .slice(0, remaining);
+
+    // Interleave due and new cards for a natural feel
+    const combined = [];
+    const len = Math.max(due.length, newCards.length);
+    for (let i = 0; i < len; i++) {
+      if (i < due.length)      combined.push(due[i]);
+      if (i < newCards.length) combined.push(newCards[i]);
+    }
+    return combined;
+  }
+
+  /* ── Memorize session state ──────────────────────────────────── */
+  const memSess = {
+    queue:        [],
+    initialCount: 0,
+    goodCount:    0,
+    againCount:   0,
+    currentIdx:   null,
+    flipped:      false,
+    srs:          null,
+    agained:      {},   // idx → times re-queued this session (caps at 3)
+  };
+
+  /* ── DOM references ──────────────────────────────────────────── */
   const els = {
-    modeGrid:       document.getElementById('modeGrid'),
-    trainer:        document.getElementById('trainer'),
-    review:         document.getElementById('review'),
-    stats:          document.getElementById('stats'),
-    streakChip:     document.getElementById('streakChip'),
-    masteryFill:    document.getElementById('masteryFill'),
-    masteryText:    document.getElementById('masteryText'),
-    btnBack:        document.getElementById('btnBack'),
-    btnBackReview:  document.getElementById('btnBackReview'),
-    btnBackStats:   document.getElementById('btnBackStats'),
-    scoreline:      document.getElementById('scoreline'),
-    questionLabel:  document.getElementById('questionLabel'),
-    questionPrefix: document.getElementById('questionPrefix'),
-    questionValue:  document.getElementById('questionValue'),
-    questionSuit:   document.getElementById('questionSuit'),
-    timerValue:     document.getElementById('timerValue'),
-    answerForm:     document.getElementById('answerForm'),
-    answerInput:    document.getElementById('answerInput'),
-    answerLabel:    document.getElementById('answerLabel'),
-    feedback:       document.getElementById('feedback'),
-    btnReveal:      document.getElementById('btnReveal'),
-    btnNext:        document.getElementById('btnNext'),
-    stackGrid:      document.getElementById('stackGrid'),
-    statAttempts:   document.getElementById('statAttempts'),
-    statAccuracy:   document.getElementById('statAccuracy'),
-    statSpeed:      document.getElementById('statSpeed'),
-    statBestStreak: document.getElementById('statBestStreak'),
-    weakList:       document.getElementById('weakList'),
-    btnReset:       document.getElementById('btnReset'),
+    modeGrid:           document.getElementById('modeGrid'),
+    trainer:            document.getElementById('trainer'),
+    memorize:           document.getElementById('memorize'),
+    stats:              document.getElementById('stats'),
+    streakChip:         document.getElementById('streakChip'),
+    masteryFill:        document.getElementById('masteryFill'),
+    masteryText:        document.getElementById('masteryText'),
+    btnBack:            document.getElementById('btnBack'),
+    btnBackStats:       document.getElementById('btnBackStats'),
+    scoreline:          document.getElementById('scoreline'),
+    questionLabel:      document.getElementById('questionLabel'),
+    questionPrefix:     document.getElementById('questionPrefix'),
+    questionValue:      document.getElementById('questionValue'),
+    questionSuit:       document.getElementById('questionSuit'),
+    timerValue:         document.getElementById('timerValue'),
+    answerForm:         document.getElementById('answerForm'),
+    answerInput:        document.getElementById('answerInput'),
+    answerLabel:        document.getElementById('answerLabel'),
+    feedback:           document.getElementById('feedback'),
+    btnReveal:          document.getElementById('btnReveal'),
+    btnNext:            document.getElementById('btnNext'),
+    statAttempts:       document.getElementById('statAttempts'),
+    statAccuracy:       document.getElementById('statAccuracy'),
+    statSpeed:          document.getElementById('statSpeed'),
+    statBestStreak:     document.getElementById('statBestStreak'),
+    weakList:           document.getElementById('weakList'),
+    btnReset:           document.getElementById('btnReset'),
     // Keypads
-    cardKeypad:     document.getElementById('cardKeypad'),
-    numKeypad:      document.getElementById('numKeypad'),
-    dispRank:       document.getElementById('dispRank'),
-    dispSuit:       document.getElementById('dispSuit'),
-    numDisplay:     document.getElementById('numDisplay'),
-    cardClear:      document.getElementById('cardClear'),
-    numClear:       document.getElementById('numClear'),
-    numBack:        document.getElementById('numBack'),
+    cardKeypad:         document.getElementById('cardKeypad'),
+    numKeypad:          document.getElementById('numKeypad'),
+    dispRank:           document.getElementById('dispRank'),
+    dispSuit:           document.getElementById('dispSuit'),
+    numDisplay:         document.getElementById('numDisplay'),
+    cardClear:          document.getElementById('cardClear'),
+    numClear:           document.getElementById('numClear'),
+    numBack:            document.getElementById('numBack'),
+    // Memorize
+    memModeBadge:       document.getElementById('memModeBadge'),
+    memPicker:          document.getElementById('memPicker'),
+    memSession:         document.getElementById('memSession'),
+    memComplete:        document.getElementById('memComplete'),
+    btnBackMemorize:    document.getElementById('btnBackMemorize'),
+    memInfoDue:         document.getElementById('memInfoDue'),
+    memInfoNew:         document.getElementById('memInfoNew'),
+    memBtnStart:        document.getElementById('memBtnStart'),
+    memScene:           document.getElementById('memScene'),
+    memCard:            document.getElementById('memCard'),
+    memFaceNumber:      document.getElementById('memFaceNumber'),
+    pcRank1:            document.getElementById('pcRank1'),
+    pcSuit1:            document.getElementById('pcSuit1'),
+    pcPip:              document.getElementById('pcPip'),
+    pcRank2:            document.getElementById('pcRank2'),
+    pcSuit2:            document.getElementById('pcSuit2'),
+    memTapPrompt:       document.getElementById('memTapPrompt'),
+    memRating:          document.getElementById('memRating'),
+    memBtnAgain:        document.getElementById('memBtnAgain'),
+    memBtnGood:         document.getElementById('memBtnGood'),
+    memProgressFill:    document.getElementById('memProgressFill'),
+    memCountDone:       document.getElementById('memCountDone'),
+    memCountTotal:      document.getElementById('memCountTotal'),
+    btnBackSession:     document.getElementById('btnBackSession'),
+    memCompleteTrophy:  document.getElementById('memCompleteTrophy'),
+    memCompleteSub:     document.getElementById('memCompleteSub'),
+    memCompleteStats:   document.getElementById('memCompleteStats'),
+    memBtnStudyMore:    document.getElementById('memBtnStudyMore'),
+    btnBackMemComplete: document.getElementById('btnBackMemComplete'),
   };
 
   // Keypad selection state
@@ -88,91 +229,87 @@
     return value.trim().toUpperCase().replace('10', 'T');
   }
 
-  function loadStats() {
-    const defaults = { attempts: 0, correct: 0, totalMs: 0, bestStreak: 0, missed: {}, mastered: {} };
-    try {
-      const raw = localStorage.getItem('stackSprintStats');
-      return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
-    } catch {
-      return defaults;
-    }
-  }
-
-  function persistStats() {
-    localStorage.setItem('stackSprintStats', JSON.stringify(state.stats));
-  }
-
-  function getMasteredCount() {
-    return Object.values(state.stats.mastered).filter(Boolean).length;
-  }
-
   /* ── UI updates ─────────────────────────────────────────────── */
   function updateStreakChip() {
     els.streakChip.textContent = `${state.currentStreak} 🔥`;
     els.streakChip.classList.remove('bump');
-    // Force reflow to restart animation
     void els.streakChip.offsetWidth;
     els.streakChip.classList.add('bump');
   }
 
   function updateMasteryBar() {
-    const count = getMasteredCount();
-    const pct = Math.round((count / STACK.length) * 100);
+    const count = srsGraduatedCount();
+    const pct   = Math.round((count / STACK.length) * 100);
     els.masteryFill.style.width = `${pct}%`;
     els.masteryText.textContent = `${count} / ${STACK.length}`;
   }
 
   function updateTopStatsUI() {
     const pct = state.sessionTotal
-      ? Math.round((state.sessionCorrect / state.sessionTotal) * 100)
-      : 0;
+      ? Math.round((state.sessionCorrect / state.sessionTotal) * 100) : 0;
     els.scoreline.textContent = `${state.sessionCorrect} / ${state.sessionTotal} • ${pct}%`;
     updateStreakChip();
   }
 
+  function updateMemModeBadge() {
+    const due = srsDueCount();
+    if (due > 0) {
+      els.memModeBadge.textContent = `${due} due`;
+      els.memModeBadge.classList.remove('hidden');
+    } else {
+      els.memModeBadge.classList.add('hidden');
+    }
+  }
+
+  /* ── Views ───────────────────────────────────────────────────── */
+  function setView(name) {
+    els.modeGrid.classList.toggle('hidden',   name !== 'modes');
+    els.trainer.classList.toggle('hidden',    name !== 'trainer');
+    els.memorize.classList.toggle('hidden',   name !== 'memorize');
+    els.stats.classList.toggle('hidden',      name !== 'stats');
+  }
+
+  function setMemView(name) {
+    els.memPicker.classList.toggle('hidden',   name !== 'picker');
+    els.memSession.classList.toggle('hidden',  name !== 'session');
+    els.memComplete.classList.toggle('hidden', name !== 'complete');
+  }
+
+  /* ── Drill prompt logic ──────────────────────────────────────── */
   function showQuestionAsNumber(num) {
-    els.questionLabel.textContent = 'Position';
-    els.questionPrefix.textContent = '#';
+    els.questionLabel.textContent    = 'Position';
+    els.questionPrefix.textContent   = '#';
     els.questionPrefix.style.display = '';
-    els.questionValue.textContent = String(num);
+    els.questionValue.textContent    = String(num);
     els.questionValue.classList.remove('is-red');
     els.questionSuit.classList.add('hidden');
-    els.answerLabel.textContent = 'Select the card at this position';
+    els.answerLabel.textContent      = 'Select the card at this position';
     els.cardKeypad.classList.remove('hidden');
     els.numKeypad.classList.add('hidden');
   }
 
   function showQuestionAsCard(code) {
     const { rank, suit, isRed } = parseCard(code);
-    els.questionLabel.textContent = 'Card';
+    els.questionLabel.textContent    = 'Card';
     els.questionPrefix.style.display = 'none';
-    els.questionValue.textContent = rank;
+    els.questionValue.textContent    = rank;
     els.questionValue.classList.toggle('is-red', isRed);
-    els.questionSuit.textContent = suit;
-    els.questionSuit.className = `question-suit ${isRed ? 'is-red' : 'is-black'}`;
-    els.answerLabel.textContent = 'Enter position  (1–52)';
+    els.questionSuit.textContent     = suit;
+    els.questionSuit.className       = `question-suit ${isRed ? 'is-red' : 'is-black'}`;
+    els.answerLabel.textContent      = 'Enter position  (1–52)';
     els.cardKeypad.classList.add('hidden');
     els.numKeypad.classList.remove('hidden');
   }
 
-  function setView(name) {
-    els.modeGrid.classList.toggle('hidden', name !== 'modes');
-    els.trainer.classList.toggle('hidden',  name !== 'trainer');
-    els.review.classList.toggle('hidden',   name !== 'review');
-    els.stats.classList.toggle('hidden',    name !== 'stats');
-  }
-
-  /* ── Prompt logic ────────────────────────────────────────────── */
   function weightedRandomPrompt(direction) {
     const pool = STACK.map((card, idx) => {
-      const key = `${idx + 1}:${card}`;
+      const key    = `${idx + 1}:${card}`;
       const misses = state.stats.missed[key] || 0;
-      const masteredPenalty = state.stats.mastered[key] ? 0.4 : 1;
-      const weight = Math.max(1, misses * 1.8) * masteredPenalty;
+      const weight = Math.max(1, misses * 1.8);
       return { idx, card, weight };
     });
 
-    const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0);
+    const totalWeight = pool.reduce((s, item) => s + item.weight, 0);
     let roll = Math.random() * totalWeight;
     for (const item of pool) {
       roll -= item.weight;
@@ -187,18 +324,13 @@
 
   function nextPrompt() {
     let direction = state.mode;
-    if (direction === 'mixed') {
-      direction = Math.random() < 0.5 ? 'number-to-card' : 'card-to-number';
-    }
+    if (direction === 'mixed') direction = Math.random() < 0.5 ? 'number-to-card' : 'card-to-number';
 
     state.currentPrompt = weightedRandomPrompt(direction);
-    state.startedAt = performance.now();
+    state.startedAt     = performance.now();
 
-    if (direction === 'number-to-card') {
-      showQuestionAsNumber(state.currentPrompt.ask);
-    } else {
-      showQuestionAsCard(state.currentPrompt.ask);
-    }
+    if (direction === 'number-to-card') showQuestionAsNumber(state.currentPrompt.ask);
+    else                                 showQuestionAsCard(state.currentPrompt.ask);
 
     els.answerInput.value = '';
     resetCardKeypad();
@@ -208,20 +340,20 @@
     els.timerValue.textContent = '0.0s';
   }
 
-  /* ── Evaluation ──────────────────────────────────────────────── */
+  /* ── Drill evaluation ────────────────────────────────────────── */
   function evaluate(answerRaw) {
     const prompt = state.currentPrompt;
     if (!prompt) return;
 
-    const elapsedMs = performance.now() - state.startedAt;
+    const elapsedMs       = performance.now() - state.startedAt;
     const isNumericAnswer = /^\d+$/.test(prompt.answer);
-    const expected = isNumericAnswer ? prompt.answer : normalizeCard(prompt.answer);
-    const actual   = isNumericAnswer ? answerRaw.trim() : normalizeCard(answerRaw);
-    const correct  = actual === expected;
+    const expected        = isNumericAnswer ? prompt.answer : normalizeCard(prompt.answer);
+    const actual          = isNumericAnswer ? answerRaw.trim() : normalizeCard(answerRaw);
+    const correct         = actual === expected;
 
-    state.sessionTotal    += 1;
-    state.stats.attempts  += 1;
-    state.stats.totalMs   += elapsedMs;
+    state.sessionTotal   += 1;
+    state.stats.attempts += 1;
+    state.stats.totalMs  += elapsedMs;
 
     if (correct) {
       state.sessionCorrect += 1;
@@ -231,33 +363,27 @@
 
       let askDisplay, answerDisplay;
       if (isNumericAnswer) {
-        // card-to-number: ask=card code, answer=position number
         const { rank, suit } = parseCard(prompt.ask);
-        askDisplay = `${rank}${suit}`;
+        askDisplay    = `${rank}${suit}`;
         answerDisplay = `#${prompt.answer}`;
       } else {
-        // number-to-card: ask=position number, answer=card code
         const { rank, suit } = parseCard(prompt.answer);
-        askDisplay = `#${prompt.ask}`;
+        askDisplay    = `#${prompt.ask}`;
         answerDisplay = `${rank}${suit}`;
       }
 
       els.feedback.innerHTML = `✅ Correct! &nbsp;<strong>${askDisplay}</strong> ↔ <strong>${answerDisplay}</strong>`;
       els.feedback.className = 'feedback correct';
 
-      if ((state.stats.missed[prompt.key] || 0) > 0) {
-        state.stats.missed[prompt.key] -= 1;
-      }
+      if ((state.stats.missed[prompt.key] || 0) > 0) state.stats.missed[prompt.key] -= 1;
     } else {
       state.currentStreak = 0;
       state.stats.missed[prompt.key] = (state.stats.missed[prompt.key] || 0) + 1;
 
       let answerDisplay;
       if (isNumericAnswer) {
-        // card-to-number: correct answer is the position number
         answerDisplay = `#${prompt.answer}`;
       } else {
-        // number-to-card: correct answer is the card
         const { rank, suit } = parseCard(prompt.answer);
         answerDisplay = `${rank}${suit}`;
       }
@@ -273,52 +399,156 @@
     els.btnNext.classList.add('pulse');
   }
 
-  /* ── Stack Explorer ──────────────────────────────────────────── */
-  function buildExplorer() {
-    els.stackGrid.innerHTML = '';
-    STACK.forEach((card, idx) => {
-      const n   = idx + 1;
-      const key = `${n}:${card}`;
-      const { rank, suit, isRed } = parseCard(card);
-      const isMastered = !!state.stats.mastered[key];
+  /* ── Memorize — session ──────────────────────────────────────── */
+  function openMemorize() {
+    els.memInfoDue.textContent = String(srsDueCount());
+    els.memInfoNew.textContent = String(srsNewCount());
+    setMemView('picker');
+    setView('memorize');
+  }
 
-      const tile = document.createElement('button');
-      tile.type = 'button';
-      tile.className = `stack-tile${isRed ? ' red-card' : ''}${isMastered ? ' mastered' : ''}`;
+  function startMemSession() {
+    memSess.srs          = loadSRS();
+    memSess.queue        = buildSessionQueue(memSess.srs);
+    memSess.initialCount = memSess.queue.length;
+    memSess.goodCount    = 0;
+    memSess.againCount   = 0;
+    memSess.flipped      = false;
+    memSess.agained      = {};
 
-      tile.innerHTML = `
-        <span class="face front">
-          <span class="tile-pos">#${n}</span>
-        </span>
-        <span class="face back">
-          <span class="tile-rank">${rank}</span>
-          <span class="tile-suit-back">${suit}</span>
-        </span>
-        <span class="star" aria-label="${isMastered ? 'mastered' : 'not mastered'}">${isMastered ? '⭐' : '☆'}</span>
-      `;
+    if (!memSess.queue.length) {
+      renderMemComplete(true);
+      setMemView('complete');
+      return;
+    }
 
-      tile.addEventListener('click', (e) => {
-        if (e.target.classList.contains('star')) return;
-        tile.classList.toggle('flipped');
-      });
+    setMemView('session');
+    showMemCard();
+  }
 
-      tile.querySelector('.star').addEventListener('click', (e) => {
-        e.stopPropagation();
-        state.stats.mastered[key] = !state.stats.mastered[key];
-        persistStats();
-        updateMasteryBar();
-        buildExplorer();
-      });
+  function showMemCard() {
+    if (!memSess.queue.length) {
+      renderMemComplete(false);
+      setMemView('complete');
+      return;
+    }
 
-      els.stackGrid.appendChild(tile);
+    memSess.currentIdx = memSess.queue.shift();
+    memSess.flipped    = false;
+
+    const code = STACK[memSess.currentIdx];
+    const { rank, suit, isRed } = parseCard(code);
+    const cardColor = isRed ? '#e0182d' : '#1a1a2e';
+    const suitSym   = SUIT_SYMBOL[code[1]];
+
+    // Front face
+    els.memFaceNumber.textContent = String(memSess.currentIdx + 1);
+
+    // Back face (playing card)
+    [els.pcRank1, els.pcRank2].forEach(el => {
+      el.textContent = rank;
+      el.style.color = cardColor;
     });
+    [els.pcSuit1, els.pcSuit2].forEach(el => {
+      el.textContent = suitSym;
+      el.style.color = cardColor;
+    });
+    els.pcPip.textContent = suitSym;
+    els.pcPip.style.color = cardColor;
+
+    // Animate card in
+    els.memCard.classList.remove('flipped', 'card-enter');
+    void els.memCard.offsetWidth;
+    els.memCard.classList.add('card-enter');
+
+    // Reset UI state
+    els.memRating.classList.add('hidden');
+    els.memTapPrompt.classList.remove('hidden');
+
+    updateMemProgress();
+  }
+
+  function flipMemCard() {
+    if (memSess.flipped) return;
+    memSess.flipped = true;
+    els.memCard.classList.add('flipped');
+    setTimeout(() => {
+      els.memTapPrompt.classList.add('hidden');
+      els.memRating.classList.remove('hidden');
+    }, 320);
+  }
+
+  function rateGood() {
+    srsGotIt(memSess.srs, memSess.currentIdx);
+    saveSRS(memSess.srs);
+    memSess.goodCount += 1;
+    updateMasteryBar();
+    updateMemModeBadge();
+    showMemCard();
+  }
+
+  function rateAgain() {
+    srsAgain(memSess.srs, memSess.currentIdx);
+    saveSRS(memSess.srs);
+    memSess.againCount += 1;
+    // Re-insert near the end (max 3 re-queues per card to prevent infinite loops)
+    const times = (memSess.agained[memSess.currentIdx] || 0) + 1;
+    memSess.agained[memSess.currentIdx] = times;
+    if (times <= MAX_REQUEUES) {
+      const insertAt = Math.max(0, memSess.queue.length - 2);
+      memSess.queue.splice(insertAt, 0, memSess.currentIdx);
+    }
+    showMemCard();
+  }
+
+  function updateMemProgress() {
+    const total = memSess.initialCount;
+    const done  = memSess.goodCount;
+    const pct   = total > 0 ? (done / total) * 100 : 0;
+    els.memProgressFill.style.width = `${Math.min(pct, 100)}%`;
+    els.memCountDone.textContent    = String(done);
+    els.memCountTotal.textContent   = String(total);
+  }
+
+  function renderMemComplete(noCards) {
+    const srs      = loadSRS();
+    const learned  = srsGraduatedCount();
+    const mastered = STACK.filter((_, i) => srs[i] && srs[i].interval >= 14).length;
+
+    if (noCards) {
+      els.memCompleteTrophy.textContent = '🌟';
+      els.memCompleteSub.textContent    = "Nothing due — you're all caught up!";
+    } else {
+      const total = memSess.goodCount + memSess.againCount;
+      els.memCompleteTrophy.textContent = memSess.againCount === 0 ? '🏆' : '🎊';
+      els.memCompleteSub.textContent    = `You studied ${total} card${total !== 1 ? 's' : ''} this session`;
+    }
+
+    els.memCompleteStats.innerHTML = `
+      <div class="mem-stat">
+        <div class="mem-stat-n" style="color:var(--mint)">${memSess.goodCount}</div>
+        <div class="mem-stat-l">Got it ✅</div>
+      </div>
+      <div class="mem-stat">
+        <div class="mem-stat-n" style="color:var(--rose)">${memSess.againCount}</div>
+        <div class="mem-stat-l">Again 😓</div>
+      </div>
+      <div class="mem-stat mem-stat-wide">
+        <div class="mem-stat-n">${learned}<span style="font-size:1.3rem;font-weight:600;opacity:.55"> / 52</span></div>
+        <div class="mem-stat-l">Cards in rotation 🔄</div>
+      </div>
+      <div class="mem-stat mem-stat-wide">
+        <div class="mem-stat-n">${mastered}<span style="font-size:1.3rem;font-weight:600;opacity:.55"> / 52</span></div>
+        <div class="mem-stat-l">Long-term mastered 🌟</div>
+      </div>
+    `;
   }
 
   /* ── Stats view ──────────────────────────────────────────────── */
   function renderStats() {
-    const attempts  = state.stats.attempts;
-    const accuracy  = attempts ? Math.round((state.stats.correct / attempts) * 100) : 0;
-    const avg       = attempts ? state.stats.totalMs / attempts / 1000 : 0;
+    const attempts = state.stats.attempts;
+    const accuracy = attempts ? Math.round((state.stats.correct / attempts) * 100) : 0;
+    const avg      = attempts ? state.stats.totalMs / attempts / 1000 : 0;
 
     els.statAttempts.textContent   = String(attempts);
     els.statAccuracy.textContent   = `${accuracy}%`;
@@ -351,36 +581,30 @@
     cardSel.rank = null;
     cardSel.suit = null;
     els.dispRank.textContent = '?';
-    els.dispRank.className = 'disp-rank';
+    els.dispRank.className   = 'disp-rank';
     els.dispSuit.textContent = '?';
-    els.dispSuit.className = 'disp-suit';
-    document.querySelectorAll('.rank-btn.selected, .suit-btn.selected').forEach(b => b.classList.remove('selected'));
+    els.dispSuit.className   = 'disp-suit';
+    document.querySelectorAll('.rank-btn.selected, .suit-btn.selected')
+      .forEach(b => b.classList.remove('selected'));
     els.answerInput.value = '';
   }
 
   function resetNumKeypad() {
     numVal = '';
     els.numDisplay.textContent = '–';
-    els.answerInput.value = '';
+    els.answerInput.value      = '';
   }
 
   /* ── Event wiring ────────────────────────────────────────────── */
   function setupEvents() {
+    // Mode grid
     document.querySelectorAll('.mode-card').forEach((btn) => {
       btn.addEventListener('click', () => {
         const mode = btn.dataset.mode;
         state.mode = mode;
 
-        if (mode === 'review') {
-          buildExplorer();
-          setView('review');
-          return;
-        }
-        if (mode === 'stats') {
-          renderStats();
-          setView('stats');
-          return;
-        }
+        if (mode === 'memorize') { openMemorize(); return; }
+        if (mode === 'stats')    { renderStats(); setView('stats'); return; }
 
         state.sessionCorrect = 0;
         state.sessionTotal   = 0;
@@ -391,13 +615,59 @@
       });
     });
 
-    [els.btnBack, els.btnBackReview, els.btnBackStats].forEach((btn) => {
+    // Back buttons
+    [els.btnBack, els.btnBackStats].forEach((btn) => {
       btn.addEventListener('click', () => {
         state.startedAt = 0;
         setView('modes');
       });
     });
 
+    // Memorize — picker back
+    els.btnBackMemorize.addEventListener('click', () => setView('modes'));
+
+    // Memorize — start session
+    els.memBtnStart.addEventListener('click', startMemSession);
+
+    // Memorize — session back
+    els.btnBackSession.addEventListener('click', () => {
+      els.memInfoDue.textContent = String(srsDueCount());
+      els.memInfoNew.textContent = String(srsNewCount());
+      setMemView('picker');
+    });
+
+    // Memorize — flip card (click and keyboard)
+    els.memScene.addEventListener('click', flipMemCard);
+    els.memScene.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flipMemCard(); }
+    });
+
+    // Memorize — rating buttons
+    els.memBtnAgain.addEventListener('click', rateAgain);
+    els.memBtnGood.addEventListener('click',  rateGood);
+
+    // Keyboard shortcuts for memorize session
+    document.addEventListener('keydown', (e) => {
+      if (els.memSession.classList.contains('hidden')) return;
+      if (e.key.toLowerCase() === 'a' && !els.memRating.classList.contains('hidden')) {
+        e.preventDefault(); rateAgain();
+      }
+      if (e.key.toLowerCase() === 'g' && !els.memRating.classList.contains('hidden')) {
+        e.preventDefault(); rateGood();
+      }
+    });
+
+    // Memorize — complete screen back
+    els.btnBackMemComplete.addEventListener('click', () => setView('modes'));
+
+    // Memorize — study more
+    els.memBtnStudyMore.addEventListener('click', () => {
+      els.memInfoDue.textContent = String(srsDueCount());
+      els.memInfoNew.textContent = String(srsNewCount());
+      setMemView('picker');
+    });
+
+    // Drill — answer form
     els.answerForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const val = els.answerInput.value.trim();
@@ -405,7 +675,7 @@
       evaluate(val);
     });
 
-    // ── Card keypad ──
+    // Card keypad
     document.querySelectorAll('.rank-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         cardSel.rank = btn.dataset.rank;
@@ -413,7 +683,7 @@
         btn.classList.add('selected');
         const display = btn.dataset.rank === 'T' ? '10' : btn.dataset.rank;
         els.dispRank.textContent = display;
-        els.dispRank.className = 'disp-rank active';
+        els.dispRank.className   = 'disp-rank active';
         if (cardSel.rank && cardSel.suit) els.answerInput.value = cardSel.rank + cardSel.suit;
       });
     });
@@ -423,42 +693,42 @@
         cardSel.suit = btn.dataset.suit;
         document.querySelectorAll('.suit-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
-        const sym = SUIT_SYMBOL[btn.dataset.suit];
+        const sym   = SUIT_SYMBOL[btn.dataset.suit];
         const isRed = RED_SUITS.has(btn.dataset.suit);
         els.dispSuit.textContent = sym;
-        els.dispSuit.className = `disp-suit ${isRed ? 'is-red' : 'is-black'}`;
+        els.dispSuit.className   = `disp-suit ${isRed ? 'is-red' : 'is-black'}`;
         if (cardSel.rank && cardSel.suit) els.answerInput.value = cardSel.rank + cardSel.suit;
       });
     });
 
     els.cardClear.addEventListener('click', resetCardKeypad);
 
-    // ── Number keypad ──
+    // Number keypad
     document.querySelectorAll('.num-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         if (numVal.length >= 2) return;
-        if (numVal === '' && btn.dataset.num === '0') return; // no leading zero
+        if (numVal === '' && btn.dataset.num === '0') return;
         numVal += btn.dataset.num;
         els.numDisplay.textContent = numVal;
-        els.answerInput.value = numVal;
+        els.answerInput.value      = numVal;
       });
     });
 
     els.numBack.addEventListener('click', () => {
       numVal = numVal.slice(0, -1);
       els.numDisplay.textContent = numVal || '–';
-      els.answerInput.value = numVal;
+      els.answerInput.value      = numVal;
     });
 
     els.numClear.addEventListener('click', resetNumKeypad);
 
+    // Reveal
     els.btnReveal.addEventListener('click', () => {
       if (!state.currentPrompt) return;
-      const prompt = state.currentPrompt;
+      const prompt          = state.currentPrompt;
       const isNumericAnswer = /^\d+$/.test(prompt.answer);
       let display;
       if (isNumericAnswer) {
-        const { rank, suit } = parseCard(prompt.ask);
         display = `#${prompt.answer}`;
       } else {
         const { rank, suit } = parseCard(prompt.answer);
@@ -471,14 +741,17 @@
 
     els.btnNext.addEventListener('click', nextPrompt);
 
+    // Reset all stats + SRS data
     els.btnReset.addEventListener('click', () => {
-      state.stats = { attempts: 0, correct: 0, totalMs: 0, bestStreak: 0, missed: {}, mastered: {} };
+      state.stats = { attempts: 0, correct: 0, totalMs: 0, bestStreak: 0, missed: {} };
       persistStats();
+      localStorage.removeItem(SRS_KEY);
       renderStats();
-      buildExplorer();
       updateMasteryBar();
+      updateMemModeBadge();
     });
 
+    // Keyboard shortcuts for drill
     document.addEventListener('keydown', (e) => {
       if (els.trainer.classList.contains('hidden')) return;
       if (e.key === 'Enter') {
@@ -501,6 +774,7 @@
   setupEvents();
   updateTopStatsUI();
   updateMasteryBar();
+  updateMemModeBadge();
   setView('modes');
   registerServiceWorker();
 
