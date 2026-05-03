@@ -138,7 +138,6 @@
     goodCount:    0,
     againCount:   0,
     currentIdx:   null,
-    flipped:      false,
     srs:          null,
     agained:      {},   // idx → times re-queued this session (caps at 3)
   };
@@ -190,15 +189,13 @@
     memInfoDue:         document.getElementById('memInfoDue'),
     memInfoNew:         document.getElementById('memInfoNew'),
     memBtnStart:        document.getElementById('memBtnStart'),
-    memScene:           document.getElementById('memScene'),
-    memCard:            document.getElementById('memCard'),
+    memStudyCard:       document.getElementById('memStudyCard'),
     memFaceNumber:      document.getElementById('memFaceNumber'),
     pcRank1:            document.getElementById('pcRank1'),
     pcSuit1:            document.getElementById('pcSuit1'),
     pcPip:              document.getElementById('pcPip'),
     pcRank2:            document.getElementById('pcRank2'),
     pcSuit2:            document.getElementById('pcSuit2'),
-    memTapPrompt:       document.getElementById('memTapPrompt'),
     memRating:          document.getElementById('memRating'),
     memBtnAgain:        document.getElementById('memBtnAgain'),
     memBtnGood:         document.getElementById('memBtnGood'),
@@ -413,7 +410,6 @@
     memSess.initialCount = memSess.queue.length;
     memSess.goodCount    = 0;
     memSess.againCount   = 0;
-    memSess.flipped      = false;
     memSess.agained      = {};
 
     if (!memSess.queue.length) {
@@ -434,17 +430,16 @@
     }
 
     memSess.currentIdx = memSess.queue.shift();
-    memSess.flipped    = false;
 
     const code = STACK[memSess.currentIdx];
     const { rank, suit, isRed } = parseCard(code);
     const cardColor = isRed ? '#e0182d' : '#1a1a2e';
     const suitSym   = SUIT_SYMBOL[code[1]];
 
-    // Front face
+    // Position number
     els.memFaceNumber.textContent = String(memSess.currentIdx + 1);
 
-    // Back face (playing card)
+    // Playing card face
     [els.pcRank1, els.pcRank2].forEach(el => {
       el.textContent = rank;
       el.style.color = cardColor;
@@ -457,25 +452,11 @@
     els.pcPip.style.color = cardColor;
 
     // Animate card in
-    els.memCard.classList.remove('flipped', 'card-enter');
-    void els.memCard.offsetWidth;
-    els.memCard.classList.add('card-enter');
-
-    // Reset UI state
-    els.memRating.classList.add('hidden');
-    els.memTapPrompt.classList.remove('hidden');
+    els.memStudyCard.classList.remove('card-enter');
+    void els.memStudyCard.offsetWidth;
+    els.memStudyCard.classList.add('card-enter');
 
     updateMemProgress();
-  }
-
-  function flipMemCard() {
-    if (memSess.flipped) return;
-    memSess.flipped = true;
-    els.memCard.classList.add('flipped');
-    setTimeout(() => {
-      els.memTapPrompt.classList.add('hidden');
-      els.memRating.classList.remove('hidden');
-    }, 320);
   }
 
   function rateGood() {
@@ -636,12 +617,6 @@
       setMemView('picker');
     });
 
-    // Memorize — flip card (click and keyboard)
-    els.memScene.addEventListener('click', flipMemCard);
-    els.memScene.addEventListener('keydown', (e) => {
-      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flipMemCard(); }
-    });
-
     // Memorize — rating buttons
     els.memBtnAgain.addEventListener('click', rateAgain);
     els.memBtnGood.addEventListener('click',  rateGood);
@@ -649,12 +624,8 @@
     // Keyboard shortcuts for memorize session
     document.addEventListener('keydown', (e) => {
       if (els.memSession.classList.contains('hidden')) return;
-      if (e.key.toLowerCase() === 'a' && !els.memRating.classList.contains('hidden')) {
-        e.preventDefault(); rateAgain();
-      }
-      if (e.key.toLowerCase() === 'g' && !els.memRating.classList.contains('hidden')) {
-        e.preventDefault(); rateGood();
-      }
+      if (e.key.toLowerCase() === 'a') { e.preventDefault(); rateAgain(); }
+      if (e.key.toLowerCase() === 'g') { e.preventDefault(); rateGood(); }
     });
 
     // Memorize — complete screen back
