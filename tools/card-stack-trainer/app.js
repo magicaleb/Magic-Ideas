@@ -49,9 +49,9 @@
   const SRS_KEY              = 'stackMemorizeSRS';
   const SRS_INTERVALS        = [1, 3, 7, 14, 30]; // days
   const MS_PER_DAY           = 86_400_000;
-  const SESSION_SIZE_DEFAULT = 10;
-  const MAX_DUE_PER_SESSION  = 7;
-  const MAX_REQUEUES         = 3;
+  const DEFAULT_CHUNK_SIZE   = 10;
+  const MAX_DUE_PER_SESSION  = 8;
+  const QUIZ_EVERY_N_CARDS   = 2;
 
   function loadSRS() {
     try { return JSON.parse(localStorage.getItem(SRS_KEY) || '{}'); }
@@ -68,28 +68,13 @@
     return i === -1 ? 1 : (i < SRS_INTERVALS.length - 1 ? SRS_INTERVALS[i + 1] : 30);
   }
 
-  function srsPrevInterval(cur) {
-    if (!cur || cur <= 1) return 0;
-    const i = SRS_INTERVALS.indexOf(cur);
-    return i <= 0 ? 0 : SRS_INTERVALS[i - 1];
-  }
-
-  function srsGotIt(srs, idx) {
+    function srsGotIt(srs, idx) {
     const cur         = srs[idx];
     const newInterval = srsNextInterval(cur ? cur.interval : 0);
     srs[idx] = { interval: newInterval, due: Date.now() + newInterval * MS_PER_DAY };
   }
 
-  function srsAgain(srs, idx) {
-    const cur         = srs[idx];
-    const newInterval = srsPrevInterval(cur ? cur.interval : 0);
-    srs[idx] = {
-      interval: newInterval,
-      due: newInterval > 0 ? Date.now() + newInterval * MS_PER_DAY : Date.now(),
-    };
-  }
-
-  function srsGraduatedCount() {
+    function srsGraduatedCount() {
     const srs = loadSRS();
     return STACK.filter((_, i) => srs[i] && srs[i].interval >= 1).length;
   }
@@ -105,23 +90,23 @@
     return STACK.filter((_, i) => !srs[i]).length;
   }
 
-  function buildSessionQueue(srs, sessionSize) {
+  function buildSessionQueue(srs, chunkSize) {
     const now = Date.now();
 
     const due = STACK
       .map((_, i) => ({ idx: i, due: srs[i] ? srs[i].due : Infinity }))
       .filter(c => srs[c.idx] && c.due <= now)
       .sort((a, b) => a.due - b.due)
-      .slice(0, Math.min(MAX_DUE_PER_SESSION, sessionSize))
+      .slice(0, MAX_DUE_PER_SESSION)
       .map(c => c.idx);
 
-    const remaining = sessionSize - due.length;
+    const remaining = chunkSize - due.length;
     const newCards  = STACK
       .map((_, i) => i)
       .filter(i => !srs[i])
       .slice(0, remaining);
 
-    // Interleave due and new cards for a natural feel
+    // Interleave due and new cards for varied retrieval practice
     const combined = [];
     const len = Math.max(due.length, newCards.length);
     for (let i = 0; i < len; i++) {
@@ -133,29 +118,16 @@
 
   /* ── Memorize session state ──────────────────────────────────── */
   const memSess = {
-    queue:        [],
+    queue: [],
     initialCount: 0,
-    goodCount:    0,
-    againCount:   0,
-    currentIdx:   null,
-    srs:          null,
-    agained:      {},   // idx → times re-queued this session (caps at 3)
-    seenSinceQuiz: 0,
-    quizEvery: 3,
-    pendingQuiz: null,
+    goodCount: 0,
+    quizCount: 0,
+    currentIdx: null,
+    srs: null,
+    chunkSize: DEFAULT_CHUNK_SIZE,
+    sinceQuiz: 0,
+    quizPrompt: null,
   };
-
-  const MEM_CFG_KEY = 'stackMemorizeConfig';
-  function loadMemConfig() {
-    try {
-      const raw = JSON.parse(localStorage.getItem(MEM_CFG_KEY) || '{}');
-      return {
-        batchSize: Math.min(20, Math.max(4, Number(raw.batchSize) || SESSION_SIZE_DEFAULT)),
-        quizEvery: Math.min(6, Math.max(2, Number(raw.quizEvery) || 3)),
-      };
-    } catch { return { batchSize: SESSION_SIZE_DEFAULT, quizEvery: 3 }; }
-  }
-  function saveMemConfig(cfg) { localStorage.setItem(MEM_CFG_KEY, JSON.stringify(cfg)); }
 
   /* ── DOM references ──────────────────────────────────────────── */
   const els = {
@@ -204,21 +176,19 @@
     memInfoDue:         document.getElementById('memInfoDue'),
     memInfoNew:         document.getElementById('memInfoNew'),
     memBtnStart:        document.getElementById('memBtnStart'),
-    memModeCopy:        document.getElementById('memModeCopy'),
-    memBatchSize:       document.getElementById('memBatchSize'),
-    memBatchValue:      document.getElementById('memBatchValue'),
-    memQuizEvery:       document.getElementById('memQuizEvery'),
-    memQuizEveryValue:  document.getElementById('memQuizEveryValue'),
     memStudyCard:       document.getElementById('memStudyCard'),
     memFaceNumber:      document.getElementById('memFaceNumber'),
-    pcRank1:            document.getElementById('pcRank1'),
-    pcSuit1:            document.getElementById('pcSuit1'),
-    pcPip:              document.getElementById('pcPip'),
-    pcRank2:            document.getElementById('pcRank2'),
-    pcSuit2:            document.getElementById('pcSuit2'),
+    pcMainRank:         document.getElementById('pcMainRank'),
+    pcMainSuit:         document.getElementById('pcMainSuit'),
     memRating:          document.getElementById('memRating'),
-    memBtnAgain:        document.getElementById('memBtnAgain'),
-    memBtnGood:         document.getElementById('memBtnGood'),
+        memBtnGood:         document.getElementById('memBtnGood'),
+    memChunkSize:       document.getElementById('memChunkSize'),
+    memChunkSizeValue:  document.getElementById('memChunkSizeValue'),
+    memQuiz:            document.getElementById('memQuiz'),
+    memQuizLabel:       document.getElementById('memQuizLabel'),
+    memQuizQuestion:    document.getElementById('memQuizQuestion'),
+    memQuizChoices:     document.getElementById('memQuizChoices'),
+    memQuizFeedback:    document.getElementById('memQuizFeedback'),
     memProgressFill:    document.getElementById('memProgressFill'),
     memCountDone:       document.getElementById('memCountDone'),
     memCountTotal:      document.getElementById('memCountTotal'),
@@ -413,12 +383,6 @@
 
   /* ── Memorize — session ──────────────────────────────────────── */
   function openMemorize() {
-    const cfg = loadMemConfig();
-    els.memBatchSize.value = String(cfg.batchSize);
-    els.memBatchValue.textContent = String(cfg.batchSize);
-    els.memQuizEvery.value = String(cfg.quizEvery);
-    els.memQuizEveryValue.textContent = String(cfg.quizEvery);
-    els.memModeCopy.textContent = `${cfg.batchSize} cards · quiz every ${cfg.quizEvery}`;
     els.memInfoDue.textContent = String(srsDueCount());
     els.memInfoNew.textContent = String(srsNewCount());
     setMemView('picker');
@@ -426,16 +390,14 @@
   }
 
   function startMemSession() {
-    const cfg = loadMemConfig();
     memSess.srs          = loadSRS();
-    memSess.queue        = buildSessionQueue(memSess.srs, cfg.batchSize);
+    memSess.chunkSize    = Number(els.memChunkSize.value || DEFAULT_CHUNK_SIZE);
+    memSess.queue        = buildSessionQueue(memSess.srs, memSess.chunkSize);
     memSess.initialCount = memSess.queue.length;
     memSess.goodCount    = 0;
-    memSess.againCount   = 0;
-    memSess.agained      = {};
-    memSess.seenSinceQuiz = 0;
-    memSess.quizEvery = cfg.quizEvery;
-    memSess.pendingQuiz = null;
+    memSess.quizCount    = 0;
+    memSess.sinceQuiz    = 0;
+    els.memQuiz.classList.add('hidden');
 
     if (!memSess.queue.length) {
       renderMemComplete(true);
@@ -455,39 +417,19 @@
     }
 
     memSess.currentIdx = memSess.queue.shift();
-    memSess.pendingQuiz = null;
 
     const code = STACK[memSess.currentIdx];
     const { rank, suit, isRed } = parseCard(code);
     const cardColor = isRed ? '#e0182d' : '#1a1a2e';
-    const suitSym   = SUIT_SYMBOL[code[1]];
 
-    const quizType = memSess.seenSinceQuiz >= memSess.quizEvery ? ['position-to-card','card-to-position','adjacent'][Math.floor(Math.random()*3)] : null;
-    if (quizType) {
-      memSess.pendingQuiz = quizType;
-      memSess.seenSinceQuiz = 0;
-    }
-    if (!memSess.pendingQuiz) memSess.seenSinceQuiz += 1;
+    // Position number
+    els.memFaceNumber.textContent = String(memSess.currentIdx + 1);
 
-    if (memSess.pendingQuiz === 'card-to-position') {
-      els.memFaceNumber.textContent = 'What #?';
-    } else if (memSess.pendingQuiz === 'adjacent') {
-      els.memFaceNumber.textContent = `#${memSess.currentIdx + 1} + neighbor?`;
-    } else {
-      els.memFaceNumber.textContent = String(memSess.currentIdx + 1);
-    }
-
-    // Playing card face
-    [els.pcRank1, els.pcRank2].forEach(el => {
-      el.textContent = rank;
-      el.style.color = cardColor;
-    });
-    [els.pcSuit1, els.pcSuit2].forEach(el => {
-      el.textContent = suitSym;
-      el.style.color = cardColor;
-    });
-    els.pcPip.textContent = suitSym;
-    els.pcPip.style.color = cardColor;
+    // Simplified big face
+    els.pcMainRank.textContent = rank;
+    els.pcMainSuit.textContent = suit;
+    els.pcMainRank.style.color = cardColor;
+    els.pcMainSuit.style.color = cardColor;
 
     // Animate card in
     els.memStudyCard.classList.remove('card-enter');
@@ -501,23 +443,67 @@
     srsGotIt(memSess.srs, memSess.currentIdx);
     saveSRS(memSess.srs);
     memSess.goodCount += 1;
+    memSess.sinceQuiz += 1;
     updateMasteryBar();
     updateMemModeBadge();
-    showMemCard();
+    maybeRunMemQuiz();
   }
 
-  function rateAgain() {
-    srsAgain(memSess.srs, memSess.currentIdx);
-    saveSRS(memSess.srs);
-    memSess.againCount += 1;
-    // Re-insert near the end (max 3 re-queues per card to prevent infinite loops)
-    const times = (memSess.agained[memSess.currentIdx] || 0) + 1;
-    memSess.agained[memSess.currentIdx] = times;
-    if (times <= MAX_REQUEUES) {
-      const insertAt = Math.max(0, memSess.queue.length - 2);
-      memSess.queue.splice(insertAt, 0, memSess.currentIdx);
+  function maybeRunMemQuiz() {
+    if (memSess.sinceQuiz < QUIZ_EVERY_N_CARDS || !memSess.queue.length) {
+      showMemCard();
+      return;
     }
-    showMemCard();
+    memSess.sinceQuiz = 0;
+    const idx = memSess.currentIdx;
+    const askPosition = Math.random() < 0.5;
+    const correct = askPosition ? STACK[idx] : String(idx + 1);
+
+    const allOptions = askPosition
+      ? STACK.slice()
+      : Array.from({ length: 52 }, (_, i) => String(i + 1));
+    const wrongs = allOptions.filter(v => v !== correct).sort(() => Math.random() - 0.5).slice(0, 3);
+    const options = [correct, ...wrongs].sort(() => Math.random() - 0.5);
+
+    const { rank, suit } = parseCard(STACK[idx]);
+    memSess.quizPrompt = {
+      question: askPosition ? `What is the card at #${idx + 1}?` : `What position is ${rank}${suit}?`,
+      correct,
+      askPosition,
+      options,
+    };
+
+    els.memQuizLabel.textContent = 'Retrieval check';
+    els.memQuizQuestion.textContent = memSess.quizPrompt.question;
+    els.memQuizChoices.innerHTML = '';
+    options.forEach((opt) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mem-quiz-choice';
+      if (askPosition) {
+        const c = parseCard(opt);
+        btn.textContent = `${c.rank}${c.suit}`;
+      } else {
+        btn.textContent = `#${opt}`;
+      }
+      btn.addEventListener('click', () => checkMemQuiz(opt));
+      els.memQuizChoices.appendChild(btn);
+    });
+    els.memQuizFeedback.classList.add('hidden');
+    els.memQuiz.classList.remove('hidden');
+  }
+
+  function checkMemQuiz(selected) {
+    if (!memSess.quizPrompt) return;
+    const correct = selected === memSess.quizPrompt.correct;
+    els.memQuizFeedback.className = `feedback ${correct ? 'correct' : 'wrong'}`;
+    const answerText = memSess.quizPrompt.askPosition
+      ? (() => { const c = parseCard(memSess.quizPrompt.correct); return `${c.rank}${c.suit}`; })()
+      : `#${memSess.quizPrompt.correct}`;
+    els.memQuizFeedback.innerHTML = correct ? '✅ Nice recall.' : `❌ Correct answer: <strong>${answerText}</strong>`;
+    els.memQuizFeedback.classList.remove('hidden');
+    memSess.quizCount += 1;
+    setTimeout(() => { els.memQuiz.classList.add('hidden'); memSess.quizPrompt = null; showMemCard(); }, 700);
   }
 
   function updateMemProgress() {
@@ -538,9 +524,9 @@
       els.memCompleteTrophy.textContent = '🌟';
       els.memCompleteSub.textContent    = "Nothing due — you're all caught up!";
     } else {
-      const total = memSess.goodCount + memSess.againCount;
-      els.memCompleteTrophy.textContent = memSess.againCount === 0 ? '🏆' : '🎊';
-      els.memCompleteSub.textContent    = `You studied ${total} card${total !== 1 ? 's' : ''} this session`;
+      const total = memSess.goodCount;
+      els.memCompleteTrophy.textContent = '🏆';
+      els.memCompleteSub.textContent    = `You locked in ${total} card${total !== 1 ? 's' : ''} and completed ${memSess.quizCount} recall checks`;
     }
 
     els.memCompleteStats.innerHTML = `
@@ -549,8 +535,8 @@
         <div class="mem-stat-l">Got it ✅</div>
       </div>
       <div class="mem-stat">
-        <div class="mem-stat-n" style="color:var(--rose)">${memSess.againCount}</div>
-        <div class="mem-stat-l">Again 😓</div>
+        <div class="mem-stat-n" style="color:var(--lav)">${memSess.quizCount}</div>
+        <div class="mem-stat-l">Recall checks 🧩</div>
       </div>
       <div class="mem-stat mem-stat-wide">
         <div class="mem-stat-n">${learned}<span style="font-size:1.3rem;font-weight:600;opacity:.55"> / 52</span></div>
@@ -647,18 +633,6 @@
 
     // Memorize — start session
     els.memBtnStart.addEventListener('click', startMemSession);
-    els.memBatchSize.addEventListener('input', () => {
-      const cfg = loadMemConfig();
-      cfg.batchSize = Number(els.memBatchSize.value);
-      els.memBatchValue.textContent = String(cfg.batchSize);
-      saveMemConfig(cfg);
-    });
-    els.memQuizEvery.addEventListener('input', () => {
-      const cfg = loadMemConfig();
-      cfg.quizEvery = Number(els.memQuizEvery.value);
-      els.memQuizEveryValue.textContent = String(cfg.quizEvery);
-      saveMemConfig(cfg);
-    });
 
     // Memorize — session back
     els.btnBackSession.addEventListener('click', () => {
@@ -667,14 +641,13 @@
       setMemView('picker');
     });
 
-    // Memorize — rating buttons
-    els.memBtnAgain.addEventListener('click', rateAgain);
+    // Memorize — controls
     els.memBtnGood.addEventListener('click',  rateGood);
+    els.memChunkSize.addEventListener('input', () => { els.memChunkSizeValue.textContent = els.memChunkSize.value; });
 
     // Keyboard shortcuts for memorize session
     document.addEventListener('keydown', (e) => {
       if (els.memSession.classList.contains('hidden')) return;
-      if (e.key.toLowerCase() === 'a') { e.preventDefault(); rateAgain(); }
       if (e.key.toLowerCase() === 'g') { e.preventDefault(); rateGood(); }
     });
 

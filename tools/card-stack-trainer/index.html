@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#1a0b3d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -31,7 +31,7 @@
           <span class="mode-icon">🧠</span>
           <div>
             <span class="mode-title">Stack Memorizer</span>
-            <span class="mode-copy" id="memModeCopy">Adaptive memory training</span>
+            <span class="mode-copy">Adaptive memory session</span>
           </div>
         </div>
         <div class="mem-mode-badge hidden" id="memModeBadge">0 due</div>
@@ -168,19 +168,15 @@
           </div>
           <div class="mem-srs-step">
             <span class="mem-srs-num">2</span>
-            <span>Use active recall + spaced repetition, not passive review</span>
-          </div>
-          <div class="mem-srs-step">
-            <span class="mem-srs-num">3</span>
-            <span>Intermittent mixed quizzes reinforce what you just learned</span>
+            <span>Create an image/story link between position and card</span>
           </div>
         </div>
 
+        
         <div class="mem-settings">
-          <label>Cards per session: <span id="memBatchValue">10</span></label>
-          <input id="memBatchSize" type="range" min="4" max="20" step="1" value="10">
-          <label>Quiz cadence: every <span id="memQuizEveryValue">3</span> new cards</label>
-          <input id="memQuizEvery" type="range" min="2" max="6" step="1" value="3">
+          <label for="memChunkSize">Cards per learning chunk</label>
+          <input id="memChunkSize" type="range" min="4" max="16" value="10" step="1">
+          <div class="mem-setting-value"><span id="memChunkSizeValue">10</span> cards</div>
         </div>
 
         <button class="btn-check mem-btn-start" id="memBtnStart">Begin Session →</button>
@@ -205,24 +201,23 @@
         <div class="mem-study-card" id="memStudyCard">
           <div class="mem-study-number" id="memFaceNumber">17</div>
           <div class="playing-card" id="playingCard">
-            <div class="pc-corner pc-tl">
-              <span class="pc-rank" id="pcRank1">7</span>
-              <span class="pc-suit" id="pcSuit1">♥</span>
-            </div>
-            <div class="pc-pip" id="pcPip">♥</div>
-            <div class="pc-corner pc-br">
-              <span class="pc-rank" id="pcRank2">7</span>
-              <span class="pc-suit" id="pcSuit2">♥</span>
-            </div>
+            <div class="pc-main-rank" id="pcMainRank">7</div>
+            <div class="pc-main-suit" id="pcMainSuit">♥</div>
           </div>
         </div>
 
         <!-- Rating buttons (always visible) -->
         <div class="mem-rating" id="memRating">
-          <button class="mem-btn mem-btn-again" id="memBtnAgain">Needs Work</button>
           <button class="mem-btn mem-btn-good" id="memBtnGood">Got it</button>
         </div>
       </div>
+        <div class="mem-quiz hidden" id="memQuiz">
+          <div class="mem-quiz-label" id="memQuizLabel">Quick quiz</div>
+          <div class="mem-quiz-q" id="memQuizQuestion"></div>
+          <div class="mem-quiz-choices" id="memQuizChoices"></div>
+          <div class="feedback hidden" id="memQuizFeedback"></div>
+        </div>
+
 
       <!-- Complete screen -->
       <div class="hidden" id="memComplete">
