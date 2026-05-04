@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#1a0b3d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -31,7 +31,7 @@
           <span class="mode-icon">🧠</span>
           <div>
             <span class="mode-title">Stack Memorizer</span>
-            <span class="mode-copy">10 cards per session</span>
+            <span class="mode-copy">Adaptive memory session</span>
           </div>
         </div>
         <div class="mem-mode-badge hidden" id="memModeBadge">0 due</div>
@@ -168,8 +168,15 @@
           </div>
           <div class="mem-srs-step">
             <span class="mem-srs-num">2</span>
-            <span>Try to lock in the pairing in your memory</span>
+            <span>Create an image/story link between position and card</span>
           </div>
+        </div>
+
+        
+        <div class="mem-settings">
+          <label for="memChunkSize">Cards per learning chunk</label>
+          <input id="memChunkSize" type="range" min="4" max="16" value="10" step="1">
+          <div class="mem-setting-value"><span id="memChunkSizeValue">10</span> cards</div>
         </div>
 
         <button class="btn-check mem-btn-start" id="memBtnStart">Begin Session →</button>
@@ -194,24 +201,23 @@
         <div class="mem-study-card" id="memStudyCard">
           <div class="mem-study-number" id="memFaceNumber">17</div>
           <div class="playing-card" id="playingCard">
-            <div class="pc-corner pc-tl">
-              <span class="pc-rank" id="pcRank1">7</span>
-              <span class="pc-suit" id="pcSuit1">♥</span>
-            </div>
-            <div class="pc-pip" id="pcPip">♥</div>
-            <div class="pc-corner pc-br">
-              <span class="pc-rank" id="pcRank2">7</span>
-              <span class="pc-suit" id="pcSuit2">♥</span>
-            </div>
+            <div class="pc-main-rank" id="pcMainRank">7</div>
+            <div class="pc-main-suit" id="pcMainSuit">♥</div>
           </div>
         </div>
 
         <!-- Rating buttons (always visible) -->
         <div class="mem-rating" id="memRating">
-          <button class="mem-btn mem-btn-again" id="memBtnAgain">Repeat</button>
           <button class="mem-btn mem-btn-good" id="memBtnGood">Got it</button>
         </div>
       </div>
+        <div class="mem-quiz hidden" id="memQuiz">
+          <div class="mem-quiz-label" id="memQuizLabel">Quick quiz</div>
+          <div class="mem-quiz-q" id="memQuizQuestion"></div>
+          <div class="mem-quiz-choices" id="memQuizChoices"></div>
+          <div class="feedback hidden" id="memQuizFeedback"></div>
+        </div>
+
 
       <!-- Complete screen -->
       <div class="hidden" id="memComplete">
