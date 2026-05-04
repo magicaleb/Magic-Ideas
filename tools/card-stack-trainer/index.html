@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#1a0b3d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -31,7 +31,7 @@
           <span class="mode-icon">🧠</span>
           <div>
             <span class="mode-title">Stack Memorizer</span>
-            <span class="mode-copy">10 cards per session</span>
+            <span class="mode-copy" id="memModeCopy">Adaptive memory training</span>
           </div>
         </div>
         <div class="mem-mode-badge hidden" id="memModeBadge">0 due</div>
@@ -168,8 +168,19 @@
           </div>
           <div class="mem-srs-step">
             <span class="mem-srs-num">2</span>
-            <span>Try to lock in the pairing in your memory</span>
+            <span>Use active recall + spaced repetition, not passive review</span>
           </div>
+          <div class="mem-srs-step">
+            <span class="mem-srs-num">3</span>
+            <span>Intermittent mixed quizzes reinforce what you just learned</span>
+          </div>
+        </div>
+
+        <div class="mem-settings">
+          <label>Cards per session: <span id="memBatchValue">10</span></label>
+          <input id="memBatchSize" type="range" min="4" max="20" step="1" value="10">
+          <label>Quiz cadence: every <span id="memQuizEveryValue">3</span> new cards</label>
+          <input id="memQuizEvery" type="range" min="2" max="6" step="1" value="3">
         </div>
 
         <button class="btn-check mem-btn-start" id="memBtnStart">Begin Session →</button>
@@ -208,7 +219,7 @@
 
         <!-- Rating buttons (always visible) -->
         <div class="mem-rating" id="memRating">
-          <button class="mem-btn mem-btn-again" id="memBtnAgain">Repeat</button>
+          <button class="mem-btn mem-btn-again" id="memBtnAgain">Needs Work</button>
           <button class="mem-btn mem-btn-good" id="memBtnGood">Got it</button>
         </div>
       </div>

@@ -49,7 +49,7 @@
   const SRS_KEY              = 'stackMemorizeSRS';
   const SRS_INTERVALS        = [1, 3, 7, 14, 30]; // days
   const MS_PER_DAY           = 86_400_000;
-  const SESSION_SIZE         = 10;
+  const SESSION_SIZE_DEFAULT = 10;
   const MAX_DUE_PER_SESSION  = 7;
   const MAX_REQUEUES         = 3;
 
@@ -105,17 +105,17 @@
     return STACK.filter((_, i) => !srs[i]).length;
   }
 
-  function buildSessionQueue(srs) {
+  function buildSessionQueue(srs, sessionSize) {
     const now = Date.now();
 
     const due = STACK
       .map((_, i) => ({ idx: i, due: srs[i] ? srs[i].due : Infinity }))
       .filter(c => srs[c.idx] && c.due <= now)
       .sort((a, b) => a.due - b.due)
-      .slice(0, MAX_DUE_PER_SESSION)
+      .slice(0, Math.min(MAX_DUE_PER_SESSION, sessionSize))
       .map(c => c.idx);
 
-    const remaining = SESSION_SIZE - due.length;
+    const remaining = sessionSize - due.length;
     const newCards  = STACK
       .map((_, i) => i)
       .filter(i => !srs[i])
@@ -140,7 +140,22 @@
     currentIdx:   null,
     srs:          null,
     agained:      {},   // idx → times re-queued this session (caps at 3)
+    seenSinceQuiz: 0,
+    quizEvery: 3,
+    pendingQuiz: null,
   };
+
+  const MEM_CFG_KEY = 'stackMemorizeConfig';
+  function loadMemConfig() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(MEM_CFG_KEY) || '{}');
+      return {
+        batchSize: Math.min(20, Math.max(4, Number(raw.batchSize) || SESSION_SIZE_DEFAULT)),
+        quizEvery: Math.min(6, Math.max(2, Number(raw.quizEvery) || 3)),
+      };
+    } catch { return { batchSize: SESSION_SIZE_DEFAULT, quizEvery: 3 }; }
+  }
+  function saveMemConfig(cfg) { localStorage.setItem(MEM_CFG_KEY, JSON.stringify(cfg)); }
 
   /* ── DOM references ──────────────────────────────────────────── */
   const els = {
@@ -189,6 +204,11 @@
     memInfoDue:         document.getElementById('memInfoDue'),
     memInfoNew:         document.getElementById('memInfoNew'),
     memBtnStart:        document.getElementById('memBtnStart'),
+    memModeCopy:        document.getElementById('memModeCopy'),
+    memBatchSize:       document.getElementById('memBatchSize'),
+    memBatchValue:      document.getElementById('memBatchValue'),
+    memQuizEvery:       document.getElementById('memQuizEvery'),
+    memQuizEveryValue:  document.getElementById('memQuizEveryValue'),
     memStudyCard:       document.getElementById('memStudyCard'),
     memFaceNumber:      document.getElementById('memFaceNumber'),
     pcRank1:            document.getElementById('pcRank1'),
@@ -393,6 +413,12 @@
 
   /* ── Memorize — session ──────────────────────────────────────── */
   function openMemorize() {
+    const cfg = loadMemConfig();
+    els.memBatchSize.value = String(cfg.batchSize);
+    els.memBatchValue.textContent = String(cfg.batchSize);
+    els.memQuizEvery.value = String(cfg.quizEvery);
+    els.memQuizEveryValue.textContent = String(cfg.quizEvery);
+    els.memModeCopy.textContent = `${cfg.batchSize} cards · quiz every ${cfg.quizEvery}`;
     els.memInfoDue.textContent = String(srsDueCount());
     els.memInfoNew.textContent = String(srsNewCount());
     setMemView('picker');
@@ -400,12 +426,16 @@
   }
 
   function startMemSession() {
+    const cfg = loadMemConfig();
     memSess.srs          = loadSRS();
-    memSess.queue        = buildSessionQueue(memSess.srs);
+    memSess.queue        = buildSessionQueue(memSess.srs, cfg.batchSize);
     memSess.initialCount = memSess.queue.length;
     memSess.goodCount    = 0;
     memSess.againCount   = 0;
     memSess.agained      = {};
+    memSess.seenSinceQuiz = 0;
+    memSess.quizEvery = cfg.quizEvery;
+    memSess.pendingQuiz = null;
 
     if (!memSess.queue.length) {
       renderMemComplete(true);
@@ -425,14 +455,27 @@
     }
 
     memSess.currentIdx = memSess.queue.shift();
+    memSess.pendingQuiz = null;
 
     const code = STACK[memSess.currentIdx];
     const { rank, suit, isRed } = parseCard(code);
     const cardColor = isRed ? '#e0182d' : '#1a1a2e';
     const suitSym   = SUIT_SYMBOL[code[1]];
 
-    // Position number
-    els.memFaceNumber.textContent = String(memSess.currentIdx + 1);
+    const quizType = memSess.seenSinceQuiz >= memSess.quizEvery ? ['position-to-card','card-to-position','adjacent'][Math.floor(Math.random()*3)] : null;
+    if (quizType) {
+      memSess.pendingQuiz = quizType;
+      memSess.seenSinceQuiz = 0;
+    }
+    if (!memSess.pendingQuiz) memSess.seenSinceQuiz += 1;
+
+    if (memSess.pendingQuiz === 'card-to-position') {
+      els.memFaceNumber.textContent = 'What #?';
+    } else if (memSess.pendingQuiz === 'adjacent') {
+      els.memFaceNumber.textContent = `#${memSess.currentIdx + 1} + neighbor?`;
+    } else {
+      els.memFaceNumber.textContent = String(memSess.currentIdx + 1);
+    }
 
     // Playing card face
     [els.pcRank1, els.pcRank2].forEach(el => {
@@ -604,6 +647,18 @@
 
     // Memorize — start session
     els.memBtnStart.addEventListener('click', startMemSession);
+    els.memBatchSize.addEventListener('input', () => {
+      const cfg = loadMemConfig();
+      cfg.batchSize = Number(els.memBatchSize.value);
+      els.memBatchValue.textContent = String(cfg.batchSize);
+      saveMemConfig(cfg);
+    });
+    els.memQuizEvery.addEventListener('input', () => {
+      const cfg = loadMemConfig();
+      cfg.quizEvery = Number(els.memQuizEvery.value);
+      els.memQuizEveryValue.textContent = String(cfg.quizEvery);
+      saveMemConfig(cfg);
+    });
 
     // Memorize — session back
     els.btnBackSession.addEventListener('click', () => {
