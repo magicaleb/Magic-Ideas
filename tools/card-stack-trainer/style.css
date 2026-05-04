@@ -29,6 +29,7 @@ html, body {
   background: var(--bg);
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .hidden { display: none !important; }
@@ -170,6 +171,25 @@ html, body {
   color: var(--muted);
   font-size: 0.82rem;
   line-height: 1.4;
+}
+
+.mem-settings {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--panel-light);
+  display: grid;
+  gap: 8px;
+}
+
+.mem-settings label {
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.mem-settings input[type="range"] {
+  width: 100%;
 }
 
 /* ── Quiz head (shared) ──────────────────────────────────────── */
