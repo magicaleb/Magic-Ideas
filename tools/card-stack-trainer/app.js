@@ -149,8 +149,8 @@
     memorize:           document.getElementById('memorize'),
     stats:              document.getElementById('stats'),
     streakChip:         document.getElementById('streakChip'),
-    masteryFill:        document.getElementById('masteryFill'),
-    masteryText:        document.getElementById('masteryText'),
+    masteryFill:        null,
+    masteryText:        null,
     btnBack:            document.getElementById('btnBack'),
     btnBackStats:       document.getElementById('btnBackStats'),
     scoreline:          document.getElementById('scoreline'),
@@ -234,12 +234,7 @@
     els.streakChip.classList.add('bump');
   }
 
-  function updateMasteryBar() {
-    const count = srsGraduatedCount();
-    const pct   = Math.round((count / STACK.length) * 100);
-    els.masteryFill.style.width = `${pct}%`;
-    els.masteryText.textContent = `${count} / ${STACK.length}`;
-  }
+  function updateMasteryBar() { /* mastery bar removed */ }
 
   function updateTopStatsUI() {
     const pct = state.sessionTotal

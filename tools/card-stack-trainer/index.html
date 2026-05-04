@@ -22,15 +22,7 @@
         <div class="streak-chip" id="streakChip">0 🔥</div>
       </div>
 
-      <div class="mastery-bar-wrap">
-        <div class="mastery-bar-label">
-          <span>Cards in rotation</span>
-          <span id="masteryText">0 / 52</span>
-        </div>
-        <div class="mastery-bar-track">
-          <div class="mastery-bar-fill" id="masteryFill" style="width:0%"></div>
-        </div>
-      </div>
+
     </header>
 
     <section class="mode-grid" id="modeGrid">
@@ -39,7 +31,7 @@
           <span class="mode-icon">🧠</span>
           <div>
             <span class="mode-title">Stack Memorizer</span>
-            <span class="mode-copy">Spaced repetition · science-backed · 10 cards per session</span>
+            <span class="mode-copy">10 cards per session</span>
           </div>
         </div>
         <div class="mem-mode-badge hidden" id="memModeBadge">0 due</div>
@@ -178,10 +170,6 @@
             <span class="mem-srs-num">2</span>
             <span>Try to lock in the pairing in your memory</span>
           </div>
-          <div class="mem-srs-step">
-            <span class="mem-srs-num">3</span>
-            <span>Rate: <strong>Again</strong> replays it soon · <strong>Got it</strong> spaces it out</span>
-          </div>
         </div>
 
         <button class="btn-check mem-btn-start" id="memBtnStart">Begin Session →</button>
@@ -220,20 +208,8 @@
 
         <!-- Rating buttons (always visible) -->
         <div class="mem-rating" id="memRating">
-          <button class="mem-btn mem-btn-again" id="memBtnAgain">
-            <span class="mem-btn-icon">😓</span>
-            <div class="mem-btn-text">
-              <div class="mem-btn-label">Again</div>
-              <div class="mem-btn-sub">Need more practice</div>
-            </div>
-          </button>
-          <button class="mem-btn mem-btn-good" id="memBtnGood">
-            <span class="mem-btn-icon">✅</span>
-            <div class="mem-btn-text">
-              <div class="mem-btn-label">Got it!</div>
-              <div class="mem-btn-sub">Moving it along</div>
-            </div>
-          </button>
+          <button class="mem-btn mem-btn-again" id="memBtnAgain">Repeat</button>
+          <button class="mem-btn mem-btn-good" id="memBtnGood">Got it</button>
         </div>
       </div>
 
