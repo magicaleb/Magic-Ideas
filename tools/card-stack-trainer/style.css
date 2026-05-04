@@ -798,13 +798,13 @@ html, body {
 
 .mem-btn:active { transform: scale(0.95); }
 
-.mem-btn-again {
+.mem-btn-again-unused {
   background: linear-gradient(135deg, rgba(255, 90, 130, 0.22), rgba(255, 90, 130, 0.08));
   border: 1px solid rgba(255, 90, 130, 0.4);
   color: var(--rose);
 }
 
-.mem-btn-again:active {
+.mem-btn-again-unused:active {
   box-shadow: 0 0 0 3px rgba(255, 90, 130, 0.2);
 }
 
@@ -1154,3 +1154,26 @@ html, body {
   .question-value { font-size: 9rem; }
   .question-suit  { font-size: 5.5rem; }
 }
+
+html, body { touch-action: manipulation; }
+
+.mem-settings {
+  margin: 10px 0 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+}
+.mem-settings label { display:block; font-weight:700; margin-bottom:8px; }
+.mem-setting-value { color: var(--muted); font-size: .9rem; margin-top: 6px; }
+.mem-quiz { margin-top: 12px; padding: 12px; border:1px solid var(--line-accent); border-radius:14px; background: var(--panel); }
+.mem-quiz-input { width:100%; margin:8px 0; padding:10px; border-radius:10px; border:1px solid var(--line); background:#0e1730; color:var(--text); }
+.mem-quiz-actions { display:flex; gap:8px; }
+
+
+.playing-card { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+.pc-main-rank { font-size: 5.5rem; font-weight: 900; line-height: .9; }
+.pc-main-suit { font-size: 4.5rem; font-weight: 900; line-height: .9; }
+.mem-quiz-choices { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+.mem-quiz-choice { border:1px solid var(--line); background:#101a35; color:var(--text); border-radius:12px; padding:12px; font-size:1.2rem; font-weight:800; }
+.mem-quiz-choice:active { transform:scale(.97); }
