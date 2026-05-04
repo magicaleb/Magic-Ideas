@@ -49,9 +49,9 @@
   const SRS_KEY              = 'stackMemorizeSRS';
   const SRS_INTERVALS        = [1, 3, 7, 14, 30]; // days
   const MS_PER_DAY           = 86_400_000;
-  const SESSION_SIZE         = 10;
-  const MAX_DUE_PER_SESSION  = 7;
-  const MAX_REQUEUES         = 3;
+  const DEFAULT_CHUNK_SIZE   = 10;
+  const MAX_DUE_PER_SESSION  = 8;
+  const QUIZ_EVERY_N_CARDS   = 2;
 
   function loadSRS() {
     try { return JSON.parse(localStorage.getItem(SRS_KEY) || '{}'); }
@@ -68,28 +68,13 @@
     return i === -1 ? 1 : (i < SRS_INTERVALS.length - 1 ? SRS_INTERVALS[i + 1] : 30);
   }
 
-  function srsPrevInterval(cur) {
-    if (!cur || cur <= 1) return 0;
-    const i = SRS_INTERVALS.indexOf(cur);
-    return i <= 0 ? 0 : SRS_INTERVALS[i - 1];
-  }
-
-  function srsGotIt(srs, idx) {
+    function srsGotIt(srs, idx) {
     const cur         = srs[idx];
     const newInterval = srsNextInterval(cur ? cur.interval : 0);
     srs[idx] = { interval: newInterval, due: Date.now() + newInterval * MS_PER_DAY };
   }
 
-  function srsAgain(srs, idx) {
-    const cur         = srs[idx];
-    const newInterval = srsPrevInterval(cur ? cur.interval : 0);
-    srs[idx] = {
-      interval: newInterval,
-      due: newInterval > 0 ? Date.now() + newInterval * MS_PER_DAY : Date.now(),
-    };
-  }
-
-  function srsGraduatedCount() {
+    function srsGraduatedCount() {
     const srs = loadSRS();
     return STACK.filter((_, i) => srs[i] && srs[i].interval >= 1).length;
   }
@@ -105,7 +90,7 @@
     return STACK.filter((_, i) => !srs[i]).length;
   }
 
-  function buildSessionQueue(srs) {
+  function buildSessionQueue(srs, chunkSize) {
     const now = Date.now();
 
     const due = STACK
@@ -115,13 +100,13 @@
       .slice(0, MAX_DUE_PER_SESSION)
       .map(c => c.idx);
 
-    const remaining = SESSION_SIZE - due.length;
+    const remaining = chunkSize - due.length;
     const newCards  = STACK
       .map((_, i) => i)
       .filter(i => !srs[i])
       .slice(0, remaining);
 
-    // Interleave due and new cards for a natural feel
+    // Interleave due and new cards for varied retrieval practice
     const combined = [];
     const len = Math.max(due.length, newCards.length);
     for (let i = 0; i < len; i++) {
@@ -133,13 +118,15 @@
 
   /* ── Memorize session state ──────────────────────────────────── */
   const memSess = {
-    queue:        [],
+    queue: [],
     initialCount: 0,
-    goodCount:    0,
-    againCount:   0,
-    currentIdx:   null,
-    srs:          null,
-    agained:      {},   // idx → times re-queued this session (caps at 3)
+    goodCount: 0,
+    quizCount: 0,
+    currentIdx: null,
+    srs: null,
+    chunkSize: DEFAULT_CHUNK_SIZE,
+    sinceQuiz: 0,
+    quizPrompt: null,
   };
 
   /* ── DOM references ──────────────────────────────────────────── */
@@ -191,14 +178,17 @@
     memBtnStart:        document.getElementById('memBtnStart'),
     memStudyCard:       document.getElementById('memStudyCard'),
     memFaceNumber:      document.getElementById('memFaceNumber'),
-    pcRank1:            document.getElementById('pcRank1'),
-    pcSuit1:            document.getElementById('pcSuit1'),
-    pcPip:              document.getElementById('pcPip'),
-    pcRank2:            document.getElementById('pcRank2'),
-    pcSuit2:            document.getElementById('pcSuit2'),
+    pcMainRank:         document.getElementById('pcMainRank'),
+    pcMainSuit:         document.getElementById('pcMainSuit'),
     memRating:          document.getElementById('memRating'),
-    memBtnAgain:        document.getElementById('memBtnAgain'),
-    memBtnGood:         document.getElementById('memBtnGood'),
+        memBtnGood:         document.getElementById('memBtnGood'),
+    memChunkSize:       document.getElementById('memChunkSize'),
+    memChunkSizeValue:  document.getElementById('memChunkSizeValue'),
+    memQuiz:            document.getElementById('memQuiz'),
+    memQuizLabel:       document.getElementById('memQuizLabel'),
+    memQuizQuestion:    document.getElementById('memQuizQuestion'),
+    memQuizChoices:     document.getElementById('memQuizChoices'),
+    memQuizFeedback:    document.getElementById('memQuizFeedback'),
     memProgressFill:    document.getElementById('memProgressFill'),
     memCountDone:       document.getElementById('memCountDone'),
     memCountTotal:      document.getElementById('memCountTotal'),
@@ -401,11 +391,13 @@
 
   function startMemSession() {
     memSess.srs          = loadSRS();
-    memSess.queue        = buildSessionQueue(memSess.srs);
+    memSess.chunkSize    = Number(els.memChunkSize.value || DEFAULT_CHUNK_SIZE);
+    memSess.queue        = buildSessionQueue(memSess.srs, memSess.chunkSize);
     memSess.initialCount = memSess.queue.length;
     memSess.goodCount    = 0;
-    memSess.againCount   = 0;
-    memSess.agained      = {};
+    memSess.quizCount    = 0;
+    memSess.sinceQuiz    = 0;
+    els.memQuiz.classList.add('hidden');
 
     if (!memSess.queue.length) {
       renderMemComplete(true);
@@ -429,22 +421,15 @@
     const code = STACK[memSess.currentIdx];
     const { rank, suit, isRed } = parseCard(code);
     const cardColor = isRed ? '#e0182d' : '#1a1a2e';
-    const suitSym   = SUIT_SYMBOL[code[1]];
 
     // Position number
     els.memFaceNumber.textContent = String(memSess.currentIdx + 1);
 
-    // Playing card face
-    [els.pcRank1, els.pcRank2].forEach(el => {
-      el.textContent = rank;
-      el.style.color = cardColor;
-    });
-    [els.pcSuit1, els.pcSuit2].forEach(el => {
-      el.textContent = suitSym;
-      el.style.color = cardColor;
-    });
-    els.pcPip.textContent = suitSym;
-    els.pcPip.style.color = cardColor;
+    // Simplified big face
+    els.pcMainRank.textContent = rank;
+    els.pcMainSuit.textContent = suit;
+    els.pcMainRank.style.color = cardColor;
+    els.pcMainSuit.style.color = cardColor;
 
     // Animate card in
     els.memStudyCard.classList.remove('card-enter');
@@ -458,23 +443,67 @@
     srsGotIt(memSess.srs, memSess.currentIdx);
     saveSRS(memSess.srs);
     memSess.goodCount += 1;
+    memSess.sinceQuiz += 1;
     updateMasteryBar();
     updateMemModeBadge();
-    showMemCard();
+    maybeRunMemQuiz();
   }
 
-  function rateAgain() {
-    srsAgain(memSess.srs, memSess.currentIdx);
-    saveSRS(memSess.srs);
-    memSess.againCount += 1;
-    // Re-insert near the end (max 3 re-queues per card to prevent infinite loops)
-    const times = (memSess.agained[memSess.currentIdx] || 0) + 1;
-    memSess.agained[memSess.currentIdx] = times;
-    if (times <= MAX_REQUEUES) {
-      const insertAt = Math.max(0, memSess.queue.length - 2);
-      memSess.queue.splice(insertAt, 0, memSess.currentIdx);
+  function maybeRunMemQuiz() {
+    if (memSess.sinceQuiz < QUIZ_EVERY_N_CARDS || !memSess.queue.length) {
+      showMemCard();
+      return;
     }
-    showMemCard();
+    memSess.sinceQuiz = 0;
+    const idx = memSess.currentIdx;
+    const askPosition = Math.random() < 0.5;
+    const correct = askPosition ? STACK[idx] : String(idx + 1);
+
+    const allOptions = askPosition
+      ? STACK.slice()
+      : Array.from({ length: 52 }, (_, i) => String(i + 1));
+    const wrongs = allOptions.filter(v => v !== correct).sort(() => Math.random() - 0.5).slice(0, 3);
+    const options = [correct, ...wrongs].sort(() => Math.random() - 0.5);
+
+    const { rank, suit } = parseCard(STACK[idx]);
+    memSess.quizPrompt = {
+      question: askPosition ? `What is the card at #${idx + 1}?` : `What position is ${rank}${suit}?`,
+      correct,
+      askPosition,
+      options,
+    };
+
+    els.memQuizLabel.textContent = 'Retrieval check';
+    els.memQuizQuestion.textContent = memSess.quizPrompt.question;
+    els.memQuizChoices.innerHTML = '';
+    options.forEach((opt) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mem-quiz-choice';
+      if (askPosition) {
+        const c = parseCard(opt);
+        btn.textContent = `${c.rank}${c.suit}`;
+      } else {
+        btn.textContent = `#${opt}`;
+      }
+      btn.addEventListener('click', () => checkMemQuiz(opt));
+      els.memQuizChoices.appendChild(btn);
+    });
+    els.memQuizFeedback.classList.add('hidden');
+    els.memQuiz.classList.remove('hidden');
+  }
+
+  function checkMemQuiz(selected) {
+    if (!memSess.quizPrompt) return;
+    const correct = selected === memSess.quizPrompt.correct;
+    els.memQuizFeedback.className = `feedback ${correct ? 'correct' : 'wrong'}`;
+    const answerText = memSess.quizPrompt.askPosition
+      ? (() => { const c = parseCard(memSess.quizPrompt.correct); return `${c.rank}${c.suit}`; })()
+      : `#${memSess.quizPrompt.correct}`;
+    els.memQuizFeedback.innerHTML = correct ? '✅ Nice recall.' : `❌ Correct answer: <strong>${answerText}</strong>`;
+    els.memQuizFeedback.classList.remove('hidden');
+    memSess.quizCount += 1;
+    setTimeout(() => { els.memQuiz.classList.add('hidden'); memSess.quizPrompt = null; showMemCard(); }, 700);
   }
 
   function updateMemProgress() {
@@ -495,9 +524,9 @@
       els.memCompleteTrophy.textContent = '🌟';
       els.memCompleteSub.textContent    = "Nothing due — you're all caught up!";
     } else {
-      const total = memSess.goodCount + memSess.againCount;
-      els.memCompleteTrophy.textContent = memSess.againCount === 0 ? '🏆' : '🎊';
-      els.memCompleteSub.textContent    = `You studied ${total} card${total !== 1 ? 's' : ''} this session`;
+      const total = memSess.goodCount;
+      els.memCompleteTrophy.textContent = '🏆';
+      els.memCompleteSub.textContent    = `You locked in ${total} card${total !== 1 ? 's' : ''} and completed ${memSess.quizCount} recall checks`;
     }
 
     els.memCompleteStats.innerHTML = `
@@ -506,8 +535,8 @@
         <div class="mem-stat-l">Got it ✅</div>
       </div>
       <div class="mem-stat">
-        <div class="mem-stat-n" style="color:var(--rose)">${memSess.againCount}</div>
-        <div class="mem-stat-l">Again 😓</div>
+        <div class="mem-stat-n" style="color:var(--lav)">${memSess.quizCount}</div>
+        <div class="mem-stat-l">Recall checks 🧩</div>
       </div>
       <div class="mem-stat mem-stat-wide">
         <div class="mem-stat-n">${learned}<span style="font-size:1.3rem;font-weight:600;opacity:.55"> / 52</span></div>
@@ -612,14 +641,13 @@
       setMemView('picker');
     });
 
-    // Memorize — rating buttons
-    els.memBtnAgain.addEventListener('click', rateAgain);
+    // Memorize — controls
     els.memBtnGood.addEventListener('click',  rateGood);
+    els.memChunkSize.addEventListener('input', () => { els.memChunkSizeValue.textContent = els.memChunkSize.value; });
 
     // Keyboard shortcuts for memorize session
     document.addEventListener('keydown', (e) => {
       if (els.memSession.classList.contains('hidden')) return;
-      if (e.key.toLowerCase() === 'a') { e.preventDefault(); rateAgain(); }
       if (e.key.toLowerCase() === 'g') { e.preventDefault(); rateGood(); }
     });
 
