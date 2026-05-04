@@ -22,15 +22,7 @@
         <div class="streak-chip" id="streakChip">0 🔥</div>
       </div>
 
-      <div class="mastery-bar-wrap">
-        <div class="mastery-bar-label">
-          <span>Cards in rotation</span>
-          <span id="masteryText">0 / 52</span>
-        </div>
-        <div class="mastery-bar-track">
-          <div class="mastery-bar-fill" id="masteryFill" style="width:0%"></div>
-        </div>
-      </div>
+
     </header>
 
     <section class="mode-grid" id="modeGrid">
@@ -39,7 +31,7 @@
           <span class="mode-icon">🧠</span>
           <div>
             <span class="mode-title">Stack Memorizer</span>
-            <span class="mode-copy">Spaced repetition · science-backed · 10 cards per session</span>
+            <span class="mode-copy">10 cards per session</span>
           </div>
         </div>
         <div class="mem-mode-badge hidden" id="memModeBadge">0 due</div>
@@ -172,15 +164,11 @@
         <div class="mem-srs-how">
           <div class="mem-srs-step">
             <span class="mem-srs-num">1</span>
-            <span>See the position number — recall the card</span>
+            <span>See the position number and card together</span>
           </div>
           <div class="mem-srs-step">
             <span class="mem-srs-num">2</span>
-            <span>Tap to flip and check yourself</span>
-          </div>
-          <div class="mem-srs-step">
-            <span class="mem-srs-num">3</span>
-            <span>Rate: <strong>Again</strong> replays it soon · <strong>Got it</strong> spaces it out</span>
+            <span>Try to lock in the pairing in your memory</span>
           </div>
         </div>
 
@@ -202,51 +190,26 @@
           <div class="mem-progress-fill" id="memProgressFill" style="width:0%"></div>
         </div>
 
-        <!-- Flip card scene -->
-        <div class="mem-scene" id="memScene" role="button" tabindex="0" aria-label="Flip card to reveal answer">
-          <div class="mem-card" id="memCard">
-            <!-- Front: position number -->
-            <div class="mem-face mem-face-front">
-              <div class="mem-face-eyebrow">Position in stack</div>
-              <div class="mem-face-number" id="memFaceNumber">17</div>
-              <div class="mem-face-hint">tap to reveal</div>
+        <!-- Study card: shows position number + playing card together -->
+        <div class="mem-study-card" id="memStudyCard">
+          <div class="mem-study-number" id="memFaceNumber">17</div>
+          <div class="playing-card" id="playingCard">
+            <div class="pc-corner pc-tl">
+              <span class="pc-rank" id="pcRank1">7</span>
+              <span class="pc-suit" id="pcSuit1">♥</span>
             </div>
-            <!-- Back: actual playing card -->
-            <div class="mem-face mem-face-back">
-              <div class="playing-card" id="playingCard">
-                <div class="pc-corner pc-tl">
-                  <span class="pc-rank" id="pcRank1">7</span>
-                  <span class="pc-suit" id="pcSuit1">♥</span>
-                </div>
-                <div class="pc-pip" id="pcPip">♥</div>
-                <div class="pc-corner pc-br">
-                  <span class="pc-rank" id="pcRank2">7</span>
-                  <span class="pc-suit" id="pcSuit2">♥</span>
-                </div>
-              </div>
+            <div class="pc-pip" id="pcPip">♥</div>
+            <div class="pc-corner pc-br">
+              <span class="pc-rank" id="pcRank2">7</span>
+              <span class="pc-suit" id="pcSuit2">♥</span>
             </div>
           </div>
         </div>
 
-        <!-- Tap prompt (before flip) -->
-        <div class="mem-tap-prompt" id="memTapPrompt">Tap the card to reveal the answer</div>
-
-        <!-- Rating buttons (after flip) -->
-        <div class="mem-rating hidden" id="memRating">
-          <button class="mem-btn mem-btn-again" id="memBtnAgain">
-            <span class="mem-btn-icon">😓</span>
-            <div class="mem-btn-text">
-              <div class="mem-btn-label">Again</div>
-              <div class="mem-btn-sub">Need more practice</div>
-            </div>
-          </button>
-          <button class="mem-btn mem-btn-good" id="memBtnGood">
-            <span class="mem-btn-icon">✅</span>
-            <div class="mem-btn-text">
-              <div class="mem-btn-label">Got it!</div>
-              <div class="mem-btn-sub">Moving it along</div>
-            </div>
-          </button>
+        <!-- Rating buttons (always visible) -->
+        <div class="mem-rating" id="memRating">
+          <button class="mem-btn mem-btn-again" id="memBtnAgain">Repeat</button>
+          <button class="mem-btn mem-btn-good" id="memBtnGood">Got it</button>
         </div>
       </div>
 

@@ -100,37 +100,6 @@ html, body {
   animation: bump 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Mastery progress bar */
-.mastery-bar-wrap {
-  margin-top: 16px;
-}
-
-.mastery-bar-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--muted);
-  margin-bottom: 7px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.mastery-bar-track {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.mastery-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--lav), var(--mint));
-  border-radius: 999px;
-  transition: width 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
-  min-width: 0%;
-}
-
 /* ── Mode grid ───────────────────────────────────────────────── */
 .mode-grid {
   display: grid;
@@ -620,7 +589,51 @@ html, body {
 .mem-counter-done { color: var(--mint); }
 .mem-counter-sep  { margin: 0 2px; opacity: 0.5; }
 
-/* 3D flip card */
+/* Study card: shows number + playing card together */
+.mem-study-card {
+  background:
+    radial-gradient(ellipse 80% 55% at 25% 10%, rgba(196, 168, 255, 0.4) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 75% 90%, rgba(120, 255, 214, 0.25) 0%, transparent 60%),
+    var(--panel);
+  border: 1px solid var(--line-accent);
+  border-radius: 28px;
+  padding: 24px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.mem-study-number {
+  font-size: clamp(3.5rem, 16vw, 6rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  background: linear-gradient(145deg, #ffffff 0%, rgba(196, 168, 255, 0.88) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.mem-study-card .playing-card {
+  width: min(160px, 42vw);
+  aspect-ratio: 2.5 / 3.5;
+  height: auto;
+}
+
+.mem-study-card .pc-pip {
+  font-size: clamp(2.8rem, 10vw, 4.2rem);
+}
+
+.mem-study-card .pc-rank { font-size: 1.25rem; }
+.mem-study-card .pc-suit { font-size: 0.8rem; }
+.mem-study-card .pc-tl   { top: 8px; left: 10px; }
+.mem-study-card .pc-br   { bottom: 8px; right: 10px; }
+
+/* 3D flip card (kept for animation reuse only) */
 .mem-scene {
   perspective: 1100px;
   cursor: pointer;
@@ -772,34 +785,18 @@ html, body {
 }
 
 .mem-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
+  padding: 18px 16px;
   border-radius: 18px;
   border: none;
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 1.1rem;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
   -webkit-tap-highlight-color: transparent;
-  text-align: left;
+  text-align: center;
 }
 
 .mem-btn:active { transform: scale(0.95); }
-
-.mem-btn-icon { font-size: 1.6rem; flex-shrink: 0; }
-
-.mem-btn-label {
-  font-size: 1rem;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.mem-btn-sub {
-  font-size: 0.7rem;
-  opacity: 0.7;
-  margin-top: 2px;
-}
 
 .mem-btn-again {
   background: linear-gradient(135deg, rgba(255, 90, 130, 0.22), rgba(255, 90, 130, 0.08));
