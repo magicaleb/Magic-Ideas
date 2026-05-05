@@ -1205,10 +1205,10 @@ html, body { touch-action: manipulation; }
   min-height: 1.1em;
 }
 
-/* Side-by-side tile pair */
+/* Stacked tile pair — number on top, card on bottom */
 .mem-pair {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
@@ -1218,7 +1218,7 @@ html, body { touch-action: manipulation; }
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 190px;
+  min-height: 140px;
   position: relative;
   overflow: hidden;
 }
@@ -1244,7 +1244,7 @@ html, body { touch-action: manipulation; }
 }
 
 .mem-tile-numval {
-  font-size: clamp(3.5rem, 15vw, 5.5rem);
+  font-size: clamp(4.5rem, 18vw, 7rem);
   font-weight: 900;
   line-height: 1;
   letter-spacing: -0.04em;
@@ -1255,14 +1255,14 @@ html, body { touch-action: manipulation; }
 }
 
 .mem-pc-rank {
-  font-size: clamp(3rem, 13vw, 5rem);
+  font-size: clamp(4.5rem, 18vw, 7rem);
   font-weight: 900;
   line-height: 0.9;
   font-family: Georgia, 'Times New Roman', serif;
 }
 
 .mem-pc-suit {
-  font-size: clamp(2.2rem, 10vw, 3.5rem);
+  font-size: clamp(3.5rem, 14vw, 5.5rem);
   font-weight: 900;
   line-height: 0.9;
 }
@@ -1274,7 +1274,7 @@ html, body { touch-action: manipulation; }
   inset: 0;
   align-items: center;
   justify-content: center;
-  font-size: clamp(3.5rem, 15vw, 5.5rem);
+  font-size: clamp(4.5rem, 18vw, 7rem);
   font-weight: 900;
 }
 
