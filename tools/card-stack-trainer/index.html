@@ -164,11 +164,11 @@
         <div class="mem-srs-how">
           <div class="mem-srs-step">
             <span class="mem-srs-num">1</span>
-            <span>See the position number and card together</span>
+            <span>See each number + card once, then recall immediately</span>
           </div>
           <div class="mem-srs-step">
             <span class="mem-srs-num">2</span>
-            <span>Create an image/story link between position and card</span>
+            <span>Recall alternates both ways (number→card and card→number)</span>
           </div>
         </div>
 
@@ -178,6 +178,11 @@
           <input id="memChunkSize" type="range" min="4" max="16" value="10" step="1">
           <div class="mem-setting-value"><span id="memChunkSizeValue">10</span> cards</div>
         </div>
+
+        <label style="display:flex;gap:8px;align-items:center;margin:10px 0 2px;opacity:.92">
+          <input id="memRandomizeOrder" type="checkbox">
+          <span>Randomize pair order for this session</span>
+        </label>
 
         <button class="btn-check mem-btn-start" id="memBtnStart">Begin Session →</button>
       </div>
@@ -208,7 +213,7 @@
 
         <!-- Rating buttons (always visible) -->
         <div class="mem-rating" id="memRating">
-          <button class="mem-btn mem-btn-good" id="memBtnGood">Got it</button>
+          <button class="mem-btn mem-btn-good" id="memBtnGood">Test me</button>
         </div>
       </div>
         <div class="mem-quiz hidden" id="memQuiz">
