@@ -97,7 +97,7 @@
       .map((_, i) => ({ idx: i, due: srs[i] ? srs[i].due : Infinity }))
       .filter(c => srs[c.idx] && c.due <= now)
       .sort((a, b) => a.due - b.due)
-      .slice(0, MAX_DUE_PER_SESSION)
+      .slice(0, Math.min(MAX_DUE_PER_SESSION, chunkSize))
       .map(c => c.idx);
 
     const remaining = chunkSize - due.length;
@@ -126,13 +126,19 @@
 
   /* ── Memorize session state ──────────────────────────────────── */
   const memSess = {
-    queue: [],
-    initialCount: 0,
-    goodCount: 0,
-    currentIdx: null,
     srs: null,
-    chunkSize: DEFAULT_CHUNK_SIZE,
-    lastRevealIdx: null,
+    batchSize: 5,
+    currentBatchCards: [],  // card indices in the active batch
+    isRepeatBatch: false,   // true when repeating without SRS updates
+
+    // Flat task queue for the current phase
+    taskQueue: [],
+    currentTask: null,
+
+    inBatchRetest: false,
+    batchRetestPassed: new Set(),
+
+    goodCount: 0,           // total "Got it" across all batches (for complete screen)
   };
 
   /* ── DOM references ──────────────────────────────────────────── */
@@ -177,29 +183,47 @@
     memModeBadge:       document.getElementById('memModeBadge'),
     memPicker:          document.getElementById('memPicker'),
     memSession:         document.getElementById('memSession'),
+    memBatchComplete:   document.getElementById('memBatchComplete'),
     memComplete:        document.getElementById('memComplete'),
     btnBackMemorize:    document.getElementById('btnBackMemorize'),
     memInfoDue:         document.getElementById('memInfoDue'),
     memInfoNew:         document.getElementById('memInfoNew'),
     memBtnStart:        document.getElementById('memBtnStart'),
-    memStudyCard:       document.getElementById('memStudyCard'),
-    memFaceNumber:      document.getElementById('memFaceNumber'),
+    // Pair tiles
+    memPair:            document.getElementById('memPair'),
+    memTileNum:         document.getElementById('memTileNum'),
+    memTileCard:        document.getElementById('memTileCard'),
+    memTileNumText:     document.getElementById('memTileNumText'),
     pcMainRank:         document.getElementById('pcMainRank'),
     pcMainSuit:         document.getElementById('pcMainSuit'),
-    memRating:          document.getElementById('memRating'),
-        memBtnGood:         document.getElementById('memBtnGood'),
-    memChunkSize:       document.getElementById('memChunkSize'),
-    memChunkSizeValue:  document.getElementById('memChunkSizeValue'),
-    memRandomizeOrder:  document.getElementById('memRandomizeOrder'),
+    memPhaseLabel:      document.getElementById('memPhaseLabel'),
+    memStepDots:        document.getElementById('memStepDots'),
+    // Action buttons
+    memBtnAdvance:      document.getElementById('memBtnAdvance'),
+    memBtnRevealRetest: document.getElementById('memBtnRevealRetest'),
+    memRetestBtns:      document.getElementById('memRetestBtns'),
+    memBtnMiss:         document.getElementById('memBtnMiss'),
+    memBtnGotIt:        document.getElementById('memBtnGotIt'),
+    // Counters / progress
     memProgressFill:    document.getElementById('memProgressFill'),
     memCountDone:       document.getElementById('memCountDone'),
     memCountTotal:      document.getElementById('memCountTotal'),
     btnBackSession:     document.getElementById('btnBackSession'),
+    // Batch complete
+    memBatchCompleteSub:  document.getElementById('memBatchCompleteSub'),
+    memBtnRepeatBatch:    document.getElementById('memBtnRepeatBatch'),
+    memBtnNextBatch:      document.getElementById('memBtnNextBatch'),
+    btnBackBatchComplete: document.getElementById('btnBackBatchComplete'),
+    // Session complete
     memCompleteTrophy:  document.getElementById('memCompleteTrophy'),
     memCompleteSub:     document.getElementById('memCompleteSub'),
     memCompleteStats:   document.getElementById('memCompleteStats'),
     memBtnStudyMore:    document.getElementById('memBtnStudyMore'),
     btnBackMemComplete: document.getElementById('btnBackMemComplete'),
+    // Picker settings
+    memChunkSize:       document.getElementById('memChunkSize'),
+    memChunkSizeValue:  document.getElementById('memChunkSizeValue'),
+    memRandomizeOrder:  document.getElementById('memRandomizeOrder'),
   };
 
   // Keypad selection state
@@ -254,9 +278,10 @@
   }
 
   function setMemView(name) {
-    els.memPicker.classList.toggle('hidden',   name !== 'picker');
-    els.memSession.classList.toggle('hidden',  name !== 'session');
-    els.memComplete.classList.toggle('hidden', name !== 'complete');
+    els.memPicker.classList.toggle('hidden',        name !== 'picker');
+    els.memSession.classList.toggle('hidden',       name !== 'session');
+    els.memBatchComplete.classList.toggle('hidden', name !== 'batch-complete');
+    els.memComplete.classList.toggle('hidden',      name !== 'complete');
   }
 
   /* ── Drill prompt logic ──────────────────────────────────────── */
@@ -391,74 +416,187 @@
     setView('memorize');
   }
 
-  function startMemSession() {
-    memSess.srs          = loadSRS();
-    memSess.chunkSize    = Number(els.memChunkSize.value || DEFAULT_CHUNK_SIZE);
-    memSess.queue        = buildSessionQueue(memSess.srs, memSess.chunkSize, els.memRandomizeOrder.checked);
-    memSess.initialCount = memSess.queue.length;
-    memSess.goodCount    = 0;
-    memSess.lastRevealIdx = null;
+  function randomSide() { return Math.random() < 0.5 ? 'card' : 'num'; }
 
-    if (!memSess.queue.length) {
+  /* Build the task queue for one batch:
+     imprint each card (4 steps) interleaved with early retests
+     (first retest fires after the 2nd card is introduced).        */
+  function buildBatchQueue(batchCards) {
+    const tasks = [];
+    const retestPending = [];
+
+    for (let i = 0; i < batchCards.length; i++) {
+      const idx = batchCards[i];
+      for (let step = 0; step < 4; step++) {
+        tasks.push({ type: 'imprint', idx, step });
+      }
+      retestPending.push(idx);
+      if (i >= 1 && retestPending.length > 0) {
+        tasks.push({ type: 'retest', idx: retestPending.shift(), side: randomSide() });
+      }
+    }
+    while (retestPending.length) {
+      tasks.push({ type: 'retest', idx: retestPending.shift(), side: randomSide() });
+    }
+    return tasks;
+  }
+
+  function startMemSession() {
+    memSess.srs       = loadSRS();
+    memSess.batchSize = Number(els.memChunkSize.value) || 5;
+    memSess.goodCount = 0;
+
+    if (!tryStartNextBatch()) {
       renderMemComplete(true);
       setMemView('complete');
-      return;
     }
+  }
 
+  /* Pick the next batch of cards from the SRS queue and start it.
+     Returns false when there's nothing left to learn.            */
+  function tryStartNextBatch() {
+    memSess.srs = loadSRS();
+    const nextCards = buildSessionQueue(memSess.srs, memSess.batchSize, els.memRandomizeOrder.checked);
+    if (!nextCards.length) return false;
+
+    memSess.currentBatchCards = nextCards;
+    memSess.isRepeatBatch     = false;
     setMemView('session');
-    showMemCard();
+    startCurrentBatch();
+    return true;
   }
 
-  function insertQueueSoon(idx) {
-    const gap = 1 + Math.floor(Math.random() * 2);
-    const pos = Math.min(gap, memSess.queue.length);
-    memSess.queue.splice(pos, 0, idx);
+  function startCurrentBatch() {
+    memSess.taskQueue        = buildBatchQueue(memSess.currentBatchCards);
+    memSess.inBatchRetest    = false;
+    memSess.batchRetestPassed = new Set();
+    updateMemProgress();
+    advanceTask();
   }
 
-  function showMemCard() {
-    if (!memSess.queue.length) {
-      renderMemComplete(false);
-      setMemView('complete');
+  function startBatchRetestPhase() {
+    memSess.inBatchRetest     = true;
+    memSess.batchRetestPassed = new Set();
+    memSess.taskQueue = shuffleInPlace(
+      memSess.currentBatchCards.map(idx => ({ type: 'batch-retest', idx, side: randomSide() }))
+    );
+    advanceTask();
+  }
+
+  function advanceTask() {
+    if (!memSess.taskQueue.length) {
+      if (!memSess.inBatchRetest) { startBatchRetestPhase(); }
       return;
     }
+    memSess.currentTask = memSess.taskQueue.shift();
+    showTask(memSess.currentTask);
+  }
 
-    memSess.currentIdx = memSess.queue.shift();
+  function setTileHidden(side, hidden) {
+    (side === 'num' ? els.memTileNum : els.memTileCard)
+      .classList.toggle('is-hidden', hidden);
+  }
 
-    const code = STACK[memSess.currentIdx];
+  function updateStepDots(step) {
+    els.memStepDots.querySelectorAll('.mem-step-dot').forEach((dot, i) => {
+      dot.classList.toggle('active', i === step);
+      dot.classList.toggle('done',   i < step);
+    });
+  }
+
+  function showTask(task) {
+    const code = STACK[task.idx];
     const { rank, suit, isRed } = parseCard(code);
     const cardColor = isRed ? '#e0182d' : '#1a1a2e';
 
-    els.memFaceNumber.textContent = String(memSess.currentIdx + 1);
-    els.pcMainRank.textContent = rank;
-    els.pcMainSuit.textContent = suit;
-    els.pcMainRank.style.color = cardColor;
-    els.pcMainSuit.style.color = cardColor;
+    els.memTileNumText.textContent = String(task.idx + 1);
+    els.pcMainRank.textContent     = rank;
+    els.pcMainSuit.textContent     = suit;
+    els.pcMainRank.style.color     = cardColor;
+    els.pcMainSuit.style.color     = cardColor;
 
-    els.memStudyCard.classList.remove('card-enter');
-    void els.memStudyCard.offsetWidth;
-    els.memStudyCard.classList.add('card-enter');
+    // Reset hidden state
+    setTileHidden('num',  false);
+    setTileHidden('card', false);
 
-    const isNew = !memSess.srs[memSess.currentIdx];
-    if (isNew && memSess.lastRevealIdx !== memSess.currentIdx) {
-      insertQueueSoon(memSess.currentIdx);
-      memSess.lastRevealIdx = memSess.currentIdx;
+    const phaseLabel = memSess.inBatchRetest ? 'Batch Quiz' :
+                       (task.type === 'retest' ? 'Recall' : 'Imprint');
+    els.memPhaseLabel.textContent = phaseLabel;
+
+    if (task.type === 'imprint') {
+      setTileHidden('num',  task.step === 2);
+      setTileHidden('card', task.step === 1 || task.step === 3);
+      updateStepDots(task.step);
+      els.memStepDots.classList.remove('hidden');
+
+      els.memBtnAdvance.textContent = task.step === 3 ? 'Done ✓' : 'Next →';
+      els.memBtnAdvance.classList.remove('hidden');
+      els.memBtnRevealRetest.classList.add('hidden');
+      els.memRetestBtns.classList.add('hidden');
+    } else {
+      // Retest / batch-retest
+      setTileHidden(task.side, true);
+      els.memStepDots.classList.add('hidden');
+      els.memBtnAdvance.classList.add('hidden');
+      els.memBtnRevealRetest.classList.remove('hidden');
+      els.memRetestBtns.classList.add('hidden');
     }
 
-    updateMemProgress();
+    // Entrance animation
+    els.memPair.classList.remove('card-enter');
+    void els.memPair.offsetWidth;
+    els.memPair.classList.add('card-enter');
   }
 
-  function rateGood() {
-    srsGotIt(memSess.srs, memSess.currentIdx);
-    saveSRS(memSess.srs);
-    memSess.goodCount += 1;
-    updateMasteryBar();
-    updateMemModeBadge();
-    showMemCard();
+  function handleMemReveal() {
+    setTileHidden('num',  false);
+    setTileHidden('card', false);
+    els.memBtnRevealRetest.classList.add('hidden');
+    els.memRetestBtns.classList.remove('hidden');
+  }
+
+  function handleMemGotIt() {
+    const task = memSess.currentTask;
+    if (!task) return;
+
+    if (task.type === 'batch-retest') {
+      memSess.batchRetestPassed.add(task.idx);
+      if (!memSess.isRepeatBatch) {
+        srsGotIt(memSess.srs, task.idx);
+        saveSRS(memSess.srs);
+        memSess.goodCount++;
+        updateMasteryBar();
+        updateMemModeBadge();
+      }
+      updateMemProgress();
+      if (memSess.batchRetestPassed.size === memSess.currentBatchCards.length) {
+        showBatchComplete();
+        return;
+      }
+    }
+    // For early retest: just advance (SRS updated during batch retest phase)
+    advanceTask();
+  }
+
+  function handleMemMiss() {
+    const task = memSess.currentTask;
+    if (!task) return;
+    // Re-imprint then re-queue the same retest type
+    const reimprint = [0, 1, 2, 3].map(step => ({ type: 'imprint', idx: task.idx, step }));
+    const retest    = { type: task.type, idx: task.idx, side: randomSide() };
+    memSess.taskQueue.unshift(...reimprint, retest);
+    advanceTask();
+  }
+
+  function showBatchComplete() {
+    const n = memSess.currentBatchCards.length;
+    els.memBatchCompleteSub.textContent = `All ${n} pair${n !== 1 ? 's' : ''} locked in`;
+    setMemView('batch-complete');
   }
 
   function updateMemProgress() {
-    const total = memSess.initialCount;
-    const done  = memSess.goodCount;
+    const total = memSess.currentBatchCards.length;
+    const done  = memSess.batchRetestPassed.size;
     const pct   = total > 0 ? (done / total) * 100 : 0;
     els.memProgressFill.style.width = `${Math.min(pct, 100)}%`;
     els.memCountDone.textContent    = String(done);
@@ -587,8 +725,33 @@
       setMemView('picker');
     });
 
-    // Memorize — controls
-    els.memBtnGood.addEventListener('click',  () => rateGood());
+    // Memorize — imprint advance
+    els.memBtnAdvance.addEventListener('click', advanceTask);
+
+    // Memorize — reveal (retest mode)
+    els.memBtnRevealRetest.addEventListener('click', handleMemReveal);
+
+    // Memorize — retest outcome
+    els.memBtnGotIt.addEventListener('click', handleMemGotIt);
+    els.memBtnMiss.addEventListener('click',  handleMemMiss);
+
+    // Memorize — batch complete actions
+    els.memBtnRepeatBatch.addEventListener('click', () => {
+      memSess.isRepeatBatch = true;
+      setMemView('session');
+      startBatchRetestPhase();
+    });
+    els.memBtnNextBatch.addEventListener('click', () => {
+      if (!tryStartNextBatch()) {
+        renderMemComplete(false);
+        setMemView('complete');
+      }
+    });
+    els.btnBackBatchComplete.addEventListener('click', () => {
+      els.memInfoDue.textContent = String(srsDueCount());
+      els.memInfoNew.textContent = String(srsNewCount());
+      setMemView('picker');
+    });
     els.memChunkSize.addEventListener('input', () => { els.memChunkSizeValue.textContent = els.memChunkSize.value; });
     els.memRandomizeOrder.addEventListener('change', () => {
       localStorage.setItem('stackMemorizeRandomOrder', els.memRandomizeOrder.checked ? '1' : '0');
@@ -598,7 +761,16 @@
     // Keyboard shortcuts for memorize session
     document.addEventListener('keydown', (e) => {
       if (els.memSession.classList.contains('hidden')) return;
-      if (e.key.toLowerCase() === 'g') { e.preventDefault(); rateGood(); }
+      const retestVisible = !els.memRetestBtns.classList.contains('hidden');
+      if (!retestVisible && (e.key === ' ' || e.key === 'Enter')) {
+        e.preventDefault();
+        if (!els.memBtnRevealRetest.classList.contains('hidden')) handleMemReveal();
+        else if (!els.memBtnAdvance.classList.contains('hidden')) advanceTask();
+      }
+      if (retestVisible) {
+        if (e.key.toLowerCase() === 'g') { e.preventDefault(); handleMemGotIt(); }
+        if (e.key.toLowerCase() === 'm') { e.preventDefault(); handleMemMiss(); }
+      }
     });
 
     // Memorize — complete screen back
