@@ -51,7 +51,7 @@
   const MS_PER_DAY           = 86_400_000;
   const DEFAULT_CHUNK_SIZE   = 10;
   const MAX_DUE_PER_SESSION  = 8;
-  const QUIZ_EVERY_N_CARDS   = 2;
+  const RECALL_TOO_SLOW_MS    = 2500;
 
   function loadSRS() {
     try { return JSON.parse(localStorage.getItem(SRS_KEY) || '{}'); }
@@ -90,7 +90,7 @@
     return STACK.filter((_, i) => !srs[i]).length;
   }
 
-  function buildSessionQueue(srs, chunkSize) {
+  function buildSessionQueue(srs, chunkSize, randomizeOrder) {
     const now = Date.now();
 
     const due = STACK
@@ -113,8 +113,16 @@
       if (i < due.length)      combined.push(due[i]);
       if (i < newCards.length) combined.push(newCards[i]);
     }
-    return combined;
+    return randomizeOrder ? shuffleInPlace(combined) : combined;
   }
+  function shuffleInPlace(items) {
+    for (let i = items.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
+  }
+
 
   /* ── Memorize session state ──────────────────────────────────── */
   const memSess = {
@@ -125,8 +133,11 @@
     currentIdx: null,
     srs: null,
     chunkSize: DEFAULT_CHUNK_SIZE,
-    sinceQuiz: 0,
     quizPrompt: null,
+    hideCardNext: false,
+    lastRevealIdx: null,
+    lastRevealAt: 0,
+    pendingRetry: null,
   };
 
   /* ── DOM references ──────────────────────────────────────────── */
@@ -184,6 +195,7 @@
         memBtnGood:         document.getElementById('memBtnGood'),
     memChunkSize:       document.getElementById('memChunkSize'),
     memChunkSizeValue:  document.getElementById('memChunkSizeValue'),
+    memRandomizeOrder:  document.getElementById('memRandomizeOrder'),
     memQuiz:            document.getElementById('memQuiz'),
     memQuizLabel:       document.getElementById('memQuizLabel'),
     memQuizQuestion:    document.getElementById('memQuizQuestion'),
@@ -392,11 +404,14 @@
   function startMemSession() {
     memSess.srs          = loadSRS();
     memSess.chunkSize    = Number(els.memChunkSize.value || DEFAULT_CHUNK_SIZE);
-    memSess.queue        = buildSessionQueue(memSess.srs, memSess.chunkSize);
+    memSess.queue        = buildSessionQueue(memSess.srs, memSess.chunkSize, els.memRandomizeOrder.checked);
     memSess.initialCount = memSess.queue.length;
     memSess.goodCount    = 0;
     memSess.quizCount    = 0;
-    memSess.sinceQuiz    = 0;
+    memSess.hideCardNext = false;
+    memSess.lastRevealIdx = null;
+    memSess.lastRevealAt = 0;
+    memSess.pendingRetry = null;
     els.memQuiz.classList.add('hidden');
 
     if (!memSess.queue.length) {
@@ -409,6 +424,12 @@
     showMemCard();
   }
 
+  function insertQueueSoon(idx) {
+    const gap = 1 + Math.floor(Math.random() * 2);
+    const pos = Math.min(gap, memSess.queue.length);
+    memSess.queue.splice(pos, 0, idx);
+  }
+
   function showMemCard() {
     if (!memSess.queue.length) {
       renderMemComplete(false);
@@ -416,47 +437,47 @@
       return;
     }
 
-    memSess.currentIdx = memSess.queue.shift();
+    memSess.currentIdx = memSess.pendingRetry ?? memSess.queue.shift();
+    memSess.pendingRetry = null;
 
     const code = STACK[memSess.currentIdx];
     const { rank, suit, isRed } = parseCard(code);
     const cardColor = isRed ? '#e0182d' : '#1a1a2e';
 
-    // Position number
     els.memFaceNumber.textContent = String(memSess.currentIdx + 1);
-
-    // Simplified big face
     els.pcMainRank.textContent = rank;
     els.pcMainSuit.textContent = suit;
     els.pcMainRank.style.color = cardColor;
     els.pcMainSuit.style.color = cardColor;
 
-    // Animate card in
     els.memStudyCard.classList.remove('card-enter');
     void els.memStudyCard.offsetWidth;
     els.memStudyCard.classList.add('card-enter');
 
+    const isNew = !memSess.srs[memSess.currentIdx];
+    if (isNew && memSess.lastRevealIdx !== memSess.currentIdx) {
+      insertQueueSoon(memSess.currentIdx);
+      memSess.lastRevealIdx = memSess.currentIdx;
+    }
+
+    memSess.lastRevealAt = performance.now();
     updateMemProgress();
+    setTimeout(() => maybeRunMemQuiz(), 700);
   }
 
   function rateGood() {
     srsGotIt(memSess.srs, memSess.currentIdx);
     saveSRS(memSess.srs);
     memSess.goodCount += 1;
-    memSess.sinceQuiz += 1;
     updateMasteryBar();
     updateMemModeBadge();
-    maybeRunMemQuiz();
+    showMemCard();
   }
 
   function maybeRunMemQuiz() {
-    if (memSess.sinceQuiz < QUIZ_EVERY_N_CARDS || !memSess.queue.length) {
-      showMemCard();
-      return;
-    }
-    memSess.sinceQuiz = 0;
     const idx = memSess.currentIdx;
-    const askPosition = Math.random() < 0.5;
+    const askPosition = memSess.hideCardNext;
+    memSess.hideCardNext = !memSess.hideCardNext;
     const correct = askPosition ? STACK[idx] : String(idx + 1);
 
     const allOptions = askPosition
@@ -473,7 +494,7 @@
       options,
     };
 
-    els.memQuizLabel.textContent = 'Retrieval check';
+    els.memQuizLabel.textContent = askPosition ? 'Recall the card' : 'Recall the number';
     els.memQuizQuestion.textContent = memSess.quizPrompt.question;
     els.memQuizChoices.innerHTML = '';
     options.forEach((opt) => {
@@ -495,15 +516,27 @@
 
   function checkMemQuiz(selected) {
     if (!memSess.quizPrompt) return;
-    const correct = selected === memSess.quizPrompt.correct;
+    const elapsed = performance.now() - memSess.lastRevealAt;
+    const correct = selected === memSess.quizPrompt.correct && elapsed <= RECALL_TOO_SLOW_MS;
     els.memQuizFeedback.className = `feedback ${correct ? 'correct' : 'wrong'}`;
     const answerText = memSess.quizPrompt.askPosition
       ? (() => { const c = parseCard(memSess.quizPrompt.correct); return `${c.rank}${c.suit}`; })()
       : `#${memSess.quizPrompt.correct}`;
-    els.memQuizFeedback.innerHTML = correct ? '✅ Nice recall.' : `❌ Correct answer: <strong>${answerText}</strong>`;
+    els.memQuizFeedback.innerHTML = correct ? '✅ Instant recall.' : `❌ ${elapsed > RECALL_TOO_SLOW_MS ? 'Too slow. ' : ''}Correct answer: <strong>${answerText}</strong>`;
     els.memQuizFeedback.classList.remove('hidden');
     memSess.quizCount += 1;
-    setTimeout(() => { els.memQuiz.classList.add('hidden'); memSess.quizPrompt = null; showMemCard(); }, 700);
+    if (correct) {
+      rateGood();
+      setTimeout(() => { els.memQuiz.classList.add('hidden'); memSess.quizPrompt = null; }, 300);
+      return;
+    }
+
+    memSess.pendingRetry = memSess.currentIdx;
+    setTimeout(() => {
+      els.memQuiz.classList.add('hidden');
+      memSess.quizPrompt = null;
+      showMemCard();
+    }, 700);
   }
 
   function updateMemProgress() {
@@ -642,8 +675,12 @@
     });
 
     // Memorize — controls
-    els.memBtnGood.addEventListener('click',  rateGood);
+    els.memBtnGood.addEventListener('click',  () => maybeRunMemQuiz());
     els.memChunkSize.addEventListener('input', () => { els.memChunkSizeValue.textContent = els.memChunkSize.value; });
+    els.memRandomizeOrder.addEventListener('change', () => {
+      localStorage.setItem('stackMemorizeRandomOrder', els.memRandomizeOrder.checked ? '1' : '0');
+    });
+    els.memRandomizeOrder.checked = localStorage.getItem('stackMemorizeRandomOrder') === '1';
 
     // Keyboard shortcuts for memorize session
     document.addEventListener('keydown', (e) => {
