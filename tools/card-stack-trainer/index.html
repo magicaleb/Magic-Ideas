@@ -164,19 +164,22 @@
         <div class="mem-srs-how">
           <div class="mem-srs-step">
             <span class="mem-srs-num">1</span>
-            <span>See each number + card once, then recall immediately</span>
+            <span>See position + card side by side — imprint the pair in 4 steps</span>
           </div>
           <div class="mem-srs-step">
             <span class="mem-srs-num">2</span>
-            <span>Recall alternates both ways (number→card and card→number)</span>
+            <span>Recall each direction with one side hidden (Reveal → Got it / Miss)</span>
+          </div>
+          <div class="mem-srs-step">
+            <span class="mem-srs-num">3</span>
+            <span>Batch quiz — all pairs quizzed until every one is locked in</span>
           </div>
         </div>
 
-        
         <div class="mem-settings">
-          <label for="memChunkSize">Cards per learning chunk</label>
-          <input id="memChunkSize" type="range" min="4" max="16" value="10" step="1">
-          <div class="mem-setting-value"><span id="memChunkSizeValue">10</span> cards</div>
+          <label for="memChunkSize">Cards per batch</label>
+          <input id="memChunkSize" type="range" min="3" max="10" value="5" step="1">
+          <div class="mem-setting-value"><span id="memChunkSizeValue">5</span> cards</div>
         </div>
 
         <label style="display:flex;gap:8px;align-items:center;margin:10px 0 2px;opacity:.92">
@@ -194,7 +197,7 @@
           <div class="mem-counter">
             <span class="mem-counter-done" id="memCountDone">0</span
             ><span class="mem-counter-sep">/</span
-            ><span class="mem-counter-total" id="memCountTotal">10</span>
+            ><span class="mem-counter-total" id="memCountTotal">5</span>
           </div>
         </div>
 
@@ -202,29 +205,63 @@
           <div class="mem-progress-fill" id="memProgressFill" style="width:0%"></div>
         </div>
 
-        <!-- Study card: shows position number + playing card together -->
-        <div class="mem-study-card" id="memStudyCard">
-          <div class="mem-study-number" id="memFaceNumber">17</div>
-          <div class="playing-card" id="playingCard">
-            <div class="pc-main-rank" id="pcMainRank">7</div>
-            <div class="pc-main-suit" id="pcMainSuit">♥</div>
+        <div class="mem-phase-label" id="memPhaseLabel">Imprint</div>
+
+        <!-- Side-by-side pair tiles -->
+        <div class="mem-pair" id="memPair">
+          <!-- Position number tile -->
+          <div class="mem-tile mem-tile-num" id="memTileNum">
+            <div class="mem-tile-content">
+              <div class="mem-tile-numval" id="memTileNumText">1</div>
+            </div>
+            <div class="mem-tile-mystery">?</div>
+          </div>
+          <!-- Playing-card tile -->
+          <div class="mem-tile mem-tile-card" id="memTileCard">
+            <div class="mem-tile-content">
+              <div class="mem-pc-rank" id="pcMainRank">A</div>
+              <div class="mem-pc-suit" id="pcMainSuit">♥</div>
+            </div>
+            <div class="mem-tile-mystery">?</div>
           </div>
         </div>
 
-        <!-- Rating buttons (always visible) -->
-        <div class="mem-rating" id="memRating">
-          <button class="mem-btn mem-btn-good" id="memBtnGood">Test me</button>
+        <!-- Imprint step dots -->
+        <div class="mem-step-dots" id="memStepDots">
+          <span class="mem-step-dot"></span>
+          <span class="mem-step-dot"></span>
+          <span class="mem-step-dot"></span>
+          <span class="mem-step-dot"></span>
+        </div>
+
+        <!-- Action area -->
+        <div class="mem-actions">
+          <button class="btn-check mem-btn-wide" id="memBtnAdvance">Next →</button>
+          <button class="btn-check mem-btn-wide hidden" id="memBtnRevealRetest">Reveal</button>
+          <div class="mem-retest-btns hidden" id="memRetestBtns">
+            <button class="mem-btn mem-btn-miss" id="memBtnMiss">Miss / Slow</button>
+            <button class="mem-btn mem-btn-got" id="memBtnGotIt">Got it ✓</button>
+          </div>
         </div>
       </div>
-        <div class="mem-quiz hidden" id="memQuiz">
-          <div class="mem-quiz-label" id="memQuizLabel">Quick quiz</div>
-          <div class="mem-quiz-q" id="memQuizQuestion"></div>
-          <div class="mem-quiz-choices" id="memQuizChoices"></div>
-          <div class="feedback hidden" id="memQuizFeedback"></div>
+
+      <!-- Batch complete screen -->
+      <div class="hidden" id="memBatchComplete">
+        <div class="quiz-head">
+          <button class="btn-back" id="btnBackBatchComplete">✕ End</button>
         </div>
+        <div class="mem-complete-body">
+          <div class="mem-complete-trophy">🎉</div>
+          <h2 class="mem-complete-title">Batch Complete!</h2>
+          <p class="mem-complete-sub" id="memBatchCompleteSub">All 5 pairs locked in</p>
+          <div class="mem-batch-action-grid">
+            <button class="mem-btn mem-btn-repeat" id="memBtnRepeatBatch">↩ Repeat batch</button>
+            <button class="btn-check mem-btn-next-batch" id="memBtnNextBatch">Next batch →</button>
+          </div>
+        </div>
+      </div>
 
-
-      <!-- Complete screen -->
+      <!-- Session complete screen -->
       <div class="hidden" id="memComplete">
         <div class="quiz-head">
           <button class="btn-back" id="btnBackMemComplete">← Back</button>

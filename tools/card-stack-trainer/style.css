@@ -1191,9 +1191,187 @@ html, body { touch-action: manipulation; }
 .mem-quiz-actions { display:flex; gap:8px; }
 
 
-.playing-card { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
-.pc-main-rank { font-size: 5.5rem; font-weight: 900; line-height: .9; }
-.pc-main-suit { font-size: 4.5rem; font-weight: 900; line-height: .9; }
-.mem-quiz-choices { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
-.mem-quiz-choice { border:1px solid var(--line); background:#101a35; color:var(--text); border-radius:12px; padding:12px; font-size:1.2rem; font-weight:800; }
-.mem-quiz-choice:active { transform:scale(.97); }
+/* ── Memorize — new imprint/batch-quiz layout ────────────────── */
+
+/* Phase label */
+.mem-phase-label {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--lav);
+  opacity: 0.85;
+  min-height: 1.1em;
+}
+
+/* Stacked tile pair — number on top, card on bottom */
+.mem-pair {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.mem-tile {
+  border-radius: 22px;
+  border: 1px solid var(--line-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  position: relative;
+  overflow: hidden;
+}
+
+.mem-tile-num {
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(196, 168, 255, 0.4) 0%, transparent 60%),
+    var(--panel);
+}
+
+.mem-tile-card {
+  background: #f8f4f0;
+  border-color: rgba(200, 200, 200, 0.5);
+}
+
+.mem-tile-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  z-index: 1;
+}
+
+/* Card tile: rank + suit side by side to fill width */
+.mem-tile-card .mem-tile-content {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.mem-tile-numval {
+  font-size: clamp(5rem, 20vw, 8rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  background: linear-gradient(145deg, #ffffff 0%, rgba(196, 168, 255, 0.88) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.mem-pc-rank {
+  font-size: clamp(5rem, 20vw, 8rem);
+  font-weight: 900;
+  line-height: 1;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.mem-pc-suit {
+  font-size: clamp(5rem, 20vw, 8rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Hidden / mystery state */
+.mem-tile-mystery {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(5rem, 20vw, 8rem);
+  font-weight: 900;
+}
+
+.mem-tile-num .mem-tile-mystery { color: rgba(255, 255, 255, 0.22); }
+.mem-tile-card .mem-tile-mystery { color: rgba(0, 0, 0, 0.18); }
+
+.mem-tile.is-hidden .mem-tile-content { visibility: hidden; }
+.mem-tile.is-hidden .mem-tile-mystery { display: flex; }
+
+/* Step dots */
+.mem-step-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 20px;
+}
+
+.mem-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
+}
+
+.mem-step-dot.active {
+  width: 26px;
+  border-radius: 4px;
+  background: var(--lav);
+}
+
+.mem-step-dot.done {
+  background: rgba(120, 255, 214, 0.55);
+}
+
+/* Action area */
+.mem-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+/* Wide centered primary button (advances imprint / reveals) */
+.mem-btn-wide {
+  font-size: 1.15rem;
+  padding: 20px;
+}
+
+/* Retest dual buttons */
+.mem-retest-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mem-btn-miss {
+  background: linear-gradient(135deg, rgba(255, 90, 130, 0.22), rgba(255, 90, 130, 0.08));
+  border: 1px solid rgba(255, 90, 130, 0.4);
+  color: var(--rose);
+}
+
+.mem-btn-miss:active { box-shadow: 0 0 0 3px rgba(255, 90, 130, 0.2); }
+
+.mem-btn-got {
+  background: linear-gradient(135deg, rgba(120, 255, 214, 0.22), rgba(120, 255, 214, 0.08));
+  border: 1px solid rgba(120, 255, 214, 0.4);
+  color: var(--mint);
+}
+
+.mem-btn-got:active { box-shadow: 0 0 0 3px rgba(120, 255, 214, 0.2); }
+
+/* Batch complete action grid */
+.mem-batch-action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.mem-btn-repeat {
+  background: var(--panel-light);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+
+.mem-btn-next-batch {
+  font-size: 1.05rem;
+  padding: 18px 12px;
+}
