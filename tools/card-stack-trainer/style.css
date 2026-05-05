@@ -1218,7 +1218,7 @@ html, body { touch-action: manipulation; }
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 140px;
+  min-height: 160px;
   position: relative;
   overflow: hidden;
 }
@@ -1243,8 +1243,15 @@ html, body { touch-action: manipulation; }
   z-index: 1;
 }
 
+/* Card tile: rank + suit side by side to fill width */
+.mem-tile-card .mem-tile-content {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+}
+
 .mem-tile-numval {
-  font-size: clamp(4.5rem, 18vw, 7rem);
+  font-size: clamp(5rem, 20vw, 8rem);
   font-weight: 900;
   line-height: 1;
   letter-spacing: -0.04em;
@@ -1255,16 +1262,16 @@ html, body { touch-action: manipulation; }
 }
 
 .mem-pc-rank {
-  font-size: clamp(4.5rem, 18vw, 7rem);
+  font-size: clamp(5rem, 20vw, 8rem);
   font-weight: 900;
-  line-height: 0.9;
+  line-height: 1;
   font-family: Georgia, 'Times New Roman', serif;
 }
 
 .mem-pc-suit {
-  font-size: clamp(3.5rem, 14vw, 5.5rem);
+  font-size: clamp(5rem, 20vw, 8rem);
   font-weight: 900;
-  line-height: 0.9;
+  line-height: 1;
 }
 
 /* Hidden / mystery state */
@@ -1274,7 +1281,7 @@ html, body { touch-action: manipulation; }
   inset: 0;
   align-items: center;
   justify-content: center;
-  font-size: clamp(4.5rem, 18vw, 7rem);
+  font-size: clamp(5rem, 20vw, 8rem);
   font-weight: 900;
 }
 
