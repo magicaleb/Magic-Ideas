@@ -129,15 +129,10 @@
     queue: [],
     initialCount: 0,
     goodCount: 0,
-    quizCount: 0,
     currentIdx: null,
     srs: null,
     chunkSize: DEFAULT_CHUNK_SIZE,
-    quizPrompt: null,
-    hideCardNext: false,
     lastRevealIdx: null,
-    lastRevealAt: 0,
-    pendingRetry: null,
   };
 
   /* ── DOM references ──────────────────────────────────────────── */
@@ -196,11 +191,6 @@
     memChunkSize:       document.getElementById('memChunkSize'),
     memChunkSizeValue:  document.getElementById('memChunkSizeValue'),
     memRandomizeOrder:  document.getElementById('memRandomizeOrder'),
-    memQuiz:            document.getElementById('memQuiz'),
-    memQuizLabel:       document.getElementById('memQuizLabel'),
-    memQuizQuestion:    document.getElementById('memQuizQuestion'),
-    memQuizChoices:     document.getElementById('memQuizChoices'),
-    memQuizFeedback:    document.getElementById('memQuizFeedback'),
     memProgressFill:    document.getElementById('memProgressFill'),
     memCountDone:       document.getElementById('memCountDone'),
     memCountTotal:      document.getElementById('memCountTotal'),
@@ -407,12 +397,7 @@
     memSess.queue        = buildSessionQueue(memSess.srs, memSess.chunkSize, els.memRandomizeOrder.checked);
     memSess.initialCount = memSess.queue.length;
     memSess.goodCount    = 0;
-    memSess.quizCount    = 0;
-    memSess.hideCardNext = false;
     memSess.lastRevealIdx = null;
-    memSess.lastRevealAt = 0;
-    memSess.pendingRetry = null;
-    els.memQuiz.classList.add('hidden');
 
     if (!memSess.queue.length) {
       renderMemComplete(true);
@@ -437,8 +422,7 @@
       return;
     }
 
-    memSess.currentIdx = memSess.pendingRetry ?? memSess.queue.shift();
-    memSess.pendingRetry = null;
+    memSess.currentIdx = memSess.queue.shift();
 
     const code = STACK[memSess.currentIdx];
     const { rank, suit, isRed } = parseCard(code);
@@ -460,9 +444,7 @@
       memSess.lastRevealIdx = memSess.currentIdx;
     }
 
-    memSess.lastRevealAt = performance.now();
     updateMemProgress();
-    setTimeout(() => maybeRunMemQuiz(), 700);
   }
 
   function rateGood() {
@@ -472,71 +454,6 @@
     updateMasteryBar();
     updateMemModeBadge();
     showMemCard();
-  }
-
-  function maybeRunMemQuiz() {
-    const idx = memSess.currentIdx;
-    const askPosition = memSess.hideCardNext;
-    memSess.hideCardNext = !memSess.hideCardNext;
-    const correct = askPosition ? STACK[idx] : String(idx + 1);
-
-    const allOptions = askPosition
-      ? STACK.slice()
-      : Array.from({ length: 52 }, (_, i) => String(i + 1));
-    const wrongs = allOptions.filter(v => v !== correct).sort(() => Math.random() - 0.5).slice(0, 3);
-    const options = [correct, ...wrongs].sort(() => Math.random() - 0.5);
-
-    const { rank, suit } = parseCard(STACK[idx]);
-    memSess.quizPrompt = {
-      question: askPosition ? `What is the card at #${idx + 1}?` : `What position is ${rank}${suit}?`,
-      correct,
-      askPosition,
-      options,
-    };
-
-    els.memQuizLabel.textContent = askPosition ? 'Recall the card' : 'Recall the number';
-    els.memQuizQuestion.textContent = memSess.quizPrompt.question;
-    els.memQuizChoices.innerHTML = '';
-    options.forEach((opt) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'mem-quiz-choice';
-      if (askPosition) {
-        const c = parseCard(opt);
-        btn.textContent = `${c.rank}${c.suit}`;
-      } else {
-        btn.textContent = `#${opt}`;
-      }
-      btn.addEventListener('click', () => checkMemQuiz(opt));
-      els.memQuizChoices.appendChild(btn);
-    });
-    els.memQuizFeedback.classList.add('hidden');
-    els.memQuiz.classList.remove('hidden');
-  }
-
-  function checkMemQuiz(selected) {
-    if (!memSess.quizPrompt) return;
-    const elapsed = performance.now() - memSess.lastRevealAt;
-    const correct = selected === memSess.quizPrompt.correct && elapsed <= RECALL_TOO_SLOW_MS;
-    els.memQuizFeedback.className = `feedback ${correct ? 'correct' : 'wrong'}`;
-    const answerText = memSess.quizPrompt.askPosition
-      ? (() => { const c = parseCard(memSess.quizPrompt.correct); return `${c.rank}${c.suit}`; })()
-      : `#${memSess.quizPrompt.correct}`;
-    els.memQuizFeedback.innerHTML = correct ? '✅ Instant recall.' : `❌ ${elapsed > RECALL_TOO_SLOW_MS ? 'Too slow. ' : ''}Correct answer: <strong>${answerText}</strong>`;
-    els.memQuizFeedback.classList.remove('hidden');
-    memSess.quizCount += 1;
-    if (correct) {
-      rateGood();
-      setTimeout(() => { els.memQuiz.classList.add('hidden'); memSess.quizPrompt = null; }, 300);
-      return;
-    }
-
-    memSess.pendingRetry = memSess.currentIdx;
-    setTimeout(() => {
-      els.memQuiz.classList.add('hidden');
-      memSess.quizPrompt = null;
-      showMemCard();
-    }, 700);
   }
 
   function updateMemProgress() {
@@ -559,17 +476,13 @@
     } else {
       const total = memSess.goodCount;
       els.memCompleteTrophy.textContent = '🏆';
-      els.memCompleteSub.textContent    = `You locked in ${total} card${total !== 1 ? 's' : ''} and completed ${memSess.quizCount} recall checks`;
+      els.memCompleteSub.textContent    = `You locked in ${total} card${total !== 1 ? 's' : ''}`;
     }
 
     els.memCompleteStats.innerHTML = `
       <div class="mem-stat">
         <div class="mem-stat-n" style="color:var(--mint)">${memSess.goodCount}</div>
         <div class="mem-stat-l">Got it ✅</div>
-      </div>
-      <div class="mem-stat">
-        <div class="mem-stat-n" style="color:var(--lav)">${memSess.quizCount}</div>
-        <div class="mem-stat-l">Recall checks 🧩</div>
       </div>
       <div class="mem-stat mem-stat-wide">
         <div class="mem-stat-n">${learned}<span style="font-size:1.3rem;font-weight:600;opacity:.55"> / 52</span></div>
@@ -675,7 +588,7 @@
     });
 
     // Memorize — controls
-    els.memBtnGood.addEventListener('click',  () => maybeRunMemQuiz());
+    els.memBtnGood.addEventListener('click',  () => rateGood());
     els.memChunkSize.addEventListener('input', () => { els.memChunkSizeValue.textContent = els.memChunkSize.value; });
     els.memRandomizeOrder.addEventListener('change', () => {
       localStorage.setItem('stackMemorizeRandomOrder', els.memRandomizeOrder.checked ? '1' : '0');
