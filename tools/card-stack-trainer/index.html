@@ -36,20 +36,12 @@
         </div>
         <div class="mem-mode-badge hidden" id="memModeBadge">0 due</div>
       </button>
-      <button class="mode-card mode-primary" data-mode="number-to-card">
-        <span class="mode-icon">🔢</span>
-        <span class="mode-title">Position → Card</span>
-        <span class="mode-copy">You see a number — name the card at that position.</span>
-      </button>
-      <button class="mode-card mode-primary" data-mode="card-to-number">
-        <span class="mode-icon">🃏</span>
-        <span class="mode-title">Card → Position</span>
-        <span class="mode-copy">You see a card — name its position in the stack.</span>
-      </button>
-      <button class="mode-card mode-mixed" data-mode="mixed">
-        <span class="mode-icon">🔀</span>
-        <span class="mode-title">Mixed Drills</span>
-        <span class="mode-copy">Adaptive — focuses on your weakest spots.</span>
+      <button class="mode-card mode-quiz" data-mode="quiz">
+        <span class="mode-icon">🎯</span>
+        <div>
+          <span class="mode-title">Quiz</span>
+          <span class="mode-copy">Position · Card · Mixed · Distance — customizable drills</span>
+        </div>
       </button>
       <button class="mode-card mode-tool" data-mode="stats">
         <span class="mode-icon">📊</span>
@@ -67,12 +59,18 @@
 
       <div class="question-card" id="questionCard">
         <div class="question-label" id="questionLabel">Position</div>
-        <div class="question-display">
+        <div class="question-display" id="questionDisplay">
           <div class="question-prefix" id="questionPrefix">#</div>
           <div class="question-value" id="questionValue">17</div>
           <div class="question-suit hidden" id="questionSuit"></div>
         </div>
-        <div class="question-timer">⏱ <span id="timerValue">0.0s</span></div>
+        <!-- Distance quiz: two-item display -->
+        <div class="dist-display hidden" id="distDisplay">
+          <div class="dist-item" id="distItemA"></div>
+          <div class="dist-sep" id="distSep">↔</div>
+          <div class="dist-item" id="distItemB"></div>
+        </div>
+        <div class="question-timer" id="questionTimer">⏱ <span id="timerValue">0.0s</span></div>
       </div>
 
       <form class="answer-form" id="answerForm" autocomplete="off">
@@ -127,7 +125,7 @@
           <button type="button" class="key-clear" id="numClear">✕  Clear</button>
         </div>
 
-        <button class="btn-check" type="submit">Check Answer</button>
+        <button class="btn-check" type="submit" hidden aria-hidden="true">Check Answer</button>
       </form>
 
       <div class="feedback hidden" id="feedback"></div>
@@ -135,6 +133,66 @@
       <div class="actions-row">
         <button class="btn-action" id="btnReveal" type="button">💡 Reveal</button>
         <button class="btn-action btn-next" id="btnNext" type="button">Next →</button>
+      </div>
+
+      <!-- Quiz Settings Panel -->
+      <div class="quiz-settings" id="quizSettings">
+        <button class="quiz-settings-toggle" id="quizSettingsToggle" type="button">
+          ⚙ <span id="quizSettingsSummary">Mixed · All Cards</span>
+        </button>
+        <div class="quiz-settings-body hidden" id="quizSettingsBody">
+          <div class="qs-section">
+            <div class="qs-label">Mode</div>
+            <div class="qs-chips">
+              <button type="button" class="qs-chip active" data-qs="mode" data-val="mixed">Mixed</button>
+              <button type="button" class="qs-chip" data-qs="mode" data-val="number-to-card">Pos→Card</button>
+              <button type="button" class="qs-chip" data-qs="mode" data-val="card-to-number">Card→Pos</button>
+              <button type="button" class="qs-chip" data-qs="mode" data-val="distance">Distance</button>
+            </div>
+          </div>
+          <div class="qs-section">
+            <div class="qs-label">Color</div>
+            <div class="qs-chips">
+              <button type="button" class="qs-chip active" data-qs="color" data-val="all">All</button>
+              <button type="button" class="qs-chip" data-qs="color" data-val="red">Red</button>
+              <button type="button" class="qs-chip" data-qs="color" data-val="black">Black</button>
+            </div>
+          </div>
+          <div class="qs-section">
+            <div class="qs-label">Suit</div>
+            <div class="qs-chips">
+              <button type="button" class="qs-chip active" data-qs="suit" data-val="all">All</button>
+              <button type="button" class="qs-chip qs-chip-red" data-qs="suit" data-val="H">♥</button>
+              <button type="button" class="qs-chip qs-chip-red" data-qs="suit" data-val="D">♦</button>
+              <button type="button" class="qs-chip qs-chip-black" data-qs="suit" data-val="C">♣</button>
+              <button type="button" class="qs-chip qs-chip-black" data-qs="suit" data-val="S">♠</button>
+            </div>
+          </div>
+          <div class="qs-section">
+            <div class="qs-label">Parity</div>
+            <div class="qs-chips">
+              <button type="button" class="qs-chip active" data-qs="parity" data-val="all">All</button>
+              <button type="button" class="qs-chip" data-qs="parity" data-val="odd">Odd positions</button>
+              <button type="button" class="qs-chip" data-qs="parity" data-val="even">Even positions</button>
+            </div>
+          </div>
+          <div class="qs-section">
+            <div class="qs-label">Position range: <span id="qsRangeDisplay">1 – 52</span></div>
+            <div class="qs-range-row">
+              <span class="qs-range-end">1</span>
+              <input type="range" id="qsPosMin" min="1" max="52" value="1">
+              <input type="range" id="qsPosMax" min="1" max="52" value="52">
+              <span class="qs-range-end">52</span>
+            </div>
+          </div>
+          <div class="qs-section qs-timed-section">
+            <div class="qs-label">Timer</div>
+            <label class="qs-toggle-label">
+              <input type="checkbox" id="qsTimed" checked>
+              <span>Show timer</span>
+            </label>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -184,7 +242,7 @@
 
         <label style="display:flex;gap:8px;align-items:center;margin:10px 0 2px;opacity:.92">
           <input id="memRandomizeOrder" type="checkbox">
-          <span>Randomize pair order for this session</span>
+          <span>Randomize order across all 52 cards</span>
         </label>
 
         <button class="btn-check mem-btn-start" id="memBtnStart">Begin Session →</button>

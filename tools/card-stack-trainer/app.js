@@ -90,7 +90,7 @@
     return STACK.filter((_, i) => !srs[i]).length;
   }
 
-  function buildSessionQueue(srs, chunkSize, randomizeOrder) {
+  function buildSessionQueue(srs, chunkSize, randomizeOrder, deckOrder) {
     const now = Date.now();
 
     const due = STACK
@@ -101,10 +101,15 @@
       .map(c => c.idx);
 
     const remaining = chunkSize - due.length;
-    const newCards  = STACK
-      .map((_, i) => i)
-      .filter(i => !srs[i])
-      .slice(0, remaining);
+
+    // Use pre-shuffled deckOrder if provided (global randomize), otherwise sequential
+    let newCardsCandidates;
+    if (deckOrder) {
+      newCardsCandidates = deckOrder.filter(i => !srs[i]);
+    } else {
+      newCardsCandidates = STACK.map((_, i) => i).filter(i => !srs[i]);
+    }
+    const newCards = newCardsCandidates.slice(0, remaining);
 
     // Interleave due and new cards for varied retrieval practice
     const combined = [];
@@ -130,6 +135,7 @@
     batchSize: 5,
     currentBatchCards: [],  // card indices in the active batch
     isRepeatBatch: false,   // true when repeating without SRS updates
+    deckOrder: null,        // shuffled new-card order for full-deck randomize (null = sequential)
 
     // Flat task queue for the current phase
     taskQueue: [],
@@ -154,10 +160,16 @@
     btnBackStats:       document.getElementById('btnBackStats'),
     scoreline:          document.getElementById('scoreline'),
     questionLabel:      document.getElementById('questionLabel'),
+    questionDisplay:    document.getElementById('questionDisplay'),
     questionPrefix:     document.getElementById('questionPrefix'),
     questionValue:      document.getElementById('questionValue'),
     questionSuit:       document.getElementById('questionSuit'),
+    questionTimer:      document.getElementById('questionTimer'),
     timerValue:         document.getElementById('timerValue'),
+    distDisplay:        document.getElementById('distDisplay'),
+    distItemA:          document.getElementById('distItemA'),
+    distItemB:          document.getElementById('distItemB'),
+    distSep:            document.getElementById('distSep'),
     answerForm:         document.getElementById('answerForm'),
     answerInput:        document.getElementById('answerInput'),
     answerLabel:        document.getElementById('answerLabel'),
@@ -179,6 +191,15 @@
     cardClear:          document.getElementById('cardClear'),
     numClear:           document.getElementById('numClear'),
     numBack:            document.getElementById('numBack'),
+    // Quiz settings
+    quizSettings:           document.getElementById('quizSettings'),
+    quizSettingsToggle:     document.getElementById('quizSettingsToggle'),
+    quizSettingsSummary:    document.getElementById('quizSettingsSummary'),
+    quizSettingsBody:       document.getElementById('quizSettingsBody'),
+    qsPosMin:               document.getElementById('qsPosMin'),
+    qsPosMax:               document.getElementById('qsPosMax'),
+    qsRangeDisplay:         document.getElementById('qsRangeDisplay'),
+    qsTimed:                document.getElementById('qsTimed'),
     // Memorize
     memModeBadge:       document.getElementById('memModeBadge'),
     memPicker:          document.getElementById('memPicker'),
@@ -229,6 +250,22 @@
   // Keypad selection state
   const cardSel = { rank: null, suit: null };
   let numVal = '';
+  let numAutoSubmitTimer = null;
+  let answerLocked = false;
+
+  /* ── Quiz filters state ──────────────────────────────────────── */
+  const QF_KEY = 'stackQuizFilters';
+  function loadQuizFilters() {
+    const defaults = { mode: 'mixed', color: 'all', suit: 'all', parity: 'all', posMin: 1, posMax: 52, timed: true };
+    try {
+      const raw = localStorage.getItem(QF_KEY);
+      return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
+    } catch { return defaults; }
+  }
+  function saveQuizFilters() {
+    localStorage.setItem(QF_KEY, JSON.stringify(quizFilters));
+  }
+  const quizFilters = loadQuizFilters();
 
   /* ── Timer ──────────────────────────────────────────────────── */
   const timer = setInterval(() => {
@@ -286,6 +323,8 @@
 
   /* ── Drill prompt logic ──────────────────────────────────────── */
   function showQuestionAsNumber(num) {
+    els.questionDisplay.classList.remove('hidden');
+    els.distDisplay.classList.add('hidden');
     els.questionLabel.textContent    = 'Position';
     els.questionPrefix.textContent   = '#';
     els.questionPrefix.style.display = '';
@@ -298,6 +337,8 @@
   }
 
   function showQuestionAsCard(code) {
+    els.questionDisplay.classList.remove('hidden');
+    els.distDisplay.classList.add('hidden');
     const { rank, suit, isRed } = parseCard(code);
     els.questionLabel.textContent    = 'Card';
     els.questionPrefix.style.display = 'none';
@@ -331,15 +372,160 @@
     return { ask: '1', answer: 'AH', direction: 'number-to-card', key: '1:AH' };
   }
 
+  /* ── Quiz filter helpers ─────────────────────────────────────── */
+  function getFilteredPool() {
+    return STACK
+      .map((card, idx) => ({ card, idx, pos: idx + 1 }))
+      .filter(({ card, pos }) => {
+        const suit  = card[1];
+        const isRed = RED_SUITS.has(suit);
+        if (quizFilters.color === 'red'   && !isRed)  return false;
+        if (quizFilters.color === 'black' && isRed)   return false;
+        if (quizFilters.suit !== 'all' && suit !== quizFilters.suit) return false;
+        if (quizFilters.parity === 'odd'  && pos % 2 === 0) return false;
+        if (quizFilters.parity === 'even' && pos % 2 !== 0) return false;
+        if (pos < quizFilters.posMin || pos > quizFilters.posMax) return false;
+        return true;
+      });
+  }
+
+  function weightedRandomPromptFiltered(direction) {
+    let pool = getFilteredPool();
+    if (!pool.length) pool = STACK.map((card, idx) => ({ card, idx, pos: idx + 1 })); // fallback
+
+    const weighted = pool.map(({ card, idx }) => {
+      const key    = `${idx + 1}:${card}`;
+      const misses = state.stats.missed[key] || 0;
+      const weight = Math.max(1, misses * 1.8);
+      return { idx, card, weight };
+    });
+
+    let dir = direction;
+    if (dir === 'mixed') dir = Math.random() < 0.5 ? 'number-to-card' : 'card-to-number';
+
+    const totalWeight = weighted.reduce((s, item) => s + item.weight, 0);
+    let roll = Math.random() * totalWeight;
+    for (const item of weighted) {
+      roll -= item.weight;
+      if (roll <= 0) {
+        return dir === 'number-to-card'
+          ? { ask: String(item.idx + 1), answer: item.card, direction: dir, key: `${item.idx + 1}:${item.card}` }
+          : { ask: item.card, answer: String(item.idx + 1), direction: dir, key: `${item.idx + 1}:${item.card}` };
+      }
+    }
+    const item = weighted[0];
+    return dir === 'number-to-card'
+      ? { ask: String(item.idx + 1), answer: item.card, direction: dir, key: `${item.idx + 1}:${item.card}` }
+      : { ask: item.card, answer: String(item.idx + 1), direction: dir, key: `${item.idx + 1}:${item.card}` };
+  }
+
+  /* ── Distance quiz ───────────────────────────────────────────── */
+  function cardItemHTML(code) {
+    const { rank, suit, isRed } = parseCard(code);
+    return `<span class="dist-card-val ${isRed ? 'is-red' : 'is-black'}">${rank}${suit}</span>`;
+  }
+
+  function showDistCardGap(idxA, idxB) {
+    els.questionDisplay.classList.add('hidden');
+    els.distDisplay.classList.remove('hidden');
+    els.distSep.textContent = '↔';
+    els.distItemA.innerHTML = cardItemHTML(STACK[idxA]);
+    els.distItemB.innerHTML = cardItemHTML(STACK[idxB]);
+    els.questionLabel.textContent = 'Distance Quiz';
+    els.answerLabel.textContent   = 'How many positions apart?';
+    els.cardKeypad.classList.add('hidden');
+    els.numKeypad.classList.remove('hidden');
+  }
+
+  function showDistCardJump(idxA, offset) {
+    els.questionDisplay.classList.add('hidden');
+    els.distDisplay.classList.remove('hidden');
+    const sign = offset > 0 ? `+${offset}` : String(offset);
+    els.distSep.textContent = '';
+    els.distItemA.innerHTML = cardItemHTML(STACK[idxA]);
+    els.distItemB.innerHTML = `<span class="dist-offset">${sign}</span>`;
+    els.questionLabel.textContent = 'Distance Quiz';
+    els.answerLabel.textContent   = 'Which card is there?';
+    els.cardKeypad.classList.remove('hidden');
+    els.numKeypad.classList.add('hidden');
+  }
+
+  function nextDistancePrompt() {
+    let pool = getFilteredPool();
+    if (pool.length < 2) pool = STACK.map((card, idx) => ({ card, idx, pos: idx + 1 }));
+
+    const distMode = Math.random() < 0.5 ? 'card-gap' : 'card-jump';
+
+    if (distMode === 'card-gap') {
+      const a = pool[Math.floor(Math.random() * pool.length)];
+      let b;
+      do { b = pool[Math.floor(Math.random() * pool.length)]; } while (b.idx === a.idx);
+      const distance = Math.abs(a.idx - b.idx);
+      state.currentPrompt = {
+        direction: 'distance', distMode: 'card-gap',
+        idxA: a.idx, idxB: b.idx,
+        answer: String(distance),
+        key: `dist:${Math.min(a.idx, b.idx)}:${Math.max(a.idx, b.idx)}`,
+      };
+      showDistCardGap(a.idx, b.idx);
+    } else {
+      const a = pool[Math.floor(Math.random() * pool.length)];
+      const offsets = [];
+      // ±13 limit keeps distance meaningful while covering a quarter-deck span
+      for (let o = -13; o <= 13; o++) {
+        if (o === 0) continue;
+        const t = a.idx + o;
+        if (t >= 0 && t < 52) offsets.push(o);
+      }
+      if (!offsets.length) { nextDistancePrompt(); return; }
+      const offset = offsets[Math.floor(Math.random() * offsets.length)];
+      const idxB   = a.idx + offset;
+      state.currentPrompt = {
+        direction: 'distance', distMode: 'card-jump',
+        idxA: a.idx, offset,
+        answer: STACK[idxB],
+        key: `dist:${a.idx}:${offset}`,
+      };
+      showDistCardJump(a.idx, offset);
+    }
+
+    state.startedAt = performance.now();
+    els.answerInput.value = '';
+    resetCardKeypad();
+    resetNumKeypad();
+    els.feedback.classList.add('hidden');
+    els.btnNext.classList.remove('pulse');
+    els.timerValue.textContent = '0.0s';
+    answerLocked = false;
+  }
+
+  function updateQuizSettingsSummary() {
+    const m = { mixed: 'Mixed', 'number-to-card': 'Pos→Card', 'card-to-number': 'Card→Pos', distance: 'Distance' };
+    const parts = [m[quizFilters.mode] || 'Mixed'];
+    if (quizFilters.color !== 'all')  parts.push(quizFilters.color === 'red' ? 'Red' : 'Black');
+    if (quizFilters.suit  !== 'all')  parts.push(SUIT_SYMBOL[quizFilters.suit]);
+    if (quizFilters.parity !== 'all') parts.push(quizFilters.parity === 'odd' ? 'Odd' : 'Even');
+    if (quizFilters.posMin !== 1 || quizFilters.posMax !== 52) parts.push(`#${quizFilters.posMin}–${quizFilters.posMax}`);
+    els.quizSettingsSummary.textContent = parts.join(' · ');
+  }
+
   function nextPrompt() {
-    let direction = state.mode;
-    if (direction === 'mixed') direction = Math.random() < 0.5 ? 'number-to-card' : 'card-to-number';
+    answerLocked = false;
+    clearTimeout(numAutoSubmitTimer);
 
-    state.currentPrompt = weightedRandomPrompt(direction);
-    state.startedAt     = performance.now();
+    if (state.mode === 'quiz') {
+      if (quizFilters.mode === 'distance') { nextDistancePrompt(); return; }
+      state.currentPrompt = weightedRandomPromptFiltered(quizFilters.mode);
+    } else {
+      let direction = state.mode;
+      if (direction === 'mixed') direction = Math.random() < 0.5 ? 'number-to-card' : 'card-to-number';
+      state.currentPrompt = weightedRandomPrompt(direction);
+    }
 
-    if (direction === 'number-to-card') showQuestionAsNumber(state.currentPrompt.ask);
-    else                                 showQuestionAsCard(state.currentPrompt.ask);
+    state.startedAt = performance.now();
+
+    if (state.currentPrompt.direction === 'number-to-card') showQuestionAsNumber(state.currentPrompt.ask);
+    else                                                      showQuestionAsCard(state.currentPrompt.ask);
 
     els.answerInput.value = '';
     resetCardKeypad();
@@ -352,7 +538,8 @@
   /* ── Drill evaluation ────────────────────────────────────────── */
   function evaluate(answerRaw) {
     const prompt = state.currentPrompt;
-    if (!prompt) return;
+    if (!prompt || answerLocked) return;
+    answerLocked = true;
 
     const elapsedMs       = performance.now() - state.startedAt;
     const isNumericAnswer = /^\d+$/.test(prompt.answer);
@@ -370,27 +557,46 @@
       state.currentStreak  += 1;
       state.stats.bestStreak = Math.max(state.stats.bestStreak, state.currentStreak);
 
-      let askDisplay, answerDisplay;
-      if (isNumericAnswer) {
-        const { rank, suit } = parseCard(prompt.ask);
-        askDisplay    = `${rank}${suit}`;
-        answerDisplay = `#${prompt.answer}`;
+      if (prompt.direction === 'distance') {
+        if (prompt.distMode === 'card-gap') {
+          const { rank: ra, suit: sa } = parseCard(STACK[prompt.idxA]);
+          const { rank: rb, suit: sb } = parseCard(STACK[prompt.idxB]);
+          els.feedback.innerHTML = `✅ Correct! &nbsp;<strong>${ra}${sa}</strong> ↔ <strong>${rb}${sb}</strong> = <strong>${prompt.answer}</strong> apart`;
+        } else {
+          const { rank: ra, suit: sa } = parseCard(STACK[prompt.idxA]);
+          const { rank: rb, suit: sb } = parseCard(prompt.answer);
+          const sign = prompt.offset > 0 ? `+${prompt.offset}` : String(prompt.offset);
+          els.feedback.innerHTML = `✅ Correct! &nbsp;<strong>${ra}${sa}</strong> ${sign} → <strong>${rb}${sb}</strong>`;
+        }
       } else {
-        const { rank, suit } = parseCard(prompt.answer);
-        askDisplay    = `#${prompt.ask}`;
-        answerDisplay = `${rank}${suit}`;
+        let askDisplay, answerDisplay;
+        if (isNumericAnswer) {
+          const { rank, suit } = parseCard(prompt.ask);
+          askDisplay    = `${rank}${suit}`;
+          answerDisplay = `#${prompt.answer}`;
+        } else {
+          const { rank, suit } = parseCard(prompt.answer);
+          askDisplay    = `#${prompt.ask}`;
+          answerDisplay = `${rank}${suit}`;
+        }
+        els.feedback.innerHTML = `✅ Correct! &nbsp;<strong>${askDisplay}</strong> ↔ <strong>${answerDisplay}</strong>`;
       }
-
-      els.feedback.innerHTML = `✅ Correct! &nbsp;<strong>${askDisplay}</strong> ↔ <strong>${answerDisplay}</strong>`;
       els.feedback.className = 'feedback correct';
 
-      if ((state.stats.missed[prompt.key] || 0) > 0) state.stats.missed[prompt.key] -= 1;
+      if (prompt.key && (state.stats.missed[prompt.key] || 0) > 0) state.stats.missed[prompt.key] -= 1;
     } else {
       state.currentStreak = 0;
-      state.stats.missed[prompt.key] = (state.stats.missed[prompt.key] || 0) + 1;
+      if (prompt.key) state.stats.missed[prompt.key] = (state.stats.missed[prompt.key] || 0) + 1;
 
       let answerDisplay;
-      if (isNumericAnswer) {
+      if (prompt.direction === 'distance') {
+        if (prompt.distMode === 'card-gap') {
+          answerDisplay = `${prompt.answer} positions`;
+        } else {
+          const { rank, suit } = parseCard(prompt.answer);
+          answerDisplay = `${rank}${suit}`;
+        }
+      } else if (isNumericAnswer) {
         answerDisplay = `#${prompt.answer}`;
       } else {
         const { rank, suit } = parseCard(prompt.answer);
@@ -446,6 +652,15 @@
     memSess.batchSize = Number(els.memChunkSize.value) || 5;
     memSess.goodCount = 0;
 
+    // Build a globally-shuffled deck order when randomize is checked
+    if (els.memRandomizeOrder.checked) {
+      const allNew = STACK.map((_, i) => i).filter(i => !memSess.srs[i]);
+      shuffleInPlace(allNew);
+      memSess.deckOrder = allNew;
+    } else {
+      memSess.deckOrder = null;
+    }
+
     if (!tryStartNextBatch()) {
       renderMemComplete(true);
       setMemView('complete');
@@ -456,7 +671,7 @@
      Returns false when there's nothing left to learn.            */
   function tryStartNextBatch() {
     memSess.srs = loadSRS();
-    const nextCards = buildSessionQueue(memSess.srs, memSess.batchSize, els.memRandomizeOrder.checked);
+    const nextCards = buildSessionQueue(memSess.srs, memSess.batchSize, els.memRandomizeOrder.checked, memSess.deckOrder);
     if (!nextCards.length) return false;
 
     memSess.currentBatchCards = nextCards;
@@ -699,6 +914,26 @@
         state.sessionTotal   = 0;
         state.currentStreak  = 0;
         updateTopStatsUI();
+
+        // Show/hide quiz settings panel (only for unified quiz mode)
+        const isQuizMode = (mode === 'quiz');
+        els.quizSettings.classList.toggle('hidden', !isQuizMode);
+
+        // Update timer visibility per saved setting
+        if (isQuizMode) {
+          els.questionTimer.classList.toggle('hidden', !quizFilters.timed);
+          updateQuizSettingsSummary();
+          // Sync chip UI to loaded quizFilters
+          syncChips('mode',   quizFilters.mode);
+          syncChips('color',  quizFilters.color);
+          syncChips('suit',   quizFilters.suit);
+          syncChips('parity', quizFilters.parity);
+          els.qsPosMin.value = quizFilters.posMin;
+          els.qsPosMax.value = quizFilters.posMax;
+          els.qsRangeDisplay.textContent = `${quizFilters.posMin} – ${quizFilters.posMax}`;
+          els.qsTimed.checked = quizFilters.timed;
+        }
+
         setView('trainer');
         nextPrompt();
       });
@@ -783,17 +1018,26 @@
       setMemView('picker');
     });
 
-    // Drill — answer form
+    // Drill — answer form (keep for keyboard Enter fallback)
     els.answerForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const val = els.answerInput.value.trim();
-      if (!val) return;
+      if (!val || answerLocked) return;
       evaluate(val);
     });
 
-    // Card keypad
+    // ── Card keypad (auto-submit when both rank + suit selected) ──
+    function tryCardAutoSubmit() {
+      if (cardSel.rank && cardSel.suit) {
+        els.answerInput.value = cardSel.rank + cardSel.suit;
+        // Brief 120ms delay lets the user see the suit selection highlight before submit
+        setTimeout(() => evaluate(els.answerInput.value), 120);
+      }
+    }
+
     document.querySelectorAll('.rank-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
+        if (answerLocked) return;
         cardSel.rank = btn.dataset.rank;
         document.querySelectorAll('.rank-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
@@ -801,11 +1045,13 @@
         els.dispRank.textContent = display;
         els.dispRank.className   = 'disp-rank active';
         if (cardSel.rank && cardSel.suit) els.answerInput.value = cardSel.rank + cardSel.suit;
+        tryCardAutoSubmit();
       });
     });
 
     document.querySelectorAll('.suit-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
+        if (answerLocked) return;
         cardSel.suit = btn.dataset.suit;
         document.querySelectorAll('.suit-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
@@ -814,37 +1060,118 @@
         els.dispSuit.textContent = sym;
         els.dispSuit.className   = `disp-suit ${isRed ? 'is-red' : 'is-black'}`;
         if (cardSel.rank && cardSel.suit) els.answerInput.value = cardSel.rank + cardSel.suit;
+        tryCardAutoSubmit();
       });
     });
 
-    els.cardClear.addEventListener('click', resetCardKeypad);
+    els.cardClear.addEventListener('click', () => { if (!answerLocked) resetCardKeypad(); });
 
-    // Number keypad
+    // ── Number keypad (auto-submit: 1-digit 6-9 immediate; 1-5 debounce; 2-digit immediate) ──
+    function tryNumAutoSubmit() {
+      clearTimeout(numAutoSubmitTimer);
+      if (!numVal || answerLocked) return;
+      if (numVal.length >= 2) {
+        evaluate(numVal);
+        return;
+      }
+      const d = parseInt(numVal, 10);
+      if (d >= 6) {
+        // Can't be start of valid position 60+ so submit immediately
+        evaluate(numVal);
+      } else {
+        // First digit 1-5 could start a valid 2-digit position (10-52);
+        // wait 650ms for a possible second digit before auto-submitting.
+        numAutoSubmitTimer = setTimeout(() => {
+          if (numVal && !answerLocked) evaluate(numVal);
+        }, 650);
+      }
+    }
+
     document.querySelectorAll('.num-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
+        if (answerLocked) return;
         if (numVal.length >= 2) return;
         if (numVal === '' && btn.dataset.num === '0') return;
         numVal += btn.dataset.num;
         els.numDisplay.textContent = numVal;
         els.answerInput.value      = numVal;
+        tryNumAutoSubmit();
       });
     });
 
     els.numBack.addEventListener('click', () => {
+      if (answerLocked) return;
+      clearTimeout(numAutoSubmitTimer);
       numVal = numVal.slice(0, -1);
       els.numDisplay.textContent = numVal || '–';
       els.answerInput.value      = numVal;
     });
 
-    els.numClear.addEventListener('click', resetNumKeypad);
+    els.numClear.addEventListener('click', () => {
+      if (!answerLocked) { clearTimeout(numAutoSubmitTimer); resetNumKeypad(); }
+    });
+
+    // ── Quiz settings panel ───────────────────────────────────────
+    function syncChips(qs, val) {
+      document.querySelectorAll(`[data-qs="${qs}"]`).forEach(c => {
+        c.classList.toggle('active', c.dataset.val === val);
+      });
+    }
+
+    els.quizSettingsToggle.addEventListener('click', () => {
+      const open = els.quizSettingsBody.classList.toggle('hidden');
+      if (!open) els.quizSettingsBody.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    document.querySelectorAll('[data-qs]').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const qs  = chip.dataset.qs;
+        const val = chip.dataset.val;
+        quizFilters[qs] = val;
+        saveQuizFilters();
+        syncChips(qs, val);
+        updateQuizSettingsSummary();
+        // If timer toggled via chip, update header
+        if (qs === 'timed') els.questionTimer.classList.toggle('hidden', val !== 'true');
+      });
+    });
+
+    els.qsTimed.addEventListener('change', () => {
+      quizFilters.timed = els.qsTimed.checked;
+      saveQuizFilters();
+      els.questionTimer.classList.toggle('hidden', !quizFilters.timed);
+      updateQuizSettingsSummary();
+    });
+
+    function updateRangeDisplay() {
+      let min = parseInt(els.qsPosMin.value, 10);
+      let max = parseInt(els.qsPosMax.value, 10);
+      if (min > max) { [min, max] = [max, min]; }
+      quizFilters.posMin = min;
+      quizFilters.posMax = max;
+      els.qsRangeDisplay.textContent = `${min} – ${max}`;
+      saveQuizFilters();
+      updateQuizSettingsSummary();
+    }
+    els.qsPosMin.addEventListener('input', updateRangeDisplay);
+    els.qsPosMax.addEventListener('input', updateRangeDisplay);
 
     // Reveal
     els.btnReveal.addEventListener('click', () => {
-      if (!state.currentPrompt) return;
+      if (!state.currentPrompt || answerLocked) return;
+      answerLocked = true;
+      clearTimeout(numAutoSubmitTimer);
       const prompt          = state.currentPrompt;
       const isNumericAnswer = /^\d+$/.test(prompt.answer);
       let display;
-      if (isNumericAnswer) {
+      if (prompt.direction === 'distance') {
+        if (prompt.distMode === 'card-gap') {
+          display = `${prompt.answer} positions apart`;
+        } else {
+          const { rank, suit } = parseCard(prompt.answer);
+          display = `${rank}${suit}`;
+        }
+      } else if (isNumericAnswer) {
         display = `#${prompt.answer}`;
       } else {
         const { rank, suit } = parseCard(prompt.answer);
@@ -853,6 +1180,7 @@
       els.feedback.innerHTML = `💡 Answer: <strong>${display}</strong>`;
       els.feedback.className = 'feedback reveal';
       els.feedback.classList.remove('hidden');
+      els.btnNext.classList.add('pulse');
     });
 
     els.btnNext.addEventListener('click', nextPrompt);
@@ -891,6 +1219,8 @@
   updateTopStatsUI();
   updateMasteryBar();
   updateMemModeBadge();
+  // Quiz settings hidden until quiz mode is selected
+  els.quizSettings.classList.add('hidden');
   setView('modes');
   registerServiceWorker();
 
