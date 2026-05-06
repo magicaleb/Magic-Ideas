@@ -1197,10 +1197,6 @@ html, body {
   background-clip: text;
 }
 
-/* ── Hide Check Answer button (replaced by auto-submit) ─────────── */
-.btn-check-hidden {
-  display: none !important;
-}
 
 /* ── Distance quiz display ────────────────────────────────────── */
 .dist-display {

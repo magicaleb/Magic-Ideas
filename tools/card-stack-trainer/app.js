@@ -471,6 +471,7 @@
     } else {
       const a = pool[Math.floor(Math.random() * pool.length)];
       const offsets = [];
+      // ±13 limit keeps distance meaningful while covering a quarter-deck span
       for (let o = -13; o <= 13; o++) {
         if (o === 0) continue;
         const t = a.idx + o;
@@ -1029,7 +1030,7 @@
     function tryCardAutoSubmit() {
       if (cardSel.rank && cardSel.suit) {
         els.answerInput.value = cardSel.rank + cardSel.suit;
-        // Small delay so user sees the selection highlight before submit
+        // Brief 120ms delay lets the user see the suit selection highlight before submit
         setTimeout(() => evaluate(els.answerInput.value), 120);
       }
     }
@@ -1078,7 +1079,8 @@
         // Can't be start of valid position 60+ so submit immediately
         evaluate(numVal);
       } else {
-        // Could be start of 10–52, wait for a second digit
+        // First digit 1-5 could start a valid 2-digit position (10-52);
+        // wait 650ms for a possible second digit before auto-submitting.
         numAutoSubmitTimer = setTimeout(() => {
           if (numVal && !answerLocked) evaluate(numVal);
         }, 650);
