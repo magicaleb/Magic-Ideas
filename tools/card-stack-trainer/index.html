@@ -50,6 +50,79 @@
       </button>
     </section>
 
+    <!-- ── Quiz Setup ── -->
+    <section class="quiz-setup hidden" id="quizSetup">
+      <div class="quiz-head">
+        <button class="btn-back" id="btnBackQuizSetup">← Back</button>
+        <h2 class="section-title">Quiz Setup</h2>
+      </div>
+
+      <div class="quiz-settings quiz-settings-setup" id="quizSettings">
+        <div class="quiz-settings-title-row">
+          <div class="qs-label">Current</div>
+          <div class="quiz-settings-setup-summary" id="quizSettingsSummary">Mixed · All Cards</div>
+        </div>
+        <div class="quiz-settings-body" id="quizSettingsBody">
+          <div class="qs-section">
+            <div class="qs-label">Mode</div>
+            <div class="qs-chips">
+              <button type="button" class="qs-chip active" data-qs="mode" data-val="mixed">Mixed</button>
+              <button type="button" class="qs-chip" data-qs="mode" data-val="number-to-card">Pos→Card</button>
+              <button type="button" class="qs-chip" data-qs="mode" data-val="card-to-number">Card→Pos</button>
+              <button type="button" class="qs-chip" data-qs="mode" data-val="distance">Distance</button>
+              <button type="button" class="qs-chip" data-qs="mode" data-val="next-card">Next Card</button>
+              <button type="button" class="qs-chip" data-qs="mode" data-val="prev-card">Prev Card</button>
+              <button type="button" class="qs-chip" data-qs="mode" data-val="jump-13">±13 Jump</button>
+            </div>
+          </div>
+          <div class="qs-section">
+            <div class="qs-label">Color</div>
+            <div class="qs-chips">
+              <button type="button" class="qs-chip active" data-qs="color" data-val="all">All</button>
+              <button type="button" class="qs-chip" data-qs="color" data-val="red">Red</button>
+              <button type="button" class="qs-chip" data-qs="color" data-val="black">Black</button>
+            </div>
+          </div>
+          <div class="qs-section">
+            <div class="qs-label">Suit</div>
+            <div class="qs-chips">
+              <button type="button" class="qs-chip active" data-qs="suit" data-val="all">All</button>
+              <button type="button" class="qs-chip qs-chip-red" data-qs="suit" data-val="H">♥</button>
+              <button type="button" class="qs-chip qs-chip-red" data-qs="suit" data-val="D">♦</button>
+              <button type="button" class="qs-chip qs-chip-black" data-qs="suit" data-val="C">♣</button>
+              <button type="button" class="qs-chip qs-chip-black" data-qs="suit" data-val="S">♠</button>
+            </div>
+          </div>
+          <div class="qs-section">
+            <div class="qs-label">Parity</div>
+            <div class="qs-chips">
+              <button type="button" class="qs-chip active" data-qs="parity" data-val="all">All</button>
+              <button type="button" class="qs-chip" data-qs="parity" data-val="odd">Odd positions</button>
+              <button type="button" class="qs-chip" data-qs="parity" data-val="even">Even positions</button>
+            </div>
+          </div>
+          <div class="qs-section">
+            <div class="qs-label">Position range: <span id="qsRangeDisplay">1 – 52</span></div>
+            <div class="qs-range-row">
+              <span class="qs-range-end">1</span>
+              <input type="range" id="qsPosMin" min="1" max="52" value="1">
+              <input type="range" id="qsPosMax" min="1" max="52" value="52">
+              <span class="qs-range-end">52</span>
+            </div>
+          </div>
+          <div class="qs-section qs-timed-section">
+            <div class="qs-label">Timer</div>
+            <label class="qs-toggle-label">
+              <input type="checkbox" id="qsTimed" checked>
+              <span>Show timer</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-check" id="btnStartQuiz">Start Quiz →</button>
+    </section>
+
     <!-- ── Trainer ── -->
     <section class="trainer hidden" id="trainer">
       <div class="quiz-head">
@@ -135,65 +208,6 @@
         <button class="btn-action btn-next" id="btnNext" type="button">Next →</button>
       </div>
 
-      <!-- Quiz Settings Panel -->
-      <div class="quiz-settings" id="quizSettings">
-        <button class="quiz-settings-toggle" id="quizSettingsToggle" type="button">
-          ⚙ <span id="quizSettingsSummary">Mixed · All Cards</span>
-        </button>
-        <div class="quiz-settings-body hidden" id="quizSettingsBody">
-          <div class="qs-section">
-            <div class="qs-label">Mode</div>
-            <div class="qs-chips">
-              <button type="button" class="qs-chip active" data-qs="mode" data-val="mixed">Mixed</button>
-              <button type="button" class="qs-chip" data-qs="mode" data-val="number-to-card">Pos→Card</button>
-              <button type="button" class="qs-chip" data-qs="mode" data-val="card-to-number">Card→Pos</button>
-              <button type="button" class="qs-chip" data-qs="mode" data-val="distance">Distance</button>
-            </div>
-          </div>
-          <div class="qs-section">
-            <div class="qs-label">Color</div>
-            <div class="qs-chips">
-              <button type="button" class="qs-chip active" data-qs="color" data-val="all">All</button>
-              <button type="button" class="qs-chip" data-qs="color" data-val="red">Red</button>
-              <button type="button" class="qs-chip" data-qs="color" data-val="black">Black</button>
-            </div>
-          </div>
-          <div class="qs-section">
-            <div class="qs-label">Suit</div>
-            <div class="qs-chips">
-              <button type="button" class="qs-chip active" data-qs="suit" data-val="all">All</button>
-              <button type="button" class="qs-chip qs-chip-red" data-qs="suit" data-val="H">♥</button>
-              <button type="button" class="qs-chip qs-chip-red" data-qs="suit" data-val="D">♦</button>
-              <button type="button" class="qs-chip qs-chip-black" data-qs="suit" data-val="C">♣</button>
-              <button type="button" class="qs-chip qs-chip-black" data-qs="suit" data-val="S">♠</button>
-            </div>
-          </div>
-          <div class="qs-section">
-            <div class="qs-label">Parity</div>
-            <div class="qs-chips">
-              <button type="button" class="qs-chip active" data-qs="parity" data-val="all">All</button>
-              <button type="button" class="qs-chip" data-qs="parity" data-val="odd">Odd positions</button>
-              <button type="button" class="qs-chip" data-qs="parity" data-val="even">Even positions</button>
-            </div>
-          </div>
-          <div class="qs-section">
-            <div class="qs-label">Position range: <span id="qsRangeDisplay">1 – 52</span></div>
-            <div class="qs-range-row">
-              <span class="qs-range-end">1</span>
-              <input type="range" id="qsPosMin" min="1" max="52" value="1">
-              <input type="range" id="qsPosMax" min="1" max="52" value="52">
-              <span class="qs-range-end">52</span>
-            </div>
-          </div>
-          <div class="qs-section qs-timed-section">
-            <div class="qs-label">Timer</div>
-            <label class="qs-toggle-label">
-              <input type="checkbox" id="qsTimed" checked>
-              <span>Show timer</span>
-            </label>
-          </div>
-        </div>
-      </div>
     </section>
 
     <!-- ── Memorize ── -->
@@ -219,31 +233,30 @@
           </div>
         </div>
 
-        <div class="mem-srs-how">
-          <div class="mem-srs-step">
-            <span class="mem-srs-num">1</span>
-            <span>See position + card side by side — imprint the pair in 4 steps</span>
-          </div>
-          <div class="mem-srs-step">
-            <span class="mem-srs-num">2</span>
-            <span>Recall each direction with one side hidden (Reveal → Got it / Miss)</span>
-          </div>
-          <div class="mem-srs-step">
-            <span class="mem-srs-num">3</span>
-            <span>Batch quiz — all pairs quizzed until every one is locked in</span>
-          </div>
-        </div>
-
         <div class="mem-settings">
           <label for="memChunkSize">Cards per batch</label>
           <input id="memChunkSize" type="range" min="3" max="10" value="5" step="1">
           <div class="mem-setting-value"><span id="memChunkSizeValue">5</span> cards</div>
         </div>
 
-        <label style="display:flex;gap:8px;align-items:center;margin:10px 0 2px;opacity:.92">
-          <input id="memRandomizeOrder" type="checkbox">
-          <span>Randomize order across all 52 cards</span>
-        </label>
+        <div class="mem-options">
+          <label class="mem-option">
+            <input id="memRandomizeOrder" type="checkbox">
+            <span>Randomize order across all 52 cards</span>
+          </label>
+          <label class="mem-option">
+            <input id="memAltHide" type="checkbox" checked>
+            <span>Alternating hide pattern during imprint</span>
+          </label>
+          <label class="mem-option">
+            <input id="memEarlyRetest" type="checkbox" checked>
+            <span>Early recall checks during imprint</span>
+          </label>
+          <label class="mem-option">
+            <input id="memBothDirections" type="checkbox">
+            <span>Require both directions in batch quiz</span>
+          </label>
+        </div>
 
         <button class="btn-check mem-btn-start" id="memBtnStart">Begin Session →</button>
       </div>
@@ -341,15 +354,14 @@
         <button class="btn-back" id="btnBackStats">← Back</button>
         <h2 class="section-title">Progress</h2>
       </div>
-      <div class="stats-grid">
-        <article class="stat-card">
-          <h3>Attempts</h3>
-          <p id="statAttempts">0</p>
-        </article>
+      <div class="stats-hero">
         <article class="stat-card">
           <h3>Accuracy</h3>
           <p id="statAccuracy">0%</p>
+          <div class="stat-subline"><span id="statAttempts">0</span> attempts</div>
         </article>
+      </div>
+      <div class="stats-grid">
         <article class="stat-card">
           <h3>Avg Speed</h3>
           <p id="statSpeed">0.0s</p>
@@ -357,6 +369,10 @@
         <article class="stat-card">
           <h3>Best Streak</h3>
           <p id="statBestStreak">0</p>
+        </article>
+        <article class="stat-card">
+          <h3>Due Reviews</h3>
+          <p id="statDue">0</p>
         </article>
       </div>
 
