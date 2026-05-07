@@ -52,6 +52,16 @@
   const DEFAULT_CHUNK_SIZE   = 10;
   const MAX_DUE_PER_SESSION  = 8;
   const RECALL_TOO_SLOW_MS    = 2500;
+  const QUARTER_DECK_OFFSET   = 13;
+  const AUTO_SUBMIT_DELAY_MS = 900;
+  const TWO_DIGIT_AUTO_SUBMIT_DELAY_MS = 1800;
+  const HIDE_PATTERN_BOTH = 0;
+  const HIDE_PATTERN_CARD = 1;
+  const HIDE_PATTERN_NUM = 2;
+  const HIDE_PATTERN_CARD_AGAIN = 3;
+  const IMPRINT_PATTERN_ALTERNATING = [HIDE_PATTERN_BOTH, HIDE_PATTERN_CARD, HIDE_PATTERN_NUM, HIDE_PATTERN_CARD_AGAIN];
+  const IMPRINT_PATTERN_BALANCED = [HIDE_PATTERN_BOTH, HIDE_PATTERN_CARD, HIDE_PATTERN_NUM, HIDE_PATTERN_BOTH];
+  const DEFAULT_MEM_SETTINGS = { randomizeOrder: false, altHide: true, earlyRetest: true, bothDirections: false };
 
   function loadSRS() {
     try { return JSON.parse(localStorage.getItem(SRS_KEY) || '{}'); }
@@ -150,12 +160,11 @@
 
   const MEM_SETTINGS_KEY = 'stackMemorizeSettings';
   function loadMemSettings() {
-    const defaults = { randomizeOrder: false, altHide: true, earlyRetest: true, bothDirections: false };
     try {
       const raw = localStorage.getItem(MEM_SETTINGS_KEY);
-      return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
+      return raw ? { ...DEFAULT_MEM_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_MEM_SETTINGS };
     } catch {
-      return defaults;
+      return { ...DEFAULT_MEM_SETTINGS };
     }
   }
   function saveMemSettings() {
@@ -555,9 +564,9 @@
       label = 'Previous Card';
       answerLabel = 'What card comes immediately before this?';
     } else {
-      const offset = Math.random() < 0.5 ? -13 : 13;
+      const offset = Math.random() < 0.5 ? -QUARTER_DECK_OFFSET : QUARTER_DECK_OFFSET;
       targetIdx = (item.idx + offset + 52) % 52;
-      const sign = offset > 0 ? '+13' : '-13';
+      const sign = offset > 0 ? `+${QUARTER_DECK_OFFSET}` : `-${QUARTER_DECK_OFFSET}`;
       label = 'Quarter-Deck Jump';
       answerLabel = `What card is ${sign} from this card?`;
       key = `rel:${mode}:${item.idx}:${offset}`;
@@ -747,13 +756,13 @@
   function buildBatchQueue(batchCards) {
     const tasks = [];
     const retestPending = [];
-    const imprintSteps = memSettings.altHide ? [0, 1, 2, 3] : [0, 1, 2, 0];
+    const hidePatternSequence = memSettings.altHide ? IMPRINT_PATTERN_ALTERNATING : IMPRINT_PATTERN_BALANCED;
 
     for (let i = 0; i < batchCards.length; i++) {
       const idx = batchCards[i];
-      for (let stepIndex = 0; stepIndex < imprintSteps.length; stepIndex++) {
-        const step = imprintSteps[stepIndex];
-        tasks.push({ type: 'imprint', idx, step, stepIndex, totalSteps: imprintSteps.length });
+      for (let stepIndex = 0; stepIndex < hidePatternSequence.length; stepIndex++) {
+        const hidePattern = hidePatternSequence[stepIndex];
+        tasks.push({ type: 'imprint', idx, hidePattern, stepIndex, totalSteps: hidePatternSequence.length });
       }
       if (memSettings.earlyRetest) retestPending.push(idx);
       if (memSettings.earlyRetest && i >= 1 && retestPending.length > 0) {
@@ -863,12 +872,12 @@
     els.memPhaseLabel.textContent = phaseLabel;
 
     if (task.type === 'imprint') {
-      setTileHidden('num',  task.step === 2);
-      setTileHidden('card', task.step === 1 || task.step === 3);
-      updateStepDots(task.stepIndex ?? task.step);
+      setTileHidden('num',  task.hidePattern === HIDE_PATTERN_NUM);
+      setTileHidden('card', task.hidePattern === HIDE_PATTERN_CARD || task.hidePattern === HIDE_PATTERN_CARD_AGAIN);
+      updateStepDots(task.stepIndex);
       els.memStepDots.classList.remove('hidden');
 
-      const finalStep = (task.stepIndex ?? task.step) >= ((task.totalSteps ?? 4) - 1);
+      const finalStep = task.stepIndex >= (task.totalSteps - 1);
       els.memBtnAdvance.textContent = finalStep ? 'Done ✓' : 'Next →';
       els.memBtnAdvance.classList.remove('hidden');
       els.memBtnRevealRetest.classList.add('hidden');
@@ -928,7 +937,14 @@
     const task = memSess.currentTask;
     if (!task) return;
     // Re-imprint then re-queue the same retest type
-    const reimprint = [0, 1, 2, 3].map(step => ({ type: 'imprint', idx: task.idx, step }));
+    const hidePatternSequence = memSettings.altHide ? IMPRINT_PATTERN_ALTERNATING : IMPRINT_PATTERN_BALANCED;
+    const reimprint = hidePatternSequence.map((hidePattern, stepIndex) => ({
+      type: 'imprint',
+      idx: task.idx,
+      hidePattern,
+      stepIndex,
+      totalSteps: hidePatternSequence.length,
+    }));
     const side = (task.type === 'batch-retest' && memSettings.bothDirections) ? task.side : randomSide();
     const retest = { type: task.type, idx: task.idx, side };
     memSess.taskQueue.unshift(...reimprint, retest);
@@ -1224,12 +1240,14 @@
       if (expectedLen === 1) {
         evaluate(numVal);
       } else if (expectedLen === 2) {
-        // Wait for second digit; avoids accidental "wrong" on slower entry.
-        return;
+        // Give a longer window for second-digit entry before grading.
+        numAutoSubmitTimer = setTimeout(() => {
+          if (numVal && !answerLocked) evaluate(numVal);
+        }, TWO_DIGIT_AUTO_SUBMIT_DELAY_MS);
       } else {
         numAutoSubmitTimer = setTimeout(() => {
           if (numVal && !answerLocked) evaluate(numVal);
-        }, 900);
+        }, AUTO_SUBMIT_DELAY_MS);
       }
     }
 
