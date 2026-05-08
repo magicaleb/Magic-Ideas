@@ -52,6 +52,16 @@
   const DEFAULT_CHUNK_SIZE   = 10;
   const MAX_DUE_PER_SESSION  = 8;
   const RECALL_TOO_SLOW_MS    = 2500;
+  const QUARTER_DECK_OFFSET   = 13;
+  const AUTO_SUBMIT_DELAY_MS = 900;
+  const TWO_DIGIT_AUTO_SUBMIT_DELAY_MS = 1800;
+  const HIDE_PATTERN_BOTH = 0;
+  const HIDE_PATTERN_CARD = 1;
+  const HIDE_PATTERN_NUM = 2;
+  const HIDE_PATTERN_CARD_AGAIN = 3;
+  const IMPRINT_PATTERN_ALTERNATING = [HIDE_PATTERN_BOTH, HIDE_PATTERN_CARD, HIDE_PATTERN_NUM, HIDE_PATTERN_CARD_AGAIN];
+  const IMPRINT_PATTERN_BALANCED = [HIDE_PATTERN_BOTH, HIDE_PATTERN_CARD, HIDE_PATTERN_NUM, HIDE_PATTERN_BOTH];
+  const DEFAULT_MEM_SETTINGS = { randomizeOrder: false, altHide: true, earlyRetest: true, bothDirections: false };
 
   function loadSRS() {
     try { return JSON.parse(localStorage.getItem(SRS_KEY) || '{}'); }
@@ -143,13 +153,29 @@
 
     inBatchRetest: false,
     batchRetestPassed: new Set(),
+    batchSrsCredited: new Set(),
 
     goodCount: 0,           // total "Got it" across all batches (for complete screen)
   };
 
+  const MEM_SETTINGS_KEY = 'stackMemorizeSettings';
+  function loadMemSettings() {
+    try {
+      const raw = localStorage.getItem(MEM_SETTINGS_KEY);
+      return raw ? { ...DEFAULT_MEM_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_MEM_SETTINGS };
+    } catch {
+      return { ...DEFAULT_MEM_SETTINGS };
+    }
+  }
+  function saveMemSettings() {
+    localStorage.setItem(MEM_SETTINGS_KEY, JSON.stringify(memSettings));
+  }
+  const memSettings = loadMemSettings();
+
   /* ── DOM references ──────────────────────────────────────────── */
   const els = {
     modeGrid:           document.getElementById('modeGrid'),
+    quizSetup:          document.getElementById('quizSetup'),
     trainer:            document.getElementById('trainer'),
     memorize:           document.getElementById('memorize'),
     stats:              document.getElementById('stats'),
@@ -157,6 +183,8 @@
     masteryFill:        null,
     masteryText:        null,
     btnBack:            document.getElementById('btnBack'),
+    btnBackQuizSetup:   document.getElementById('btnBackQuizSetup'),
+    btnStartQuiz:       document.getElementById('btnStartQuiz'),
     btnBackStats:       document.getElementById('btnBackStats'),
     scoreline:          document.getElementById('scoreline'),
     questionLabel:      document.getElementById('questionLabel'),
@@ -180,6 +208,7 @@
     statAccuracy:       document.getElementById('statAccuracy'),
     statSpeed:          document.getElementById('statSpeed'),
     statBestStreak:     document.getElementById('statBestStreak'),
+    statDue:            document.getElementById('statDue'),
     weakList:           document.getElementById('weakList'),
     btnReset:           document.getElementById('btnReset'),
     // Keypads
@@ -193,7 +222,6 @@
     numBack:            document.getElementById('numBack'),
     // Quiz settings
     quizSettings:           document.getElementById('quizSettings'),
-    quizSettingsToggle:     document.getElementById('quizSettingsToggle'),
     quizSettingsSummary:    document.getElementById('quizSettingsSummary'),
     quizSettingsBody:       document.getElementById('quizSettingsBody'),
     qsPosMin:               document.getElementById('qsPosMin'),
@@ -245,6 +273,9 @@
     memChunkSize:       document.getElementById('memChunkSize'),
     memChunkSizeValue:  document.getElementById('memChunkSizeValue'),
     memRandomizeOrder:  document.getElementById('memRandomizeOrder'),
+    memAltHide:         document.getElementById('memAltHide'),
+    memEarlyRetest:     document.getElementById('memEarlyRetest'),
+    memBothDirections:  document.getElementById('memBothDirections'),
   };
 
   // Keypad selection state
@@ -309,6 +340,7 @@
   /* ── Views ───────────────────────────────────────────────────── */
   function setView(name) {
     els.modeGrid.classList.toggle('hidden',   name !== 'modes');
+    els.quizSetup.classList.toggle('hidden',  name !== 'quiz-setup');
     els.trainer.classList.toggle('hidden',    name !== 'trainer');
     els.memorize.classList.toggle('hidden',   name !== 'memorize');
     els.stats.classList.toggle('hidden',      name !== 'stats');
@@ -349,6 +381,21 @@
     els.answerLabel.textContent      = 'Enter position  (1–52)';
     els.cardKeypad.classList.add('hidden');
     els.numKeypad.classList.remove('hidden');
+  }
+
+  function showQuestionAsCardCue(code, label, answerLabel) {
+    els.questionDisplay.classList.remove('hidden');
+    els.distDisplay.classList.add('hidden');
+    const { rank, suit, isRed } = parseCard(code);
+    els.questionLabel.textContent    = label;
+    els.questionPrefix.style.display = 'none';
+    els.questionValue.textContent    = rank;
+    els.questionValue.classList.toggle('is-red', isRed);
+    els.questionSuit.textContent     = suit;
+    els.questionSuit.className       = `question-suit ${isRed ? 'is-red' : 'is-black'}`;
+    els.answerLabel.textContent      = answerLabel;
+    els.cardKeypad.classList.remove('hidden');
+    els.numKeypad.classList.add('hidden');
   }
 
   function weightedRandomPrompt(direction) {
@@ -499,8 +546,60 @@
     answerLocked = false;
   }
 
+  function nextRelationPrompt(mode) {
+    let pool = getFilteredPool();
+    if (!pool.length) pool = STACK.map((card, idx) => ({ card, idx, pos: idx + 1 }));
+    const item = pool[Math.floor(Math.random() * pool.length)];
+    let targetIdx = item.idx;
+    let label = 'Card Relation';
+    let answerLabel = 'Select the target card';
+    let key = `rel:${mode}:${item.idx}`;
+
+    if (mode === 'next-card') {
+      targetIdx = (item.idx + 1) % 52;
+      label = 'Next Card';
+      answerLabel = 'What card comes immediately after this?';
+    } else if (mode === 'prev-card') {
+      targetIdx = (item.idx + 51) % 52;
+      label = 'Previous Card';
+      answerLabel = 'What card comes immediately before this?';
+    } else {
+      const offset = Math.random() < 0.5 ? -QUARTER_DECK_OFFSET : QUARTER_DECK_OFFSET;
+      targetIdx = (item.idx + offset + 52) % 52;
+      const sign = offset > 0 ? `+${QUARTER_DECK_OFFSET}` : `-${QUARTER_DECK_OFFSET}`;
+      label = 'Quarter-Deck Jump';
+      answerLabel = `What card is ${sign} from this card?`;
+      key = `rel:${mode}:${item.idx}:${offset}`;
+    }
+
+    state.currentPrompt = {
+      direction: 'card-to-card',
+      ask: item.card,
+      answer: STACK[targetIdx],
+      key,
+    };
+
+    showQuestionAsCardCue(item.card, label, answerLabel);
+    state.startedAt = performance.now();
+    els.answerInput.value = '';
+    resetCardKeypad();
+    resetNumKeypad();
+    els.feedback.classList.add('hidden');
+    els.btnNext.classList.remove('pulse');
+    els.timerValue.textContent = '0.0s';
+    answerLocked = false;
+  }
+
   function updateQuizSettingsSummary() {
-    const m = { mixed: 'Mixed', 'number-to-card': 'Pos→Card', 'card-to-number': 'Card→Pos', distance: 'Distance' };
+    const m = {
+      mixed: 'Mixed',
+      'number-to-card': 'Pos→Card',
+      'card-to-number': 'Card→Pos',
+      distance: 'Distance',
+      'next-card': 'Next Card',
+      'prev-card': 'Prev Card',
+      'jump-13': '±13 Jump',
+    };
     const parts = [m[quizFilters.mode] || 'Mixed'];
     if (quizFilters.color !== 'all')  parts.push(quizFilters.color === 'red' ? 'Red' : 'Black');
     if (quizFilters.suit  !== 'all')  parts.push(SUIT_SYMBOL[quizFilters.suit]);
@@ -509,12 +608,35 @@
     els.quizSettingsSummary.textContent = parts.join(' · ');
   }
 
+  function syncChips(qs, val) {
+    document.querySelectorAll(`[data-qs="${qs}"]`).forEach(c => {
+      c.classList.toggle('active', c.dataset.val === val);
+    });
+  }
+
+  function openQuizSetup() {
+    updateQuizSettingsSummary();
+    syncChips('mode',   quizFilters.mode);
+    syncChips('color',  quizFilters.color);
+    syncChips('suit',   quizFilters.suit);
+    syncChips('parity', quizFilters.parity);
+    els.qsPosMin.value = quizFilters.posMin;
+    els.qsPosMax.value = quizFilters.posMax;
+    els.qsRangeDisplay.textContent = `${quizFilters.posMin} – ${quizFilters.posMax}`;
+    els.qsTimed.checked = quizFilters.timed;
+    setView('quiz-setup');
+  }
+
   function nextPrompt() {
     answerLocked = false;
     clearTimeout(numAutoSubmitTimer);
 
     if (state.mode === 'quiz') {
       if (quizFilters.mode === 'distance') { nextDistancePrompt(); return; }
+      if (quizFilters.mode === 'next-card' || quizFilters.mode === 'prev-card' || quizFilters.mode === 'jump-13') {
+        nextRelationPrompt(quizFilters.mode);
+        return;
+      }
       state.currentPrompt = weightedRandomPromptFiltered(quizFilters.mode);
     } else {
       let direction = state.mode;
@@ -568,6 +690,10 @@
           const sign = prompt.offset > 0 ? `+${prompt.offset}` : String(prompt.offset);
           els.feedback.innerHTML = `✅ Correct! &nbsp;<strong>${ra}${sa}</strong> ${sign} → <strong>${rb}${sb}</strong>`;
         }
+      } else if (prompt.direction === 'card-to-card') {
+        const { rank: askRank, suit: askSuit } = parseCard(prompt.ask);
+        const { rank: ansRank, suit: ansSuit } = parseCard(prompt.answer);
+        els.feedback.innerHTML = `✅ Correct! &nbsp;<strong>${askRank}${askSuit}</strong> → <strong>${ansRank}${ansSuit}</strong>`;
       } else {
         let askDisplay, answerDisplay;
         if (isNumericAnswer) {
@@ -630,18 +756,20 @@
   function buildBatchQueue(batchCards) {
     const tasks = [];
     const retestPending = [];
+    const hidePatternSequence = memSettings.altHide ? IMPRINT_PATTERN_ALTERNATING : IMPRINT_PATTERN_BALANCED;
 
     for (let i = 0; i < batchCards.length; i++) {
       const idx = batchCards[i];
-      for (let step = 0; step < 4; step++) {
-        tasks.push({ type: 'imprint', idx, step });
+      for (let stepIndex = 0; stepIndex < hidePatternSequence.length; stepIndex++) {
+        const hidePattern = hidePatternSequence[stepIndex];
+        tasks.push({ type: 'imprint', idx, hidePattern, stepIndex, totalSteps: hidePatternSequence.length });
       }
-      retestPending.push(idx);
-      if (i >= 1 && retestPending.length > 0) {
+      if (memSettings.earlyRetest) retestPending.push(idx);
+      if (memSettings.earlyRetest && i >= 1 && retestPending.length > 0) {
         tasks.push({ type: 'retest', idx: retestPending.shift(), side: randomSide() });
       }
     }
-    while (retestPending.length) {
+    while (memSettings.earlyRetest && retestPending.length) {
       tasks.push({ type: 'retest', idx: retestPending.shift(), side: randomSide() });
     }
     return tasks;
@@ -653,7 +781,7 @@
     memSess.goodCount = 0;
 
     // Build a globally-shuffled deck order when randomize is checked
-    if (els.memRandomizeOrder.checked) {
+    if (memSettings.randomizeOrder) {
       const allNew = STACK.map((_, i) => i).filter(i => !memSess.srs[i]);
       shuffleInPlace(allNew);
       memSess.deckOrder = allNew;
@@ -671,7 +799,7 @@
      Returns false when there's nothing left to learn.            */
   function tryStartNextBatch() {
     memSess.srs = loadSRS();
-    const nextCards = buildSessionQueue(memSess.srs, memSess.batchSize, els.memRandomizeOrder.checked, memSess.deckOrder);
+    const nextCards = buildSessionQueue(memSess.srs, memSess.batchSize, memSettings.randomizeOrder, memSess.deckOrder);
     if (!nextCards.length) return false;
 
     memSess.currentBatchCards = nextCards;
@@ -692,9 +820,14 @@
   function startBatchRetestPhase() {
     memSess.inBatchRetest     = true;
     memSess.batchRetestPassed = new Set();
-    memSess.taskQueue = shuffleInPlace(
-      memSess.currentBatchCards.map(idx => ({ type: 'batch-retest', idx, side: randomSide() }))
-    );
+    memSess.batchSrsCredited  = new Set();
+    const batchTasks = memSettings.bothDirections
+      ? memSess.currentBatchCards.flatMap(idx => ([
+        { type: 'batch-retest', idx, side: 'card' },
+        { type: 'batch-retest', idx, side: 'num' },
+      ]))
+      : memSess.currentBatchCards.map(idx => ({ type: 'batch-retest', idx, side: randomSide() }));
+    memSess.taskQueue = shuffleInPlace(batchTasks);
     advanceTask();
   }
 
@@ -712,10 +845,10 @@
       .classList.toggle('is-hidden', hidden);
   }
 
-  function updateStepDots(step) {
+  function updateStepDots(stepIndex) {
     els.memStepDots.querySelectorAll('.mem-step-dot').forEach((dot, i) => {
-      dot.classList.toggle('active', i === step);
-      dot.classList.toggle('done',   i < step);
+      dot.classList.toggle('active', i === stepIndex);
+      dot.classList.toggle('done',   i < stepIndex);
     });
   }
 
@@ -739,12 +872,13 @@
     els.memPhaseLabel.textContent = phaseLabel;
 
     if (task.type === 'imprint') {
-      setTileHidden('num',  task.step === 2);
-      setTileHidden('card', task.step === 1 || task.step === 3);
-      updateStepDots(task.step);
+      setTileHidden('num',  task.hidePattern === HIDE_PATTERN_NUM);
+      setTileHidden('card', task.hidePattern === HIDE_PATTERN_CARD || task.hidePattern === HIDE_PATTERN_CARD_AGAIN);
+      updateStepDots(task.stepIndex);
       els.memStepDots.classList.remove('hidden');
 
-      els.memBtnAdvance.textContent = task.step === 3 ? 'Done ✓' : 'Next →';
+      const finalStep = task.stepIndex >= (task.totalSteps - 1);
+      els.memBtnAdvance.textContent = finalStep ? 'Done ✓' : 'Next →';
       els.memBtnAdvance.classList.remove('hidden');
       els.memBtnRevealRetest.classList.add('hidden');
       els.memRetestBtns.classList.add('hidden');
@@ -775,16 +909,22 @@
     if (!task) return;
 
     if (task.type === 'batch-retest') {
-      memSess.batchRetestPassed.add(task.idx);
+      const passKey = memSettings.bothDirections ? `${task.idx}:${task.side}` : String(task.idx);
+      memSess.batchRetestPassed.add(passKey);
       if (!memSess.isRepeatBatch) {
-        srsGotIt(memSess.srs, task.idx);
-        saveSRS(memSess.srs);
-        memSess.goodCount++;
-        updateMasteryBar();
-        updateMemModeBadge();
+        const creditKey = String(task.idx);
+        if (!memSess.batchSrsCredited.has(creditKey)) {
+          srsGotIt(memSess.srs, task.idx);
+          saveSRS(memSess.srs);
+          memSess.goodCount++;
+          memSess.batchSrsCredited.add(creditKey);
+          updateMasteryBar();
+          updateMemModeBadge();
+        }
       }
       updateMemProgress();
-      if (memSess.batchRetestPassed.size === memSess.currentBatchCards.length) {
+      const target = memSettings.bothDirections ? memSess.currentBatchCards.length * 2 : memSess.currentBatchCards.length;
+      if (memSess.batchRetestPassed.size === target) {
         showBatchComplete();
         return;
       }
@@ -797,8 +937,16 @@
     const task = memSess.currentTask;
     if (!task) return;
     // Re-imprint then re-queue the same retest type
-    const reimprint = [0, 1, 2, 3].map(step => ({ type: 'imprint', idx: task.idx, step }));
-    const retest    = { type: task.type, idx: task.idx, side: randomSide() };
+    const hidePatternSequence = memSettings.altHide ? IMPRINT_PATTERN_ALTERNATING : IMPRINT_PATTERN_BALANCED;
+    const reimprint = hidePatternSequence.map((hidePattern, stepIndex) => ({
+      type: 'imprint',
+      idx: task.idx,
+      hidePattern,
+      stepIndex,
+      totalSteps: hidePatternSequence.length,
+    }));
+    const side = (task.type === 'batch-retest' && memSettings.bothDirections) ? task.side : randomSide();
+    const retest = { type: task.type, idx: task.idx, side };
     memSess.taskQueue.unshift(...reimprint, retest);
     advanceTask();
   }
@@ -810,7 +958,7 @@
   }
 
   function updateMemProgress() {
-    const total = memSess.currentBatchCards.length;
+    const total = memSettings.bothDirections ? memSess.currentBatchCards.length * 2 : memSess.currentBatchCards.length;
     const done  = memSess.batchRetestPassed.size;
     const pct   = total > 0 ? (done / total) * 100 : 0;
     els.memProgressFill.style.width = `${Math.min(pct, 100)}%`;
@@ -853,11 +1001,13 @@
     const attempts = state.stats.attempts;
     const accuracy = attempts ? Math.round((state.stats.correct / attempts) * 100) : 0;
     const avg      = attempts ? state.stats.totalMs / attempts / 1000 : 0;
+    const due      = srsDueCount();
 
     els.statAttempts.textContent   = String(attempts);
     els.statAccuracy.textContent   = `${accuracy}%`;
     els.statSpeed.textContent      = `${avg.toFixed(1)}s`;
     els.statBestStreak.textContent = String(state.stats.bestStreak);
+    if (els.statDue) els.statDue.textContent = String(due);
 
     const weakPairs = Object.entries(state.stats.missed)
       .sort((a, b) => b[1] - a[1])
@@ -909,30 +1059,12 @@
 
         if (mode === 'memorize') { openMemorize(); return; }
         if (mode === 'stats')    { renderStats(); setView('stats'); return; }
+        if (mode === 'quiz')     { openQuizSetup(); return; }
 
         state.sessionCorrect = 0;
         state.sessionTotal   = 0;
         state.currentStreak  = 0;
         updateTopStatsUI();
-
-        // Show/hide quiz settings panel (only for unified quiz mode)
-        const isQuizMode = (mode === 'quiz');
-        els.quizSettings.classList.toggle('hidden', !isQuizMode);
-
-        // Update timer visibility per saved setting
-        if (isQuizMode) {
-          els.questionTimer.classList.toggle('hidden', !quizFilters.timed);
-          updateQuizSettingsSummary();
-          // Sync chip UI to loaded quizFilters
-          syncChips('mode',   quizFilters.mode);
-          syncChips('color',  quizFilters.color);
-          syncChips('suit',   quizFilters.suit);
-          syncChips('parity', quizFilters.parity);
-          els.qsPosMin.value = quizFilters.posMin;
-          els.qsPosMax.value = quizFilters.posMax;
-          els.qsRangeDisplay.textContent = `${quizFilters.posMin} – ${quizFilters.posMax}`;
-          els.qsTimed.checked = quizFilters.timed;
-        }
 
         setView('trainer');
         nextPrompt();
@@ -943,8 +1075,21 @@
     [els.btnBack, els.btnBackStats].forEach((btn) => {
       btn.addEventListener('click', () => {
         state.startedAt = 0;
-        setView('modes');
+        if (btn === els.btnBack && state.mode === 'quiz') openQuizSetup();
+        else setView('modes');
       });
+    });
+
+    els.btnBackQuizSetup.addEventListener('click', () => setView('modes'));
+    els.btnStartQuiz.addEventListener('click', () => {
+      state.mode = 'quiz';
+      state.sessionCorrect = 0;
+      state.sessionTotal   = 0;
+      state.currentStreak  = 0;
+      updateTopStatsUI();
+      els.questionTimer.classList.toggle('hidden', !quizFilters.timed);
+      setView('trainer');
+      nextPrompt();
     });
 
     // Memorize — picker back
@@ -989,9 +1134,25 @@
     });
     els.memChunkSize.addEventListener('input', () => { els.memChunkSizeValue.textContent = els.memChunkSize.value; });
     els.memRandomizeOrder.addEventListener('change', () => {
-      localStorage.setItem('stackMemorizeRandomOrder', els.memRandomizeOrder.checked ? '1' : '0');
+      memSettings.randomizeOrder = els.memRandomizeOrder.checked;
+      saveMemSettings();
     });
-    els.memRandomizeOrder.checked = localStorage.getItem('stackMemorizeRandomOrder') === '1';
+    els.memAltHide.addEventListener('change', () => {
+      memSettings.altHide = els.memAltHide.checked;
+      saveMemSettings();
+    });
+    els.memEarlyRetest.addEventListener('change', () => {
+      memSettings.earlyRetest = els.memEarlyRetest.checked;
+      saveMemSettings();
+    });
+    els.memBothDirections.addEventListener('change', () => {
+      memSettings.bothDirections = els.memBothDirections.checked;
+      saveMemSettings();
+    });
+    els.memRandomizeOrder.checked = !!memSettings.randomizeOrder;
+    els.memAltHide.checked = !!memSettings.altHide;
+    els.memEarlyRetest.checked = !!memSettings.earlyRetest;
+    els.memBothDirections.checked = !!memSettings.bothDirections;
 
     // Keyboard shortcuts for memorize session
     document.addEventListener('keydown', (e) => {
@@ -1066,7 +1227,7 @@
 
     els.cardClear.addEventListener('click', () => { if (!answerLocked) resetCardKeypad(); });
 
-    // ── Number keypad (auto-submit: 1-digit 6-9 immediate; 1-5 debounce; 2-digit immediate) ──
+    // ── Number keypad (length-aware auto-submit for reliable grading) ──
     function tryNumAutoSubmit() {
       clearTimeout(numAutoSubmitTimer);
       if (!numVal || answerLocked) return;
@@ -1074,16 +1235,19 @@
         evaluate(numVal);
         return;
       }
-      const d = parseInt(numVal, 10);
-      if (d >= 6) {
-        // Can't be start of valid position 60+ so submit immediately
+      const prompt = state.currentPrompt;
+      const expectedLen = (prompt && /^\d+$/.test(prompt.answer)) ? String(prompt.answer).length : null;
+      if (expectedLen === 1) {
         evaluate(numVal);
-      } else {
-        // First digit 1-5 could start a valid 2-digit position (10-52);
-        // wait 650ms for a possible second digit before auto-submitting.
+      } else if (expectedLen === 2) {
+        // Give a longer window for second-digit entry before grading.
         numAutoSubmitTimer = setTimeout(() => {
           if (numVal && !answerLocked) evaluate(numVal);
-        }, 650);
+        }, TWO_DIGIT_AUTO_SUBMIT_DELAY_MS);
+      } else {
+        numAutoSubmitTimer = setTimeout(() => {
+          if (numVal && !answerLocked) evaluate(numVal);
+        }, AUTO_SUBMIT_DELAY_MS);
       }
     }
 
@@ -1112,17 +1276,6 @@
     });
 
     // ── Quiz settings panel ───────────────────────────────────────
-    function syncChips(qs, val) {
-      document.querySelectorAll(`[data-qs="${qs}"]`).forEach(c => {
-        c.classList.toggle('active', c.dataset.val === val);
-      });
-    }
-
-    els.quizSettingsToggle.addEventListener('click', () => {
-      const open = els.quizSettingsBody.classList.toggle('hidden');
-      if (!open) els.quizSettingsBody.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-
     document.querySelectorAll('[data-qs]').forEach(chip => {
       chip.addEventListener('click', () => {
         const qs  = chip.dataset.qs;
@@ -1219,8 +1372,6 @@
   updateTopStatsUI();
   updateMasteryBar();
   updateMemModeBadge();
-  // Quiz settings hidden until quiz mode is selected
-  els.quizSettings.classList.add('hidden');
   setView('modes');
   registerServiceWorker();
 

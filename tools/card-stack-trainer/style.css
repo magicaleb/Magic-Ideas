@@ -503,6 +503,12 @@ html, body {
   flex: 1;
 }
 
+.quiz-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 /* Picker */
 .mem-info-grid {
   display: grid;
@@ -581,6 +587,31 @@ html, body {
 .mem-btn-start {
   font-size: 1.1rem;
   letter-spacing: 0.03em;
+}
+
+.mem-options {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+
+.mem-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.mem-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--lav);
 }
 
 /* Active session */
@@ -906,6 +937,17 @@ html, body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+
+.stats-hero .stat-card p {
+  font-size: 3.2rem;
+}
+
+.stat-subline {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .stat-card {
@@ -1268,6 +1310,21 @@ html, body {
 }
 
 .quiz-settings-toggle:active { color: var(--text); }
+
+.quiz-settings-title-row {
+  padding: 14px 18px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.quiz-settings-setup-summary {
+  color: var(--lav);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: right;
+}
 
 #quizSettingsSummary {
   color: var(--lav);
