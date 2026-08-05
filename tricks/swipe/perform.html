@@ -1,90 +1,161 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Swipe Input — Perform</title>
-
-  <!-- Critical fullscreen meta tags -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-  <link rel="stylesheet" href="../../assets/css/base.css?v=28">
+  <meta name="theme-color" content="#000000">
+  <title>Swipe Input — Perform</title>
   <style>
+    * { box-sizing: border-box; }
     html, body {
-      margin: 0;
-      padding: 0;
+      position: fixed;
+      inset: 0;
       width: 100%;
-      min-height: 100dvh;
-      height: -webkit-fill-available; /* Safari fallback */
+      height: 100%;
+      height: 100dvh;
+      margin: 0;
       overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      background: #000;
+      color: #eef2ff;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
     }
+    .perform-root { position: fixed; inset: 0; isolation: isolate; touch-action: none; }
+    .wallpaper-layer { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #000; pointer-events: none; }
+    .wallpaper-image { width: 100%; height: 100%; display: none; object-fit: cover; object-position: center center; pointer-events: none; }
+    .perform-root.wallpaper-mode .wallpaper-image { display: block; }
+    .performance-ui { position: absolute; inset: 0; z-index: 1; display: grid; grid-template-rows: 1fr auto; place-items: center; padding: max(24px, env(safe-area-inset-top)) 20px max(30px, env(safe-area-inset-bottom)); transition: opacity .12s linear; pointer-events: none; }
+    .perform-root.wallpaper-mode .performance-ui { opacity: 0; visibility: hidden; }
+    .digits { align-self: center; color: rgba(235,241,255,.76); font-size: clamp(3.5rem, 17vw, 6.5rem); font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: .08em; overflow-wrap: anywhere; text-align: center; text-shadow: 0 3px 18px rgba(0,0,0,.7); }
+    .last { display: flex; align-items: center; gap: 8px; color: rgba(220,230,255,.5); font-size: .85rem; }
+    .last output { padding: 5px 10px; border-radius: 999px; background: rgba(24,35,70,.75); color: rgba(230,240,255,.72); }
+    .toast { position: fixed; z-index: 2; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(8px); max-width: calc(100vw - 32px); padding: 9px 13px; border: 1px solid rgba(80,105,175,.55); border-radius: 12px; background: rgba(8,14,31,.88); color: rgba(235,241,255,.82); font-size: .86rem; opacity: 0; transition: opacity .16s, transform .16s; pointer-events: none; text-align: center; }
+    .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .perform-root.wallpaper-mode + .toast { display: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
   </style>
 </head>
 <body>
-  <div id="performRoot" class="perform-root">
-    <div id="digitsWrap" class="perform-digits-wrap">
-      <div class="perform-digits" id="digits">—</div>
+  <main id="performRoot" class="perform-root" aria-label="Full-screen swipe input surface">
+    <div class="wallpaper-layer" aria-hidden="true">
+      <img id="wallpaperImage" class="wallpaper-image" alt="">
     </div>
-
-    <div id="lastWrap">
-      <div id="centerLast" class="perform-last-center">
-        <div style="font-size:0.85rem;opacity:0.9">Last submitted:</div>
-        <div id="last" class="badge" style="background:#0f1733;color:#cde6ff">none</div>
-      </div>
+    <div class="performance-ui" aria-hidden="true">
+      <div id="digits" class="digits">—</div>
+      <div class="last">Last submitted <output id="last">none</output></div>
     </div>
-  </div>
+    <div id="liveStatus" class="sr-only" aria-live="polite"></div>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <div id="toast" style="position:fixed;left:50%;transform:translateX(-50%);bottom:8px;color:rgba(200,200,200,0.22);font-size:0.85rem;pointer-events:none;display:none">Saved</div>
-
-  <script src="../../assets/js/storage.js?v=1"></script>
-  <script src="../../assets/js/gestures.js?v=1"></script>
-  <script src="../../assets/js/swipe.js?v=1"></script>
+  <script src="../../assets/js/storage.js?v=2"></script>
+  <script src="../../assets/js/clockInput.js?v=2"></script>
+  <script src="../../assets/js/gestureDetector.js?v=2"></script>
+  <script src="../../assets/js/gestures.js?v=2"></script>
+  <script src="../../assets/js/swipe.js?v=2"></script>
   <script>
-    const saved = Storage.load('swipe', { delay: 3, shortcut: '', clipboard: false, postShortcut: '', fakeHomescreen: false, homescreenImage: '', useTwoSwipe: true });
+    const WALLPAPER_KEY = 'swipe.wallpaper';
+    const state = Swipe.normalizeConfig(Storage.load('swipe', {}));
+    Storage.save('swipe', state);
 
-    const performRoot = document.getElementById('performRoot');
-    const digitsEl    = document.getElementById('digits');
-    const lastEl      = document.getElementById('last');
-    const toast       = document.getElementById('toast');
+    const root = document.getElementById('performRoot');
+    const wallpaperImage = document.getElementById('wallpaperImage');
+    const digits = document.getElementById('digits');
+    const last = document.getElementById('last');
+    const toast = document.getElementById('toast');
+    const liveStatus = document.getElementById('liveStatus');
+    let wallpaperHandle = null;
+    let toastTimer = null;
 
-    const toastMsg = msg => {
-      toast.textContent = msg;
-      toast.style.display = 'block';
-      setTimeout(() => toast.style.display = 'none', 1200);
-    };
+    function showStatus(message) {
+      liveStatus.textContent = message;
+      if (root.classList.contains('wallpaper-mode')) return;
+      clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('visible');
+      toastTimer = setTimeout(() => toast.classList.remove('visible'), 1200);
+    }
 
-    const paintDigits = (val) => { digitsEl.textContent = (val || '—'); };
+    function pulse(duration = 12) {
+      try { navigator.vibrate?.(duration); } catch (_) {}
+    }
 
-    function applyFake(){
-      const cfg2 = Storage.load('swipe', { fakeHomescreen:false, homescreenImage:'' });
-      if(cfg2.fakeHomescreen && cfg2.homescreenImage){
-        performRoot.classList.add('fake-home');
-        performRoot.style.backgroundImage = `url(${cfg2.homescreenImage})`;
-        document.documentElement.classList.add('fake-home');
-        document.body.classList.add('fake-home');
-      } else {
-        performRoot.classList.remove('fake-home');
-        performRoot.style.backgroundImage = '';
-        document.documentElement.classList.remove('fake-home');
-        document.body.classList.remove('fake-home');
+    async function applyWallpaper() {
+      if (!state.fakeHomescreen) return;
+      let image = await Storage.loadImage(WALLPAPER_KEY);
+
+      if (!image && state.homescreenImage) {
+        try {
+          await Storage.saveImage(WALLPAPER_KEY, state.homescreenImage);
+          image = await Storage.loadImage(WALLPAPER_KEY);
+          state.homescreenImage = '';
+          state.hasHomescreenImage = Boolean(image);
+          Storage.save('swipe', state);
+        } catch (_) {
+          image = state.homescreenImage;
+        }
+      }
+
+      if (!image) {
+        showStatus('Wallpaper unavailable — using black performance screen');
+        return;
+      }
+
+      if (wallpaperHandle) wallpaperHandle.revoke();
+      wallpaperHandle = Storage.createImageUrl(image);
+      wallpaperImage.src = wallpaperHandle.url;
+      try {
+        if (wallpaperImage.decode) await wallpaperImage.decode();
+        else await new Promise((resolve, reject) => { wallpaperImage.onload = resolve; wallpaperImage.onerror = reject; });
+        root.classList.add('wallpaper-mode');
+      } catch (_) {
+        showStatus('Wallpaper could not be displayed — using black performance screen');
       }
     }
-    applyFake();
-    window.addEventListener('focus', applyFake);
 
-    window.__swipeHooks = Swipe.start(saved, {
-      onDigit(d, buffer){ paintDigits(buffer); },
-      onClear(){ paintDigits(''); toastMsg('Cleared'); },
-      onSubmit(value, route){
-        const v = value || 'none';
-        lastEl.textContent = v;
-        paintDigits('');
-        if (route === 'clipboard') toastMsg('Copied to clipboard');
-        else if (route === 'shortcut') toastMsg('Sent to Shortcut');
-        else toastMsg('Submitted');
+    const engine = Swipe.start(state, {
+      element: root,
+      onDigit(digit, buffer) {
+        digits.textContent = buffer || '—';
+        if (digit !== null) pulse();
       },
-      onStatus(msg){ toastMsg(msg); }
+      onSequence(result, buffer) {
+        if (!result.complete && result.stage === 'second') {
+          digits.textContent = `${buffer || ''}·`;
+        }
+      },
+      onClipboard(value, succeeded) {
+        if (succeeded) liveStatus.textContent = `${value} copied`;
+      },
+      onClear() {
+        digits.textContent = '—';
+        pulse(24);
+        showStatus('Cleared');
+      },
+      onSubmit(value, route) {
+        last.textContent = value;
+        digits.textContent = '—';
+        pulse([18, 35, 18]);
+        showStatus(route === 'shortcut' ? 'Sent to Shortcut' : route === 'clipboard' ? 'Copied and submitted' : 'Submitted');
+      },
+      onStatus: showStatus,
+      onExit() { window.location.assign('settings.html'); }
+    });
+
+    applyWallpaper();
+    window.addEventListener('pagehide', (event) => {
+      // Keep the engine alive when iOS temporarily parks this page while an
+      // optional Shortcut runs and later restores it from the back-forward cache.
+      if (event.persisted) return;
+      engine.destroy();
+      if (wallpaperHandle) wallpaperHandle.revoke();
     });
   </script>
 </body>

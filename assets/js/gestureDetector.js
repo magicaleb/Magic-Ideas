@@ -1,112 +1,375 @@
-/**
- * Base Gesture Detector
- * Handles touch events and detects swipe gestures
+/*
+ * Full-surface gesture detector for mobile performance screens.
+ *
+ * Swipes and taps are classified separately, so two quick swipes can never be
+ * mistaken for a double-tap. A quick two-finger tap submits; a deliberate
+ * two-finger hold is a separate gesture and can safely exit performance mode.
  */
-class GestureDetector {
-    constructor() {
-        this.touchStartX = 0;
-        this.touchStartY = 0;
-        this.touchEndX = 0;
-        this.touchEndY = 0;
-        this.minSwipeDistance = 50; // Minimum distance in pixels to register as a swipe
-        this.handlers = [];
-        this.element = null;
-        this.boundHandleTouchStart = null;
-        this.boundHandleTouchEnd = null;
+(function attachGestureDetector(root, factory) {
+  const GestureDetector = factory();
+
+  if (typeof module === 'object' && module.exports) {
+    module.exports = GestureDetector;
+  }
+
+  if (root) {
+    root.GestureDetector = GestureDetector;
+  }
+})(typeof globalThis !== 'undefined' ? globalThis : this, function createGestureDetector() {
+  'use strict';
+
+  const distance = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+
+  class GestureDetector {
+    constructor(options = {}) {
+      this.minSwipeDistance = Math.max(12, Number(options.minSwipeDistance) || 32);
+      this.maxTapDistance = Math.max(4, Number(options.maxTapDistance) || 14);
+      this.maxTapDuration = Math.max(100, Number(options.maxTapDuration) || 320);
+      this.doubleTapDelay = Math.max(150, Number(options.doubleTapDelay) || 320);
+      this.doubleTapDistance = Math.max(12, Number(options.doubleTapDistance) || 48);
+      this.twoFingerTapDuration = Math.max(150, Number(options.twoFingerTapDuration) || 360);
+      this.twoFingerMaxMovement = Math.max(8, Number(options.twoFingerMaxMovement) || 30);
+      this.twoFingerHoldDuration = Math.max(400, Number(options.twoFingerHoldDuration) || 750);
+      this.preventDefault = options.preventDefault !== false;
+      this.now = typeof options.now === 'function' ? options.now : () => Date.now();
+      this.setTimer = options.setTimer || setTimeout;
+      this.clearTimer = options.clearTimer || clearTimeout;
+
+      this.handlers = {
+        gesture: new Set(),
+        tap: new Set(),
+        doubleTap: new Set(),
+        twoFingerTap: new Set(),
+        twoFingerHold: new Set()
+      };
+
+      this.element = null;
+      this.activePointers = new Map();
+      this.multiTouch = null;
+      this.lastTap = null;
+      this.listeners = [];
+      this.previousTouchAction = null;
+      this.mouseDown = false;
     }
 
-    /**
-     * Register a gesture handler
-     * @param {Function} handler - Function to call when gesture is detected
-     */
-    onGesture(handler) {
-        this.handlers.push(handler);
+    onGesture(handler) { return this.addHandler('gesture', handler); }
+    onTap(handler) { return this.addHandler('tap', handler); }
+    onDoubleTap(handler) { return this.addHandler('doubleTap', handler); }
+    onTwoFingerTap(handler) { return this.addHandler('twoFingerTap', handler); }
+    onTwoFingerHold(handler) { return this.addHandler('twoFingerHold', handler); }
+    onTwoFingerDown(handler) { return this.onTwoFingerHold(handler); }
+
+    addHandler(type, handler) {
+      if (typeof handler !== 'function') return () => {};
+      this.handlers[type].add(handler);
+      return () => this.handlers[type].delete(handler);
     }
 
-    /**
-     * Initialize touch event listeners
-     * @param {HTMLElement} element - Element to attach listeners to
-     */
+    emit(type, payload) {
+      this.handlers[type].forEach((handler) => {
+        try { handler(payload); } catch (error) { setTimeout(() => { throw error; }, 0); }
+      });
+    }
+
     initialize(element = document) {
-        this.element = element;
-        this.boundHandleTouchStart = (e) => this.handleTouchStart(e);
-        this.boundHandleTouchEnd = (e) => this.handleTouchEnd(e);
-        
-        element.addEventListener('touchstart', this.boundHandleTouchStart, { passive: true });
-        element.addEventListener('touchend', this.boundHandleTouchEnd, { passive: true });
+      if (this.element) this.destroy();
+      this.element = element;
+
+      const styleTarget = element === document ? document.documentElement : element;
+      if (styleTarget && styleTarget.style) {
+        this.previousTouchAction = styleTarget.style.touchAction;
+        styleTarget.style.touchAction = 'none';
+      }
+
+      if (typeof window !== 'undefined' && 'PointerEvent' in window) {
+        this.bindPointerEvents(element);
+      } else {
+        this.bindTouchEvents(element);
+        this.bindMouseEvents(element);
+      }
+
+      return this;
     }
 
-    /**
-     * Clean up event listeners
-     */
-    destroy() {
-        if (this.element && this.boundHandleTouchStart && this.boundHandleTouchEnd) {
-            this.element.removeEventListener('touchstart', this.boundHandleTouchStart);
-            this.element.removeEventListener('touchend', this.boundHandleTouchEnd);
-            this.element = null;
-            this.boundHandleTouchStart = null;
-            this.boundHandleTouchEnd = null;
-        }
+    bind(element, eventName, handler, options) {
+      element.addEventListener(eventName, handler, options);
+      this.listeners.push({ element, eventName, handler, options });
     }
 
-    /**
-     * Handle touch start event
-     */
-    handleTouchStart(e) {
-        if (e.touches.length !== 1) return;
-        
-        this.touchStartX = e.touches[0].clientX;
-        this.touchStartY = e.touches[0].clientY;
+    bindPointerEvents(element) {
+      this.bind(element, 'pointerdown', (event) => {
+        if (event.pointerType === 'mouse' && event.button !== 0) return;
+        this.stopNativeGesture(event);
+        try { event.target.setPointerCapture?.(event.pointerId); } catch (_) {}
+        this.pointerDown(event.pointerId, event.clientX, event.clientY, event.pointerType || 'pointer');
+      }, { passive: false });
+
+      this.bind(element, 'pointermove', (event) => {
+        if (!this.activePointers.has(event.pointerId)) return;
+        this.stopNativeGesture(event);
+        this.pointerMove(event.pointerId, event.clientX, event.clientY);
+      }, { passive: false });
+
+      const finish = (event, cancelled) => {
+        if (!this.activePointers.has(event.pointerId)) return;
+        this.stopNativeGesture(event);
+        this.pointerUp(event.pointerId, event.clientX, event.clientY, cancelled);
+      };
+
+      this.bind(element, 'pointerup', (event) => finish(event, false), { passive: false });
+      this.bind(element, 'pointercancel', (event) => finish(event, true), { passive: false });
     }
 
-    /**
-     * Handle touch end event
-     */
-    handleTouchEnd(e) {
-        if (e.changedTouches.length !== 1) return;
-        
-        this.touchEndX = e.changedTouches[0].clientX;
-        this.touchEndY = e.changedTouches[0].clientY;
-        
-        this.detectSwipe();
-    }
-
-    /**
-     * Detect swipe direction and notify handlers
-     */
-    detectSwipe() {
-        const deltaX = this.touchEndX - this.touchStartX;
-        const deltaY = this.touchEndY - this.touchStartY;
-        const absDeltaX = Math.abs(deltaX);
-        const absDeltaY = Math.abs(deltaY);
-
-        // Check if swipe meets minimum distance (using total distance)
-        const totalDistance = Math.sqrt(absDeltaX * absDeltaX + absDeltaY * absDeltaY);
-        if (totalDistance < this.minSwipeDistance) {
-            return;
-        }
-
-        // Determine primary direction
-        let direction;
-        if (absDeltaX > absDeltaY) {
-            // Horizontal swipe
-            direction = deltaX > 0 ? 'right' : 'left';
-        } else {
-            // Vertical swipe
-            direction = deltaY > 0 ? 'down' : 'up';
-        }
-
-        // Notify all handlers
-        this.handlers.forEach(handler => {
-            handler({
-                direction,
-                deltaX,
-                deltaY,
-                startX: this.touchStartX,
-                startY: this.touchStartY,
-                endX: this.touchEndX,
-                endY: this.touchEndY
-            });
+    bindTouchEvents(element) {
+      this.bind(element, 'touchstart', (event) => {
+        this.stopNativeGesture(event);
+        Array.from(event.changedTouches).forEach((touch) => {
+          this.pointerDown(touch.identifier, touch.clientX, touch.clientY, 'touch');
         });
+      }, { passive: false });
+
+      this.bind(element, 'touchmove', (event) => {
+        this.stopNativeGesture(event);
+        Array.from(event.changedTouches).forEach((touch) => {
+          this.pointerMove(touch.identifier, touch.clientX, touch.clientY);
+        });
+      }, { passive: false });
+
+      this.bind(element, 'touchend', (event) => {
+        this.stopNativeGesture(event);
+        Array.from(event.changedTouches).forEach((touch) => {
+          this.pointerUp(touch.identifier, touch.clientX, touch.clientY, false);
+        });
+      }, { passive: false });
+
+      this.bind(element, 'touchcancel', (event) => {
+        this.stopNativeGesture(event);
+        Array.from(event.changedTouches).forEach((touch) => {
+          this.pointerUp(touch.identifier, touch.clientX, touch.clientY, true);
+        });
+      }, { passive: false });
     }
-}
+
+    bindMouseEvents(element) {
+      this.bind(element, 'mousedown', (event) => {
+        if (event.button !== 0) return;
+        this.mouseDown = true;
+        this.pointerDown('mouse', event.clientX, event.clientY, 'mouse');
+      });
+
+      this.bind(element, 'mousemove', (event) => {
+        if (!this.mouseDown) return;
+        this.pointerMove('mouse', event.clientX, event.clientY);
+      });
+
+      const endMouse = (event, cancelled) => {
+        if (!this.mouseDown) return;
+        this.mouseDown = false;
+        this.pointerUp('mouse', event.clientX, event.clientY, cancelled);
+      };
+
+      this.bind(element, 'mouseup', (event) => endMouse(event, false));
+      this.bind(element, 'mouseleave', (event) => endMouse(event, true));
+    }
+
+    stopNativeGesture(event) {
+      if (this.preventDefault && event.cancelable) event.preventDefault();
+    }
+
+    pointerDown(id, x, y, pointerType = 'touch') {
+      if (this.activePointers.has(id)) return;
+      const now = this.now();
+      const point = { x, y };
+      this.activePointers.set(id, {
+        id,
+        pointerType,
+        startedAt: now,
+        start: point,
+        current: point,
+        suppressSingle: false
+      });
+
+      if (this.activePointers.size === 2) {
+        this.startMultiTouch(now);
+      } else if (this.activePointers.size > 2) {
+        this.cancelMultiTouch();
+        this.activePointers.forEach((pointer) => { pointer.suppressSingle = true; });
+      }
+    }
+
+    pointerMove(id, x, y) {
+      const pointer = this.activePointers.get(id);
+      if (!pointer) return;
+      pointer.current = { x, y };
+
+      if (this.multiTouch && this.multiTouch.ids.has(id)) {
+        if (distance(pointer.start, pointer.current) > this.twoFingerMaxMovement) {
+          this.multiTouch.moved = true;
+          this.cancelHoldTimer();
+        }
+      }
+    }
+
+    pointerUp(id, x, y, cancelled = false) {
+      const pointer = this.activePointers.get(id);
+      if (!pointer) return;
+
+      pointer.current = { x, y };
+      const endedAt = this.now();
+      const wasMultiTouch = Boolean(this.multiTouch && this.multiTouch.ids.has(id));
+      this.activePointers.delete(id);
+
+      if (wasMultiTouch) {
+        this.finishMultiPointer(id, pointer, endedAt, cancelled);
+        return;
+      }
+
+      if (cancelled || pointer.suppressSingle) return;
+      this.finishSinglePointer(pointer, endedAt);
+    }
+
+    finishSinglePointer(pointer, endedAt) {
+      const deltaX = pointer.current.x - pointer.start.x;
+      const deltaY = pointer.current.y - pointer.start.y;
+      const travelled = Math.hypot(deltaX, deltaY);
+      const duration = endedAt - pointer.startedAt;
+
+      if (travelled >= this.minSwipeDistance) {
+        this.lastTap = null;
+        const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+        const direction = Math.abs(deltaX) > Math.abs(deltaY)
+          ? (deltaX > 0 ? 'right' : 'left')
+          : (deltaY > 0 ? 'down' : 'up');
+
+        this.emit('gesture', {
+          type: 'swipe',
+          direction,
+          angle,
+          distance: travelled,
+          duration,
+          deltaX,
+          deltaY,
+          startX: pointer.start.x,
+          startY: pointer.start.y,
+          endX: pointer.current.x,
+          endY: pointer.current.y,
+          pointerType: pointer.pointerType
+        });
+        return;
+      }
+
+      if (travelled > this.maxTapDistance || duration > this.maxTapDuration) {
+        this.lastTap = null;
+        return;
+      }
+
+      const tap = {
+        type: 'tap',
+        x: pointer.current.x,
+        y: pointer.current.y,
+        duration,
+        pointerType: pointer.pointerType,
+        time: endedAt
+      };
+      this.emit('tap', tap);
+
+      if (
+        this.lastTap &&
+        endedAt - this.lastTap.time <= this.doubleTapDelay &&
+        distance(this.lastTap, tap) <= this.doubleTapDistance
+      ) {
+        this.emit('doubleTap', { type: 'doubleTap', x: tap.x, y: tap.y, time: endedAt });
+        this.lastTap = null;
+      } else {
+        this.lastTap = tap;
+      }
+    }
+
+    startMultiTouch(startedAt) {
+      this.cancelMultiTouch();
+      const pointers = Array.from(this.activePointers.values()).slice(0, 2);
+      pointers.forEach((pointer) => { pointer.suppressSingle = true; });
+      this.lastTap = null;
+      const alreadyMoved = pointers.some((pointer) => (
+        distance(pointer.start, pointer.current) > this.twoFingerMaxMovement
+      ));
+
+      this.multiTouch = {
+        ids: new Set(pointers.map((pointer) => pointer.id)),
+        startedAt,
+        ended: new Set(),
+        moved: alreadyMoved,
+        cancelled: false,
+        holdFired: false,
+        holdTimer: null
+      };
+
+      if (!alreadyMoved) {
+        this.multiTouch.holdTimer = this.setTimer(() => {
+          if (!this.multiTouch || this.multiTouch.moved || this.multiTouch.cancelled) return;
+          const bothActive = Array.from(this.multiTouch.ids).every((id) => this.activePointers.has(id));
+          if (!bothActive) return;
+          this.multiTouch.holdFired = true;
+          this.emit('twoFingerHold', { type: 'twoFingerHold', duration: this.twoFingerHoldDuration });
+        }, this.twoFingerHoldDuration);
+      }
+    }
+
+    finishMultiPointer(id, pointer, endedAt, cancelled) {
+      if (!this.multiTouch) return;
+      this.multiTouch.ended.add(id);
+      if (cancelled) this.multiTouch.cancelled = true;
+      if (distance(pointer.start, pointer.current) > this.twoFingerMaxMovement) {
+        this.multiTouch.moved = true;
+      }
+
+      if (this.multiTouch.ended.size < this.multiTouch.ids.size) return;
+
+      const multi = this.multiTouch;
+      this.cancelHoldTimer();
+      this.multiTouch = null;
+      const duration = endedAt - multi.startedAt;
+
+      if (!multi.cancelled && !multi.moved && !multi.holdFired && duration <= this.twoFingerTapDuration) {
+        this.emit('twoFingerTap', { type: 'twoFingerTap', duration });
+      }
+    }
+
+    cancelHoldTimer() {
+      if (this.multiTouch && this.multiTouch.holdTimer) {
+        this.clearTimer(this.multiTouch.holdTimer);
+        this.multiTouch.holdTimer = null;
+      }
+    }
+
+    cancelMultiTouch() {
+      this.cancelHoldTimer();
+      this.multiTouch = null;
+    }
+
+    reset() {
+      this.cancelMultiTouch();
+      this.activePointers.clear();
+      this.lastTap = null;
+      this.mouseDown = false;
+    }
+
+    destroy() {
+      this.listeners.forEach(({ element, eventName, handler, options }) => {
+        element.removeEventListener(eventName, handler, options);
+      });
+      this.listeners = [];
+      this.reset();
+
+      const styleTarget = this.element === document ? document.documentElement : this.element;
+      if (styleTarget && styleTarget.style && this.previousTouchAction !== null) {
+        styleTarget.style.touchAction = this.previousTouchAction;
+      }
+
+      this.element = null;
+      this.previousTouchAction = null;
+    }
+  }
+
+  return GestureDetector;
+});

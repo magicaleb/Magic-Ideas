@@ -1,671 +1,269 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Contained Swipe Input</title>
-    <style>
-        /* Reset and full-screen layout */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        
-        html, body {
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            overscroll-behavior: none;
-            font-family: -apple-system, system-ui, sans-serif;
-            background: #0b1020;
-            color: #eef2ff;
-        }
-
-        /* Settings page styles */
-        .settings-page {
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .settings-page h1 {
-            font-size: 2rem;
-            margin-bottom: 24px;
-            font-weight: 700;
-        }
-
-        .settings-page h2 {
-            font-size: 1.5rem;
-            margin-bottom: 16px;
-            font-weight: 600;
-        }
-
-        .card {
-            background: #121a33;
-            border: 1px solid #1f2a53;
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 16px;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #8ea0c7;
-            font-size: 0.95rem;
-        }
-
-        .form-group input[type="text"],
-        .form-group input[type="number"],
-        .form-group input[type="file"] {
-            width: 100%;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid #26325f;
-            background: #0f1630;
-            color: #eef2ff;
-            font-size: 16px;
-        }
-
-        .form-group input[type="checkbox"] {
-            width: auto;
-            margin-right: 8px;
-        }
-
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        button {
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: 12px;
-            background: linear-gradient(90deg, #60a5fa, #6ee7b7);
-            color: #05111b;
-            font-weight: 700;
-            font-size: 1.2rem;
-            cursor: pointer;
-            margin-top: 12px;
-        }
-
-        button:active {
-            opacity: 0.8;
-        }
-
-        .info-card {
-            background: #0f1733;
-            border: 1px solid #1f2a53;
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 16px;
-        }
-
-        .info-card h3 {
-            font-size: 1rem;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-
-        .info-card p {
-            font-size: 0.9rem;
-            line-height: 1.5;
-            color: #8ea0c7;
-            margin-bottom: 8px;
-        }
-
-        /* Perform page styles */
-        .perform-page {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            align-items: center;
-            background: #000;
-            touch-action: none;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-
-        .perform-page.fake-home {
-            background-size: cover;
-            background-position: center center;
-            background-repeat: no-repeat;
-        }
-
-        .digits-display {
-            font-size: 4rem;
-            letter-spacing: 6px;
-            color: rgba(200, 200, 200, 0.35);
-            font-variant-numeric: tabular-nums;
-            margin-bottom: 18vh;
-            text-align: center;
-        }
-
-        .perform-page.fake-home .digits-display {
-            font-size: 0.8rem;
-            color: #fff;
-            position: fixed;
-            right: 12px;
-            bottom: 8px;
-            margin: 0;
-        }
-
-        .last-submitted {
-            margin-bottom: 6vh;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
-
-        .perform-page.fake-home .last-submitted {
-            display: none;
-        }
-
-        .last-value {
-            font-size: 1.2rem;
-            padding: 8px 16px;
-            background: #0f1733;
-            color: #cde6ff;
-            border-radius: 999px;
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #0f1733;
-            border: 1px solid #2a386c;
-            color: #eef2ff;
-            padding: 12px 20px;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .toast.show {
-            opacity: 1;
-        }
-
-        .hidden {
-            display: none;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0b1020">
+  <title>Contained Swipe Input</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    html, body { min-height: 100%; margin: 0; background: #0b1020; color: #eef2ff; }
+    body.performing { position: fixed; inset: 0; overflow: hidden; touch-action: none; }
+    [hidden] { display: none !important; }
+    .settings { width: min(100%, 680px); margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); }
+    h1 { margin: 0; font-size: clamp(1.8rem, 7vw, 2.4rem); }
+    .lede { color: #9baad0; line-height: 1.45; }
+    .card { display: grid; gap: 14px; margin-top: 14px; padding: 16px; border: 1px solid #26345f; border-radius: 16px; background: #121a33; box-shadow: 0 12px 30px rgba(0,0,0,.22); }
+    .field { display: grid; gap: 6px; }
+    label, legend { color: #dbe5ff; font-weight: 650; }
+    input[type="text"], input[type="number"], select { width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid #314173; border-radius: 11px; background: #0d1530; color: #f4f7ff; font-size: 16px; }
+    input[type="file"] { width: 100%; color: #9baad0; }
+    .check { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+    .check input { margin-top: 4px; }
+    small { color: #9baad0; line-height: 1.4; }
+    button { width: 100%; min-height: 50px; padding: 12px 16px; border: 0; border-radius: 12px; background: linear-gradient(90deg, #60a5fa, #6ee7b7); color: #05111b; font: inherit; font-weight: 800; cursor: pointer; }
+    button.secondary { width: auto; min-height: 40px; background: #1b2850; color: #eef2ff; }
+    .status { min-height: 1.3em; color: #9baad0; font-size: .88rem; }
+    .status.error { color: #fca5a5; }
+    .perform { position: fixed; inset: 0; overflow: hidden; background: #000; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+    .wallpaper { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; display: none; object-fit: cover; object-position: center; pointer-events: none; }
+    .perform.wallpaper-mode .wallpaper { display: block; }
+    .perform-ui { position: absolute; inset: 0; z-index: 1; display: grid; grid-template-rows: 1fr auto; place-items: center; padding: max(24px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom)); pointer-events: none; }
+    .perform.wallpaper-mode .perform-ui { visibility: hidden; }
+    .digits { color: rgba(238,244,255,.72); font-size: clamp(3.5rem, 17vw, 6.5rem); font-weight: 800; letter-spacing: .08em; text-align: center; text-shadow: 0 3px 18px #000; }
+    .last { color: rgba(218,228,255,.5); font-size: .86rem; }
+    .toast { position: absolute; z-index: 2; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 9px 13px; border-radius: 11px; background: rgba(12,19,42,.9); color: #eaf1ff; opacity: 0; pointer-events: none; transition: opacity .15s; }
+    .toast.visible { opacity: 1; }
+    .perform.wallpaper-mode .toast { display: none; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  </style>
 </head>
 <body>
-    <!-- Settings Page -->
-    <div id="settingsPage" class="settings-page">
-        <h1>Swipe Input Settings</h1>
-        
-        <div class="card">
-            <div class="form-group">
-                <label for="delay">Auto-submit delay (seconds)</label>
-                <input id="delay" type="number" min="1" max="60" value="3">
-            </div>
+  <main id="settingsPage" class="settings">
+    <h1>Contained Swipe Input</h1>
+    <p class="lede">This variant now uses the same tested full-screen gesture engine and wallpaper storage as the main Swipe Input trick.</p>
 
-            <div class="form-group">
-                <label for="shortcut">iOS Shortcut name (optional)</label>
-                <input id="shortcut" type="text" placeholder="e.g., City List">
-            </div>
+    <section class="card">
+      <div class="field">
+        <label for="inputMode">Input method</label>
+        <select id="inputMode">
+          <option value="twoswipe">Two-swipe clock (recommended)</option>
+          <option value="clockface">Direct clock face</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="delay">Auto-submit delay</label>
+        <input id="delay" type="number" min="1" max="60" step="1" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label for="shortcut">iOS Shortcut name (optional)</label>
+        <input id="shortcut" type="text" autocomplete="off">
+      </div>
+      <label class="check" for="clipboard">
+        <input id="clipboard" type="checkbox">
+        <span>Automatically copy each completed input<small>The clipboard updates as every digit registers.</small></span>
+      </label>
+      <label class="check" for="fakeHomescreen">
+        <input id="fakeHomescreen" type="checkbox">
+        <span>Use uploaded image as the full-screen wallpaper</span>
+      </label>
+      <div class="field">
+        <label for="homescreenImage">Wallpaper or Home Screen screenshot</label>
+        <input id="homescreenImage" type="file" accept="image/*">
+      </div>
+      <button id="removeWallpaper" class="secondary" type="button" hidden>Remove wallpaper</button>
+      <div id="wallpaperStatus" class="status" role="status" aria-live="polite"></div>
+      <button id="startPerform" type="button">Start contained performance</button>
+    </section>
 
-            <div class="checkbox-group">
-                <input id="clipboard" type="checkbox">
-                <label for="clipboard">Copy result to clipboard</label>
-            </div>
+    <section class="card">
+      <strong>Controls</strong>
+      <small>Swipe anywhere. In two-swipe mode: ↑←/↑↑/↑→ gives 9/0/1; →↑/→→/→↓ gives 2/3/4; ↓→/↓↓/↓← gives 5/6/7; ←↓/←←/←↑ gives 8/9/0.</small>
+      <small>Double-tap clears. Quick two-finger tap submits. Hold two fingers for about three-quarters of a second to return here.</small>
+    </section>
+  </main>
 
-            <div class="checkbox-group">
-                <input id="fakeHomescreen" type="checkbox">
-                <label for="fakeHomescreen">Fake Homescreen mode</label>
-            </div>
-
-            <div class="form-group">
-                <label for="homescreenImage">Upload homescreen image (optional)</label>
-                <input id="homescreenImage" type="file" accept="image/*">
-            </div>
-
-            <button id="startPerform">Start Perform Mode</button>
-        </div>
-
-        <div class="info-card">
-            <h3>How to Use:</h3>
-            <p><strong>Swipe gestures:</strong> Imagine a clock face. Swipe towards 12 o'clock for 0, 1 o'clock for 1, etc. Only digits 0-9 work (12, 1-9 positions).</p>
-            <p><strong>Double-tap:</strong> Clear the current input buffer.</p>
-            <p><strong>Two-finger tap:</strong> Submit immediately (without waiting for auto-submit).</p>
-            <p><strong>Two-finger down:</strong> Exit perform mode and return to settings.</p>
-        </div>
+  <main id="performPage" class="perform" aria-label="Contained full-screen swipe input" hidden>
+    <img id="wallpaper" class="wallpaper" alt="">
+    <div class="perform-ui" aria-hidden="true">
+      <div id="digits" class="digits">—</div>
+      <div class="last">Last submitted: <span id="lastValue">none</span></div>
     </div>
+    <div id="liveStatus" class="sr-only" aria-live="polite"></div>
+    <div id="toast" class="toast" role="status"></div>
+  </main>
 
-    <!-- Perform Page -->
-    <div id="performPage" class="perform-page hidden">
-        <div class="digits-display" id="digits">—</div>
-        <div class="last-submitted">
-            <div style="font-size: 0.85rem; opacity: 0.9;">Last submitted:</div>
-            <div class="last-value" id="lastValue">none</div>
-        </div>
-    </div>
+  <script src="assets/js/storage.js?v=2"></script>
+  <script src="assets/js/clockInput.js?v=2"></script>
+  <script src="assets/js/gestureDetector.js?v=2"></script>
+  <script src="assets/js/gestures.js?v=2"></script>
+  <script src="assets/js/swipe.js?v=2"></script>
+  <script>
+    const WALLPAPER_KEY = 'swipe.wallpaper';
+    const settingsPage = document.getElementById('settingsPage');
+    const performPage = document.getElementById('performPage');
+    const fields = {
+      inputMode: document.getElementById('inputMode'),
+      delay: document.getElementById('delay'),
+      shortcut: document.getElementById('shortcut'),
+      clipboard: document.getElementById('clipboard'),
+      fakeHomescreen: document.getElementById('fakeHomescreen'),
+      image: document.getElementById('homescreenImage'),
+      remove: document.getElementById('removeWallpaper'),
+      status: document.getElementById('wallpaperStatus')
+    };
+    const wallpaper = document.getElementById('wallpaper');
+    const digits = document.getElementById('digits');
+    const lastValue = document.getElementById('lastValue');
+    const liveStatus = document.getElementById('liveStatus');
+    const toast = document.getElementById('toast');
+    let state = Swipe.normalizeConfig(Storage.load('swipe', {}));
+    let engine = null;
+    let wallpaperHandle = null;
+    let toastTimer = null;
+    let session = 0;
 
-    <!-- Toast notification -->
-    <div id="toast" class="toast"></div>
+    function fillForm() {
+      fields.inputMode.value = state.inputMode;
+      fields.delay.value = state.delay;
+      fields.shortcut.value = state.shortcut;
+      fields.clipboard.checked = state.clipboard;
+      fields.fakeHomescreen.checked = state.fakeHomescreen;
+    }
 
-    <script>
-        // ===== STORAGE UTILITY =====
-        const Storage = {
-            load(key, defaults) {
-                try {
-                    const raw = localStorage.getItem('swipe.' + key);
-                    return raw ? JSON.parse(raw) : defaults;
-                } catch {
-                    return defaults;
-                }
-            },
-            save(key, obj) {
-                try {
-                    localStorage.setItem('swipe.' + key, JSON.stringify(obj));
-                } catch {}
-            }
-        };
+    function saveSettings() {
+      state.inputMode = fields.inputMode.value;
+      state.useTwoSwipe = state.inputMode === 'twoswipe';
+      state.delay = Math.min(60, Math.max(1, Number(fields.delay.value) || 3));
+      state.shortcut = fields.shortcut.value.trim();
+      state.clipboard = fields.clipboard.checked;
+      state.fakeHomescreen = fields.fakeHomescreen.checked;
+      Storage.save('swipe', state);
+    }
 
-        // ===== GESTURE DETECTION =====
-        const Gestures = (() => {
-            const MIN_SWIPE_PX = 30;
-            const DOUBLE_TAP_MS = 300;
-            const TWO_TAP_MS = 250;
-            const TWO_TAP_MAX_MOVE = 30;
-            const TWO_DOWN_MS = 150;
+    function setWallpaperStatus(message, isError = false) {
+      fields.status.textContent = message;
+      fields.status.classList.toggle('error', isError);
+    }
 
-            let swipeStartX = null;
-            let swipeStartY = null;
-            let lastTapTime = 0;
-            let twoFingerTapStart = 0;
-            let twoFingerTapStartPos = null;
-            let singleTouchStartTime = 0;
+    async function refreshWallpaperStatus() {
+      const image = await Storage.loadImage(WALLPAPER_KEY);
+      state.hasHomescreenImage = Boolean(image || state.homescreenImage);
+      fields.remove.hidden = !state.hasHomescreenImage;
+      setWallpaperStatus(state.hasHomescreenImage ? 'Wallpaper ready.' : 'No wallpaper uploaded.');
+      Storage.save('swipe', state);
+    }
 
-            const callbacks = {
-                onSwipe: null,
-                onDoubleTap: null,
-                onTwoFingerTap: null,
-                onTwoFingerDown: null
-            };
+    function showToast(message) {
+      liveStatus.textContent = message;
+      if (performPage.classList.contains('wallpaper-mode')) return;
+      clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('visible');
+      toastTimer = setTimeout(() => toast.classList.remove('visible'), 1200);
+    }
 
-            const dist2 = (x1, y1, x2, y2) => {
-                const dx = x2 - x1;
-                const dy = y2 - y1;
-                return dx * dx + dy * dy;
-            };
+    async function applyWallpaper(currentSession) {
+      performPage.classList.remove('wallpaper-mode');
+      if (!state.fakeHomescreen) return;
+      let image = await Storage.loadImage(WALLPAPER_KEY);
+      if (!image && state.homescreenImage) image = state.homescreenImage;
+      if (!image || currentSession !== session) return;
 
-            const normalizeAngle = (deg) => {
-                let a = deg % 360;
-                if (a >= 180) a -= 360;
-                if (a < -180) a += 360;
-                return a;
-            };
+      if (wallpaperHandle) wallpaperHandle.revoke();
+      wallpaperHandle = Storage.createImageUrl(image);
+      wallpaper.src = wallpaperHandle.url;
+      try {
+        if (wallpaper.decode) await wallpaper.decode();
+        else await new Promise((resolve, reject) => { wallpaper.onload = resolve; wallpaper.onerror = reject; });
+        if (currentSession === session) performPage.classList.add('wallpaper-mode');
+      } catch (_) {
+        showToast('Wallpaper could not be displayed');
+      }
+    }
 
-            // Initialize touch listeners
-            const init = () => {
-                document.body.addEventListener('touchstart', handleTouchStart, { passive: true });
-                document.body.addEventListener('touchend', handleTouchEnd, { passive: true });
-            };
+    function showSettings() {
+      session += 1;
+      if (engine) engine.destroy();
+      engine = null;
+      performPage.hidden = true;
+      settingsPage.hidden = false;
+      document.body.classList.remove('performing');
+      if (wallpaperHandle) wallpaperHandle.revoke();
+      wallpaperHandle = null;
+      wallpaper.removeAttribute('src');
+      performPage.classList.remove('wallpaper-mode');
+    }
 
-            const handleTouchStart = (e) => {
-                if (e.touches.length === 1) {
-                    const t = e.touches[0];
-                    swipeStartX = t.clientX;
-                    swipeStartY = t.clientY;
-                    singleTouchStartTime = Date.now();
-                } else if (e.touches.length === 2) {
-                    twoFingerTapStart = Date.now();
-                    twoFingerTapStartPos = Array.from(e.touches).map(t => ({
-                        x: t.clientX,
-                        y: t.clientY
-                    }));
-                }
-            };
+    function showPerform() {
+      saveSettings();
+      session += 1;
+      const currentSession = session;
+      settingsPage.hidden = true;
+      performPage.hidden = false;
+      document.body.classList.add('performing');
+      digits.textContent = '—';
 
-            const handleTouchEnd = (e) => {
-                // Handle swipe
-                if (swipeStartX !== null && swipeStartY !== null && e.changedTouches.length === 1) {
-                    const t = e.changedTouches[0];
-                    const ex = t.clientX;
-                    const ey = t.clientY;
-                    
-                    if (dist2(swipeStartX, swipeStartY, ex, ey) >= MIN_SWIPE_PX * MIN_SWIPE_PX) {
-                        const dx = ex - swipeStartX;
-                        const dy = ey - swipeStartY;
-                        const angle = normalizeAngle(Math.atan2(dy, dx) * 180 / Math.PI);
-                        if (callbacks.onSwipe) callbacks.onSwipe(angle);
-                    }
-                    swipeStartX = null;
-                    swipeStartY = null;
-                }
+      if (engine) engine.destroy();
+      engine = Swipe.start(state, {
+        element: performPage,
+        onDigit(digit, buffer) { digits.textContent = buffer || '—'; },
+        onSequence(result, buffer) { if (!result.complete && result.stage === 'second') digits.textContent = `${buffer || ''}·`; },
+        onClipboard(value, succeeded) { if (succeeded) liveStatus.textContent = `${value} copied`; },
+        onClear() { digits.textContent = '—'; showToast('Cleared'); },
+        onSubmit(value, route) {
+          lastValue.textContent = value;
+          digits.textContent = '—';
+          showToast(route === 'shortcut' ? 'Sent to Shortcut' : route === 'clipboard' ? 'Copied and submitted' : 'Submitted');
+        },
+        onStatus: showToast,
+        onExit: showSettings
+      });
+      applyWallpaper(currentSession);
+    }
 
-                // Handle double-tap (only single-finger taps)
-                if (e.changedTouches.length === 1 && e.touches.length === 0) {
-                    const now = Date.now();
-                    if (now - lastTapTime <= DOUBLE_TAP_MS) {
-                        if (callbacks.onDoubleTap) callbacks.onDoubleTap();
-                        lastTapTime = 0;
-                    } else {
-                        lastTapTime = now;
-                    }
-                }
+    fields.image.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        setWallpaperStatus('Choose a valid image file.', true);
+        return;
+      }
+      setWallpaperStatus('Saving wallpaper…');
+      try {
+        await Storage.saveImage(WALLPAPER_KEY, file);
+        state.hasHomescreenImage = true;
+        state.homescreenImage = '';
+        state.fakeHomescreen = true;
+        fields.fakeHomescreen.checked = true;
+        saveSettings();
+        await refreshWallpaperStatus();
+      } catch (error) {
+        setWallpaperStatus(error?.message || 'Wallpaper could not be saved.', true);
+      } finally {
+        fields.image.value = '';
+      }
+    });
 
-                // Handle two-finger tap
-                if (twoFingerTapStart > 0) {
-                    const elapsed = Date.now() - twoFingerTapStart;
-                    if (elapsed <= TWO_TAP_MS) {
-                        let moved = false;
-                        for (let i = 0; i < e.changedTouches.length; i++) {
-                            const t = e.changedTouches[i];
-                            const ref = twoFingerTapStartPos[i] || twoFingerTapStartPos[0];
-                            if (!ref) continue;
-                            const dx = t.clientX - ref.x;
-                            const dy = t.clientY - ref.y;
-                            if (dx * dx + dy * dy > TWO_TAP_MAX_MOVE * TWO_TAP_MAX_MOVE) {
-                                moved = true;
-                                break;
-                            }
-                        }
-                        if (!moved && callbacks.onTwoFingerTap) {
-                            callbacks.onTwoFingerTap();
-                        }
-                    }
-                    twoFingerTapStart = 0;
-                    twoFingerTapStartPos = null;
-                }
+    fields.remove.addEventListener('click', async () => {
+      await Storage.deleteImage(WALLPAPER_KEY);
+      state.hasHomescreenImage = false;
+      state.homescreenImage = '';
+      state.fakeHomescreen = false;
+      fields.fakeHomescreen.checked = false;
+      saveSettings();
+      await refreshWallpaperStatus();
+    });
+    document.getElementById('startPerform').addEventListener('click', showPerform);
+    [fields.inputMode, fields.delay, fields.shortcut, fields.clipboard, fields.fakeHomescreen].forEach((field) => field.addEventListener('change', saveSettings));
 
-                // Handle two-finger down (quick second finger)
-                if (e.touches.length === 2 && singleTouchStartTime > 0) {
-                    if (Date.now() - singleTouchStartTime <= TWO_DOWN_MS) {
-                        if (callbacks.onTwoFingerDown) callbacks.onTwoFingerDown();
-                        singleTouchStartTime = 0;
-                    }
-                }
-            };
-
-            return {
-                init,
-                onSwipe: (cb) => { callbacks.onSwipe = cb; },
-                onDoubleTap: (cb) => { callbacks.onDoubleTap = cb; },
-                onTwoFingerTap: (cb) => { callbacks.onTwoFingerTap = cb; },
-                onTwoFingerDown: (cb) => { callbacks.onTwoFingerDown = cb; }
-            };
-        })();
-
-        // ===== SWIPE ENGINE =====
-        const SwipeEngine = (() => {
-            let buffer = '';
-            let timer = null;
-            let config = {};
-            let hooks = {};
-
-            // Convert angle to clock-wise degrees (0 = up/12 o'clock, increasing clockwise)
-            const toCW = (deg) => ((deg + 90) % 360 + 360) % 360;
-
-            // Convert clock-wise degrees to hour (1-12)
-            const cwToHour = (cw) => {
-                const hour = Math.round(cw / 30) % 12;
-                return hour === 0 ? 12 : hour;
-            };
-
-            // Map hour to digit (12=0, 1-9=1-9, 10 and 11 ignored)
-            const hourMap = (h) => {
-                if (h === 12) return 0;
-                if (h >= 1 && h <= 9) return h;
-                return null; // 10 and 11 ignored
-            };
-
-            // Copy text to clipboard
-            const copyText = async (text) => {
-                try {
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        await navigator.clipboard.writeText(text);
-                        return true;
-                    }
-                } catch {}
-                
-                try {
-                    const ta = document.createElement('textarea');
-                    ta.value = text;
-                    ta.setAttribute('readonly', '');
-                    ta.style.position = 'fixed';
-                    ta.style.opacity = '0';
-                    ta.style.left = '-9999px';
-                    document.body.appendChild(ta);
-                    ta.select();
-                    const ok = document.execCommand('copy');
-                    document.body.removeChild(ta);
-                    return ok;
-                } catch {
-                    return false;
-                }
-            };
-
-            const callHook = (fn, ...args) => {
-                try {
-                    if (fn) fn(...args);
-                } catch {}
-            };
-
-            const paintDigits = () => {
-                callHook(hooks.onDigit, null, buffer || '');
-            };
-
-            const armTimer = () => {
-                clearTimeout(timer);
-                timer = setTimeout(() => submit(), config.delay * 1000);
-            };
-
-            const submit = async () => {
-                if (!buffer) return;
-                
-                const value = buffer;
-                buffer = '';
-                clearTimeout(timer);
-                timer = null;
-                paintDigits();
-
-                let route = 'none';
-
-                // Copy to clipboard if enabled
-                if (config.clipboard) {
-                    const ok = await copyText(value);
-                    if (ok) {
-                        route = 'clipboard';
-                    } else {
-                        callHook(hooks.onStatus, 'Clipboard blocked');
-                    }
-                }
-
-                // Run iOS shortcut if specified
-                if (config.shortcut) {
-                    const url = `shortcuts://run-shortcut?name=${encodeURIComponent(config.shortcut)}&input=text&text=${encodeURIComponent(value)}`;
-                    route = 'shortcut';
-                    try {
-                        window.location.href = url;
-                    } catch {}
-                }
-
-                callHook(hooks.onSubmit, value, route);
-            };
-
-            const clearAll = () => {
-                buffer = '';
-                clearTimeout(timer);
-                timer = null;
-                callHook(hooks.onClear);
-                paintDigits();
-            };
-
-            const start = (cfg, hks) => {
-                config = cfg;
-                hooks = hks;
-
-                // Setup gesture callbacks
-                Gestures.onSwipe((angle) => {
-                    const digit = hourMap(cwToHour(toCW(angle)));
-                    if (digit === null) return;
-                    
-                    buffer += String(digit);
-                    callHook(hooks.onDigit, digit, buffer);
-                    armTimer();
-                });
-
-                Gestures.onDoubleTap(() => {
-                    clearAll();
-                });
-
-                Gestures.onTwoFingerTap(() => {
-                    submit();
-                });
-
-                Gestures.onTwoFingerDown(() => {
-                    clearAll();
-                    showSettings();
-                });
-
-                paintDigits();
-            };
-
-            return { start, submitNow: () => submit(), clear: () => clearAll() };
-        })();
-
-        // ===== UI CONTROLLER =====
-        const settingsPage = document.getElementById('settingsPage');
-        const performPage = document.getElementById('performPage');
-        const digitsEl = document.getElementById('digits');
-        const lastValueEl = document.getElementById('lastValue');
-        const toastEl = document.getElementById('toast');
-
-        const delayInput = document.getElementById('delay');
-        const shortcutInput = document.getElementById('shortcut');
-        const clipboardInput = document.getElementById('clipboard');
-        const fakeHomescreenInput = document.getElementById('fakeHomescreen');
-        const homescreenImageInput = document.getElementById('homescreenImage');
-        const startPerformBtn = document.getElementById('startPerform');
-
-        let currentConfig = Storage.load('config', {
-            delay: 3,
-            shortcut: '',
-            clipboard: false,
-            fakeHomescreen: false,
-            homescreenImage: ''
-        });
-
-        // Load settings into form
-        const loadSettings = () => {
-            delayInput.value = currentConfig.delay;
-            shortcutInput.value = currentConfig.shortcut;
-            clipboardInput.checked = currentConfig.clipboard;
-            fakeHomescreenInput.checked = currentConfig.fakeHomescreen;
-        };
-
-        // Save settings
-        const saveSettings = () => {
-            currentConfig.delay = Math.max(1, parseInt(delayInput.value) || 3);
-            currentConfig.shortcut = shortcutInput.value.trim();
-            currentConfig.clipboard = clipboardInput.checked;
-            currentConfig.fakeHomescreen = fakeHomescreenInput.checked;
-            Storage.save('config', currentConfig);
-        };
-
-        // Handle image upload
-        homescreenImageInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    currentConfig.homescreenImage = event.target.result;
-                    Storage.save('config', currentConfig);
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // Auto-save on input changes
-        delayInput.addEventListener('input', saveSettings);
-        shortcutInput.addEventListener('input', saveSettings);
-        clipboardInput.addEventListener('change', saveSettings);
-        fakeHomescreenInput.addEventListener('change', saveSettings);
-
-        // Show toast notification
-        const showToast = (message) => {
-            toastEl.textContent = message;
-            toastEl.classList.add('show');
-            setTimeout(() => {
-                toastEl.classList.remove('show');
-            }, 1500);
-        };
-
-        // Apply fake homescreen styling
-        const applyFakeHomescreen = () => {
-            if (currentConfig.fakeHomescreen && currentConfig.homescreenImage) {
-                performPage.classList.add('fake-home');
-                performPage.style.backgroundImage = `url(${currentConfig.homescreenImage})`;
-            } else {
-                performPage.classList.remove('fake-home');
-                performPage.style.backgroundImage = '';
-            }
-        };
-
-        // Show settings page
-        const showSettings = () => {
-            settingsPage.classList.remove('hidden');
-            performPage.classList.add('hidden');
-        };
-
-        // Show perform page
-        const showPerform = () => {
-            saveSettings();
-            settingsPage.classList.add('hidden');
-            performPage.classList.remove('hidden');
-            applyFakeHomescreen();
-            
-            // Start swipe engine
-            SwipeEngine.start(currentConfig, {
-                onDigit(digit, buffer) {
-                    digitsEl.textContent = buffer || '—';
-                },
-                onClear() {
-                    digitsEl.textContent = '—';
-                    showToast('Cleared');
-                },
-                onSubmit(value, route) {
-                    lastValueEl.textContent = value || 'none';
-                    digitsEl.textContent = '—';
-                    
-                    if (route === 'clipboard') {
-                        showToast('Copied to clipboard');
-                    } else if (route === 'shortcut') {
-                        showToast('Sent to Shortcut');
-                    } else {
-                        showToast('Submitted');
-                    }
-                },
-                onStatus(msg) {
-                    showToast(msg);
-                }
-            });
-        };
-
-        // Event listeners
-        startPerformBtn.addEventListener('click', showPerform);
-
-        // Initialize
-        Gestures.init();
-        loadSettings();
-    </script>
+    fillForm();
+    saveSettings();
+    refreshWallpaperStatus();
+  </script>
 </body>
 </html>

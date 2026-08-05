@@ -12,11 +12,11 @@
         html, body {
             margin: 0;
             padding: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
+            width: 100%;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            overflow-y: auto;
             overscroll-behavior: none;
-            touch-action: none;
         }
         
         /* Prevent iOS from showing navigation UI on touch */
@@ -122,6 +122,7 @@
             font-size: 1.2rem;
             cursor: pointer;
             user-select: none;
+            touch-action: none;
         }
 
         .back-button {
@@ -165,20 +166,20 @@
         <div class="mode-selector">
             <label for="modeSelect">Select Input Mode:</label>
             <select id="modeSelect">
-                <option value="clockface">Clock Face (12 positions)</option>
-                <option value="twoswipe">Two-Swipe (12 positions)</option>
+                <option value="twoswipe">Two-Swipe Clock (digits 0–9)</option>
+                <option value="clockface">Direct Clock Face (12 positions)</option>
             </select>
         </div>
 
         <div class="feedback-box">
-            <div class="feedback-message" id="feedbackMessage">Swipe in any direction</div>
+            <div class="feedback-message" id="feedbackMessage">First swipe: choose 0, 3, 6, or 9</div>
             <div class="selected-position" id="selectedPosition">—</div>
         </div>
 
         <div class="instruction" id="instructionText">
-            <strong>Clock Face Mode:</strong><br>
-            Swipe in any direction to select one of 12 positions (like a clock face).<br>
-            Each position is determined by the angle of your swipe.
+            <strong>Two-Swipe Clock:</strong><br>
+            First swipe to an anchor: ↑=0, →=3, ↓=6, ←=9.<br>
+            Then repeat it or point toward a neighboring digit.
         </div>
 
         <div class="swipe-area" id="swipeArea">
@@ -186,80 +187,36 @@
         </div>
     </div>
 
-    <script src="assets/js/gestureDetector.js"></script>
-    <script src="assets/js/inputModes.js"></script>
+    <script src="assets/js/clockInput.js?v=2"></script>
+    <script src="assets/js/gestureDetector.js?v=2"></script>
+    <script src="assets/js/inputModes.js?v=2"></script>
     <script>
-        // Handle back button navigation
-        // Execute immediately without DOMContentLoaded to avoid race conditions on iOS PWA
-        (function() {
-            const attachBackButtonHandler = () => {
-                const backButton = document.querySelector('.back-button[data-href]');
-                if (backButton) {
-                    // Handle both touch and click events to prevent iOS UI elements
-                    const navigate = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const href = backButton.getAttribute('data-href');
-                        if (href) {
-                            window.location.href = href;
-                        }
-                    };
-                    
-                    // Prevent all touch events to block iOS UI
-                    backButton.addEventListener('touchstart', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }, { passive: false });
-                    
-                    backButton.addEventListener('touchend', (e) => {
-                        // Don't prevent - allow touch to convert to click
-                        e.stopPropagation();
-                    }, { passive: false });
-                    
-                    backButton.addEventListener('touchmove', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }, { passive: false });
-                    
-                    backButton.addEventListener('click', navigate);
-                }
-            };
-            
-            // If DOM is already loaded, run immediately; otherwise wait
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', attachBackButtonHandler);
-            } else {
-                attachBackButtonHandler();
-            }
-        })();
-
-        // Initialize input mode manager
-        const inputModeManager = new InputModeManager();
-        inputModeManager.initialize();
-
         // Get UI elements
         const modeSelect = document.getElementById('modeSelect');
         const feedbackMessage = document.getElementById('feedbackMessage');
         const selectedPosition = document.getElementById('selectedPosition');
         const instructionText = document.getElementById('instructionText');
         const swipeArea = document.getElementById('swipeArea');
+        document.querySelector('.back-button').addEventListener('click', () => window.location.assign('index.html'));
+
+        // The demo is intentionally contained to this box. The actual Perform
+        // page attaches the same detector to the entire viewport.
+        const inputModeManager = new InputModeManager();
+        inputModeManager.initialize(swipeArea);
 
         // Instructions for each mode
         const instructions = {
             clockface: `
-                <strong>Clock Face Mode:</strong><br>
-                Swipe in any direction to select one of 12 positions (like a clock face).<br>
-                Each position is determined by the angle of your swipe.
+                <strong>Direct Clock Face:</strong><br>
+                Swipe toward any clock position. Straight up is 12, right is 3,<br>
+                down is 6, and left is 9.
             `,
             twoswipe: `
-                <strong>Two-Swipe Mode:</strong><br>
-                <strong>First Swipe:</strong> Select a base position from 4 cardinal directions:<br>
-                • Up → 12 o'clock &nbsp; • Right → 3 o'clock<br>
-                • Down → 6 o'clock &nbsp; • Left → 9 o'clock<br>
-                <strong>Second Swipe:</strong> Fine-tune your selection:<br>
-                • Same direction → Exact base position<br>
-                • Forward/Up → +1 position<br>
-                • Backward/Down → -1 position
+                <strong>Two-Swipe Clock:</strong><br>
+                <strong>First:</strong> ↑=0, →=3, ↓=6, ←=9.<br>
+                <strong>Second:</strong> repeat the anchor or point toward its neighbor.<br>
+                ↑←/↑↑/↑→ = 9/0/1 &nbsp; · &nbsp; →↑/→→/→↓ = 2/3/4<br>
+                ↓→/↓↓/↓← = 5/6/7 &nbsp; · &nbsp; ←↓/←←/←↑ = 8/9/0
             `
         };
 
@@ -273,9 +230,12 @@
         });
 
         // Handle gesture completion
-        inputModeManager.onCompletion((position) => {
-            selectedPosition.textContent = `${position}`;
-            feedbackMessage.textContent = `Selected: ${position} o'clock`;
+        inputModeManager.onCompletion((position, result) => {
+            const isTwoSwipe = inputModeManager.getCurrentMode().name === 'twoswipe';
+            selectedPosition.textContent = isTwoSwipe ? `${result.digit}` : `${position}`;
+            feedbackMessage.textContent = isTwoSwipe
+                ? `Digit ${result.digit} registered`
+                : `Selected ${position} o'clock`;
             
             // Flash the swipe area
             swipeArea.style.background = 'linear-gradient(135deg, #60a5fa 0%, #6ee7b7 100%)';
@@ -291,11 +251,13 @@
             if (state) {
                 feedbackMessage.textContent = state.message;
                 
-                if (state.stage === 'second' && state.basePosition) {
-                    selectedPosition.textContent = `${state.basePosition}*`;
+                if (state.stage === 'second' && state.anchorDigit !== null) {
+                    selectedPosition.textContent = `${state.anchorDigit}·`;
                 }
             }
         }
+
+        inputModeManager.onStateChange(updateFeedback);
 
         // Load saved mode preference
         inputModeManager.loadSavedMode();
@@ -308,18 +270,6 @@
         // Initial feedback update
         updateFeedback();
 
-        // Prevent multi-touch zoom/pan gestures
-        document.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 1) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        document.addEventListener('touchmove', (e) => {
-            if (e.touches.length > 1) {
-                e.preventDefault();
-            }
-        }, { passive: false });
     </script>
 </body>
 </html>

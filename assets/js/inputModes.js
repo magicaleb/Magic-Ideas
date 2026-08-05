@@ -1,351 +1,154 @@
-/**
- * Input Modes Module
- * Defines different input modes for gesture-based selection
- */
-
-/**
- * Clock Face Input Mode
- * Direct swipe to one of 12 positions (like a clock face)
- */
+/* Input modes built on the shared ClockInput math. */
 class ClockFaceMode {
-    constructor() {
-        this.name = 'clockface';
-        this.displayName = 'Clock Face (12 positions)';
-        this.onComplete = null;
-    }
+  constructor() {
+    this.name = 'clockface';
+    this.displayName = 'Direct Clock Face (12 positions)';
+    this.completionHandler = null;
+  }
 
-    /**
-     * Process a gesture and return the selected position (1-12)
-     * @param {Object} gesture - Gesture data from GestureDetector
-     */
-    processGesture(gesture) {
-        const { deltaX, deltaY } = gesture;
-        
-        // Calculate angle in degrees (0° = right, 90° = down, etc.)
-        const angleRad = Math.atan2(deltaY, deltaX);
-        let angleDeg = (angleRad * 180 / Math.PI);
-        
-        // Convert to clock face (12 o'clock = 0°, clockwise)
-        // Rotate by 90° and adjust so 12 o'clock is at top
-        angleDeg = (90 - angleDeg + 360) % 360;
-        
-        // Map to 12 positions (each position covers 30°)
-        // 12 o'clock = 0°, 1 o'clock = 30°, etc.
-        const position = Math.round(angleDeg / 30) % 12;
-        const clockPosition = position === 0 ? 12 : position;
-        
-        if (this.onComplete) {
-            this.onComplete(clockPosition);
-        }
-        
-        return {
-            position: clockPosition,
-            complete: true
-        };
-    }
+  processGesture(gesture) {
+    const position = ClockInput.vectorToClockPosition(gesture.deltaX, gesture.deltaY);
+    const result = {
+      complete: position !== null,
+      position,
+      digit: ClockInput.clockPositionToDigit(position),
+      stage: 'first'
+    };
 
-    /**
-     * Get current state for UI feedback
-     */
-    getState() {
-        return {
-            stage: 'ready',
-            message: 'Swipe in any direction'
-        };
+    if (result.complete && this.completionHandler) {
+      this.completionHandler(position, result);
     }
+    return result;
+  }
 
-    /**
-     * Reset the mode
-     */
-    reset() {
-        // Clock face has no internal state to reset
-    }
+  getState() {
+    return { stage: 'first', message: 'Swipe toward a clock position — 12 is straight up' };
+  }
 
-    /**
-     * Register completion callback
-     */
-    onCompletion(callback) {
-        this.onComplete = callback;
-    }
+  reset() {}
+  destroy() {}
+  onCompletion(callback) { this.completionHandler = callback; }
 }
 
-/**
- * Two-Swipe Input Mode
- * First swipe selects base position (12, 3, 6, 9), second swipe refines (+1, -1, or exact)
- */
 class TwoSwipeMode {
-    constructor() {
-        this.name = 'twoswipe';
-        this.displayName = 'Two-Swipe (12 positions)';
-        this.onComplete = null;
-        this.stage = 'first'; // 'first' or 'second'
-        this.basePosition = null;
-        this.firstSwipeDirection = null;
-        this.timeout = null;
-        this.timeoutDuration = 3000; // 3 seconds to complete second swipe
+  constructor() {
+    this.name = 'twoswipe';
+    this.displayName = 'Two-Swipe Clock (digits 0–9)';
+    this.completionHandler = null;
+    this.stateChangeHandler = null;
+    this.lastEvent = null;
+    this.input = new ClockInput.TwoSwipeInput({
+      timeoutMs: 3000,
+      onTimeout: () => {
+        this.lastEvent = { stage: 'first', reason: 'timeout' };
+        if (this.stateChangeHandler) this.stateChangeHandler(this.getState());
+      }
+    });
+  }
+
+  processGesture(gesture) {
+    const result = this.input.process(gesture);
+    this.lastEvent = result;
+    if (this.stateChangeHandler) this.stateChangeHandler(this.getState());
+
+    if (result.complete && this.completionHandler) {
+      this.completionHandler(result.position, result);
+    }
+    return result;
+  }
+
+  getState() {
+    const state = this.input.getState();
+    if (state.stage === 'first') {
+      return {
+        ...state,
+        message: 'First swipe: choose 0, 3, 6, or 9 (↑ → ↓ ←)'
+      };
     }
 
-    /**
-     * Process a gesture based on current stage
-     * @param {Object} gesture - Gesture data from GestureDetector
-     */
-    processGesture(gesture) {
-        if (this.stage === 'first') {
-            return this.processFirstSwipe(gesture);
-        } else {
-            return this.processSecondSwipe(gesture);
-        }
-    }
+    return {
+      ...state,
+      message: `Anchor ${state.anchorDigit}: repeat it or swipe toward a neighboring digit`
+    };
+  }
 
-    /**
-     * Process first swipe - select base position from cardinal directions
-     */
-    processFirstSwipe(gesture) {
-        const { direction } = gesture;
-        
-        // Map direction to base position (clock face)
-        const directionMap = {
-            'up': 12,      // 12 o'clock
-            'right': 3,    // 3 o'clock
-            'down': 6,     // 6 o'clock
-            'left': 9      // 9 o'clock
-        };
-        
-        this.basePosition = directionMap[direction];
-        
-        // Handle invalid direction - reset and return
-        if (this.basePosition === undefined) {
-            this.reset();
-            return {
-                position: null,
-                complete: false,
-                stage: 'first'
-            };
-        }
-        
-        this.firstSwipeDirection = direction;
-        this.stage = 'second';
-        
-        // Set timeout to reset if second swipe not completed
-        this.setTimeout();
-        
-        return {
-            position: null,
-            complete: false,
-            basePosition: this.basePosition,
-            stage: 'second'
-        };
-    }
+  reset() {
+    this.input.reset();
+    this.lastEvent = null;
+  }
 
-    /**
-     * Process second swipe - refine selection
-     */
-    processSecondSwipe(gesture) {
-        const { direction } = gesture;
-        
-        this.clearTimeout();
-        
-        let finalPosition = this.basePosition;
-        
-        // Determine refinement based on second swipe direction
-        if (direction === this.firstSwipeDirection) {
-            // Same direction = exact base position
-            finalPosition = this.basePosition;
-        } else if (this.isForwardOrUp(direction, this.firstSwipeDirection)) {
-            // Forward/Up = +1
-            finalPosition = this.basePosition + 1;
-            if (finalPosition > 12) finalPosition = 1;
-        } else {
-            // Backward/Down = -1
-            finalPosition = this.basePosition - 1;
-            if (finalPosition < 1) finalPosition = 12;
-        }
-        
-        // Reset for next input
-        const result = {
-            position: finalPosition,
-            complete: true,
-            basePosition: this.basePosition
-        };
-        
-        this.reset();
-        
-        if (this.onComplete) {
-            this.onComplete(finalPosition);
-        }
-        
-        return result;
-    }
-
-    /**
-     * Determine if second swipe is clockwise relative to first
-     * Clockwise order: up -> right -> down -> left -> up
-     */
-    isForwardOrUp(secondDir, firstDir) {
-        const clockwiseOrder = ['up', 'right', 'down', 'left'];
-        const firstIdx = clockwiseOrder.indexOf(firstDir);
-        const secondIdx = clockwiseOrder.indexOf(secondDir);
-        
-        if (firstIdx === -1 || secondIdx === -1) return false;
-        
-        // Calculate the difference
-        const diff = (secondIdx - firstIdx + 4) % 4;
-        
-        // diff = 1 means clockwise (next in sequence), which is +1
-        return diff === 1;
-    }
-
-    /**
-     * Set timeout for incomplete sequence
-     */
-    setTimeout() {
-        this.clearTimeout();
-        this.timeout = setTimeout(() => {
-            this.reset();
-        }, this.timeoutDuration);
-    }
-
-    /**
-     * Clear timeout
-     */
-    clearTimeout() {
-        if (this.timeout) {
-            clearTimeout(this.timeout);
-            this.timeout = null;
-        }
-    }
-
-    /**
-     * Get current state for UI feedback
-     */
-    getState() {
-        if (this.stage === 'first') {
-            return {
-                stage: 'first',
-                message: 'Swipe in cardinal direction (↑ → ↓ ←)'
-            };
-        } else {
-            return {
-                stage: 'second',
-                message: `Base: ${this.basePosition} o'clock - Refine your selection`,
-                basePosition: this.basePosition
-            };
-        }
-    }
-
-    /**
-     * Reset the mode
-     */
-    reset() {
-        this.stage = 'first';
-        this.basePosition = null;
-        this.firstSwipeDirection = null;
-        this.clearTimeout();
-    }
-
-    /**
-     * Register completion callback
-     */
-    onCompletion(callback) {
-        this.onComplete = callback;
-    }
+  destroy() { this.input.destroy(); }
+  onCompletion(callback) { this.completionHandler = callback; }
+  onStateChange(callback) { this.stateChangeHandler = callback; }
 }
 
-/**
- * Input Mode Manager
- * Manages different input modes and switching between them
- */
 class InputModeManager {
-    constructor() {
-        this.modes = {
-            clockface: new ClockFaceMode(),
-            twoswipe: new TwoSwipeMode()
-        };
-        this.currentMode = null;
-        this.gestureDetector = new GestureDetector();
-        
-        // Initialize with clock face mode (but don't save to localStorage yet)
-        this.setMode('clockface', false);
-        
-        // Setup gesture listener
-        this.gestureDetector.onGesture((gesture) => {
-            if (this.currentMode) {
-                this.currentMode.processGesture(gesture);
-            }
-        });
+  constructor() {
+    this.modes = {
+      clockface: new ClockFaceMode(),
+      twoswipe: new TwoSwipeMode()
+    };
+    this.currentMode = null;
+    this.completionHandler = null;
+    this.stateChangeHandler = null;
+    this.gestureDetector = new GestureDetector();
+    this.gestureDetector.onGesture((gesture) => {
+      if (this.currentMode) this.currentMode.processGesture(gesture);
+    });
+    this.setMode('twoswipe', false);
+  }
+
+  initialize(element = document) {
+    this.gestureDetector.initialize(element);
+    return this;
+  }
+
+  destroy() {
+    this.gestureDetector.destroy();
+    Object.values(this.modes).forEach((mode) => mode.destroy());
+  }
+
+  setMode(modeName, saveToStorage = true) {
+    if (!this.modes[modeName]) return false;
+    if (this.currentMode) this.currentMode.reset();
+    this.currentMode = this.modes[modeName];
+    if (this.completionHandler) this.currentMode.onCompletion(this.completionHandler);
+    if (this.stateChangeHandler) {
+      this.currentMode.onStateChange?.(this.stateChangeHandler);
+      this.stateChangeHandler(this.currentMode.getState());
     }
 
-    /**
-     * Initialize the input mode manager
-     */
-    initialize(element = document) {
-        this.gestureDetector.initialize(element);
+    if (saveToStorage) {
+      try { localStorage.setItem('inputMode', modeName); } catch (_) {}
     }
+    return true;
+  }
 
-    /**
-     * Set the active input mode
-     * @param {string} modeName - Name of the mode to activate
-     * @param {boolean} saveToStorage - Whether to save to localStorage (default: true)
-     */
-    setMode(modeName, saveToStorage = true) {
-        if (this.modes[modeName]) {
-            // Reset previous mode
-            if (this.currentMode) {
-                this.currentMode.reset();
-            }
-            
-            this.currentMode = this.modes[modeName];
-            
-            // Save preference
-            if (saveToStorage) {
-                localStorage.setItem('inputMode', modeName);
-            }
-        }
-    }
+  getCurrentMode() { return this.currentMode; }
 
-    /**
-     * Get the current mode
-     */
-    getCurrentMode() {
-        return this.currentMode;
-    }
+  getAvailableModes() {
+    return Object.keys(this.modes).map((name) => ({ name, displayName: this.modes[name].displayName }));
+  }
 
-    /**
-     * Get all available modes
-     */
-    getAvailableModes() {
-        return Object.keys(this.modes).map(key => ({
-            name: key,
-            displayName: this.modes[key].displayName
-        }));
-    }
+  getState() { return this.currentMode ? this.currentMode.getState() : null; }
 
-    /**
-     * Get current state for UI feedback
-     */
-    getState() {
-        return this.currentMode ? this.currentMode.getState() : null;
-    }
+  onCompletion(callback) {
+    this.completionHandler = callback;
+    Object.values(this.modes).forEach((mode) => mode.onCompletion(callback));
+  }
 
-    /**
-     * Register completion callback for current mode
-     */
-    onCompletion(callback) {
-        if (this.currentMode) {
-            this.currentMode.onCompletion(callback);
-        }
-    }
+  onStateChange(callback) {
+    this.stateChangeHandler = callback;
+    Object.values(this.modes).forEach((mode) => mode.onStateChange?.(callback));
+  }
 
-    /**
-     * Load saved mode preference
-     */
-    loadSavedMode() {
-        const savedMode = localStorage.getItem('inputMode');
-        if (savedMode && this.modes[savedMode]) {
-            this.setMode(savedMode, false); // Don't save again, we're loading
-        } else {
-            // First time - save the default
-            localStorage.setItem('inputMode', 'clockface');
-        }
-    }
+  loadSavedMode() {
+    let savedMode = null;
+    try { savedMode = localStorage.getItem('inputMode'); } catch (_) {}
+    this.setMode(this.modes[savedMode] ? savedMode : 'twoswipe', false);
+  }
+}
+
+if (typeof module === 'object' && module.exports) {
+  module.exports = { ClockFaceMode, TwoSwipeMode, InputModeManager };
 }

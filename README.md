@@ -1,264 +1,108 @@
 # Magic Ideas
 
-A collection of interactive tricks and tools with advanced gesture-based input systems for mobile devices.
+A mobile-first collection of magic utilities, gesture experiments, and performance tools. **Swipe Input** is the primary covert-input utility.
 
-## Features
+## Swipe Input
 
-- 📱 **Touch-Optimized**: Built for mobile-first experience
-- 👆 **Gesture Input System**: Modular swipe-based input with multiple modes
-- 🎨 **Interactive Tricks**: Various visual and input demonstrations
-- 🔧 **Configurable**: Multiple input modes with customizable settings
-- 💾 **Persistent Storage**: Settings and preferences saved across sessions
-- 🚫 **No Scrolling**: Locked viewport prevents unwanted interactions
+Open [`tricks/swipe/settings.html`](./tricks/swipe/settings.html) to configure the trick, then enter Performance mode.
 
-## Gesture Input System
+Performance mode turns the entire viewport into an invisible input surface. A swipe can start anywhere on the screen, including over an uploaded fake Home Screen image. There is no visible keypad in wallpaper mode.
 
-The app includes a modular gesture input system with multiple input modes that can be used for interactive tricks.
+### Two-swipe clock (default)
 
-### Available Input Modes
+The digits are arranged like a clock: **0 is at 12 o’clock**, 3 is at the right, 6 at the bottom, and 9 at the left.
 
-#### Clock Face Mode (Default)
-- **How it works**: Swipe in any direction to select one of 12 positions (like a clock face)
-- **Usage**: Each position is determined by the angle of your swipe
-- **Best for**: Quick, single-gesture selection
-- **Provides**: Immediate feedback on selection
+The first swipe chooses an anchor. The second swipe repeats that direction or points toward a neighboring digit:
 
-#### Two-Swipe Mode
-A more precise two-step input method:
+| First + second swipe | Digit |
+|---|---:|
+| ↑← / ↑↑ / ↑→ | 9 / 0 / 1 |
+| →↑ / →→ / →↓ | 2 / 3 / 4 |
+| ↓→ / ↓↓ / ↓← | 5 / 6 / 7 |
+| ←↓ / ←← / ←↑ | 8 / 9 / 0 |
 
-1. **First Swipe**: Select a base position from 4 cardinal directions
-   - Swipe Up → 12 o'clock
-   - Swipe Right → 3 o'clock
-   - Swipe Down → 6 o'clock
-   - Swipe Left → 9 o'clock
+An opposite second swipe is ambiguous, so it becomes the first swipe of a new pair instead of entering a possibly incorrect digit. An unfinished pair resets after three seconds.
 
-2. **Second Swipe**: Fine-tune your selection
-   - Same direction as first swipe → Exact base position
-   - Forward/Up relative to first → +1 position
-   - Backward/Down relative to first → -1 position
+### Direct clock face
 
-**Example**: Swipe Right (3 o'clock) then Swipe Up (+1) = 4 o'clock
+A single swipe selects the nearest of 12 clock sectors. The orientation is:
 
-**Timeout**: If the second swipe is not completed within 3 seconds, the mode resets to the first swipe stage.
+- Straight up → 12 o’clock → digit 0
+- Right → 3 o’clock → digit 3
+- Down → 6 o’clock → digit 6
+- Left → 9 o’clock → digit 9
 
-### Try the Demo
+Clock positions 10 and 11 do not enter digits.
 
-Open [gesture-input-demo.html](./gesture-input-demo.html) to try out the different input modes interactively.
+### Performance controls
 
-## Tricks
+- Double-tap → clear the current input
+- Quick two-finger tap → submit immediately
+- Hold two fingers for about 750 ms → exit to Settings
+- Wait for the configured delay → auto-submit
 
-### Swipe Input
-A fullscreen swipe-based numeric input system perfect for magic tricks and remote number entry.
+Swipes are not counted as taps, so a fast two-swipe digit cannot accidentally trigger the double-tap clear command. Quick two-finger submit and two-finger hold-to-exit are also classified separately.
 
-- **Location**: `tricks/swipe/`
-- **Features**: 
-  - Maps swipe directions to digits (1-9, 0)
-  - Double-tap to clear
-  - Two-finger tap to submit
-  - Configurable auto-submit delay
-  - Clipboard support
-  - iOS Shortcuts integration
-  - Fake homescreen mode for performance
+### Clipboard and Shortcuts
 
-### Contained Swipe Input
-A variant of the swipe input with a contained interface.
+Automatic clipboard handoff is enabled by default. The app updates the clipboard after each complete digit, while the swipe event still provides browser user activation. The submitted value therefore remains available to paste even when auto-submit happens later.
 
-### Hangman Drawing
-Interactive drawing trick for the classic hangman game.
+Clipboard access requires a secure context (HTTPS or localhost) and can still be denied by browser or device permissions. The settings toggle can disable automatic copying. An optional iOS Shortcut can also receive the submitted value as text.
 
-## Tools
+### Wallpaper performance mode
 
-### Time Travel
-A time manipulation utility.
+Settings accepts an image or Home Screen screenshot. The image is stored in IndexedDB rather than inside the small localStorage settings record, avoiding the common mobile failure caused by large photo data URLs.
 
-### Card Stack Trainer
-A colorful PWA trainer for memorized deck work with two-way recall drills, adaptive weak-spot practice, and progress statistics.
+In Performance mode the image is rendered by a fixed, full-viewport `<img>` with `object-fit: cover`. It fills the screen edge-to-edge and does not intercept gestures. For an exact fake Home Screen, upload a screenshot from the same device and orientation.
 
-- **Location**: `tools/card-stack-trainer/`
-- **Modes**:
-  - Number → Card
-  - Card → Number
-  - Mixed adaptive drills
-  - Stack Explorer
-  - Progress dashboard
+For the least browser chrome on iPhone, open the site in Safari, choose **Share → Add to Home Screen**, and launch it from the saved icon. A normal browser tab can only fill its webpage viewport; it cannot remove Safari’s own interface.
 
-### Simple PWA Demo
-Demonstrates Progressive Web App capabilities.
+### Contained variant
 
-### Simple Image Demo
-Basic image handling demonstration.
+[`contained-swipe.html`](./contained-swipe.html) provides the settings and performance surface in one page. It now uses the same gesture detector, clock math, clipboard behavior, configuration, and wallpaper storage as the main Swipe Input pages.
 
-## Technical Architecture
+## Gesture demo
 
-### Gesture System Files
+Open [`gesture-input-demo.html`](./gesture-input-demo.html) to test both input modes. The demo limits detection to its visible swipe box; the actual performance pages attach the same detector to the full viewport.
 
-The modular gesture input system is built with three core JavaScript files:
+## Swipe architecture
 
-#### `assets/js/gestureDetector.js`
-Base gesture detection handling touch events:
-- Detects swipe direction (up, down, left, right)
-- Calculates delta X/Y for precise angle determination
-- Configurable minimum swipe distance
-- Event listener management with proper cleanup
+| File | Responsibility |
+|---|---|
+| `assets/js/clockInput.js` | Clock orientation, digit mapping, and the two-swipe state machine |
+| `assets/js/gestureDetector.js` | Pointer/touch detection and distinct swipe, tap, two-finger tap, and hold gestures |
+| `assets/js/gestures.js` | Small compatibility facade used by the performance engine |
+| `assets/js/swipe.js` | Numeric buffer, clipboard syncing, auto-submit, Shortcut routing, and lifecycle |
+| `assets/js/storage.js` | Local settings plus IndexedDB-backed wallpaper storage |
+| `assets/js/inputModes.js` | Demo-oriented mode wrappers and mode manager |
 
-#### `assets/js/inputModes.js`
-Input mode implementations and management:
-- **ClockFaceMode class**: Direct angle-to-position mapping (12 positions)
-- **TwoSwipeMode class**: Two-stage input with base position and refinement
-- **InputModeManager class**: Mode switching and state management
-- Each mode implements:
-  - `processGesture(gesture)` - Handle gesture input
-  - `getState()` - Return current state for UI feedback
-  - `reset()` - Reset internal state
-  - `onCompletion(callback)` - Register completion callback
+Both Swipe Input variants use this shared implementation; there is no separate embedded gesture engine to keep in sync.
 
-#### Legacy Gesture Files
+## Other tools
 
-The repository also includes legacy gesture handling:
+- **Dummy Home Screen PWA** (`pwa-home-screen/`): standalone fake Home Screen experiment
+- **iPhone Mirage** (`tricks/iphone-mirage/`): icon-based covert input experiment
+- **Contacts Thought** (`tricks/contacts-thought/`): contacts-themed trick
+- **Card Stack Trainer** (`tools/card-stack-trainer/`): memorized-deck drills and progress tracking
+- **Date Quizzer** (`tools/date-quizzer/`): day/date practice
+- **Time Travel** (`tools/time-travel/`): time-based utility
 
-- **`assets/js/gestures.js`**: Original gesture detection (swipe angle, double-tap, two-finger gestures)
-- **`assets/js/swipe.js`**: Original swipe engine that maps swipe angles to digits
+## Run locally
 
-These files are still used by the existing tricks for backward compatibility.
-
-### Adding New Input Modes
-
-To add a new input mode:
-
-1. Create a new class in `assets/js/inputModes.js` implementing:
-   ```javascript
-   class MyCustomMode {
-       constructor() {
-           this.name = 'mycustom';
-           this.displayName = 'My Custom Mode';
-           this.onComplete = null;
-       }
-       
-       processGesture(gesture) {
-           // Process the gesture and return result
-           // gesture contains: direction, deltaX, deltaY, startX, startY, endX, endY
-           return {
-               position: selectedPosition,
-               complete: true/false
-           };
-       }
-       
-       getState() {
-           return {
-               stage: 'ready',
-               message: 'Your instruction message'
-           };
-       }
-       
-       reset() {
-           // Reset any internal state
-       }
-       
-       onCompletion(callback) {
-           this.onComplete = callback;
-       }
-   }
-   ```
-
-2. Add the mode to `InputModeManager.modes` object:
-   ```javascript
-   this.modes = {
-       clockface: new ClockFaceMode(),
-       twoswipe: new TwoSwipeMode(),
-       mycustom: new MyCustomMode()  // Add your mode here
-   };
-   ```
-
-3. The mode will automatically be available through the InputModeManager
-
-### Integration Example
-
-Here's how to integrate the gesture input system in your page:
-
-```html
-<!-- Include the required JavaScript files -->
-<script src="assets/js/gestureDetector.js"></script>
-<script src="assets/js/inputModes.js"></script>
-
-<script>
-    // Initialize input mode manager
-    const inputModeManager = new InputModeManager();
-    inputModeManager.initialize();
-    inputModeManager.loadSavedMode();
-    
-    // Set a specific mode
-    inputModeManager.setMode('twoswipe');
-    
-    // Handle gesture completion
-    inputModeManager.onCompletion((position) => {
-        console.log(`Selected position: ${position} o'clock`);
-        // Do something with the position
-    });
-    
-    // Get current state for UI feedback
-    const state = inputModeManager.getState();
-    console.log(state.message); // Display instruction to user
-</script>
-```
-
-## iOS Installation (Recommended)
-
-For the best fullscreen experience on iPhone:
-
-1. Open the app in **Safari**
-2. Tap the **Share** button (square with arrow)
-3. Select **"Add to Home Screen"**
-4. Launch the app from your home screen icon
-
-When launched from the home screen, the app runs in standalone mode with no browser UI!
-
-## Running Locally
-
-Serve with a local HTTP server:
+Serve the repository instead of opening files directly so clipboard and storage behavior match deployment more closely:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Then navigate to `http://localhost:8000`
+Then open `http://localhost:8000/tricks/swipe/settings.html`.
 
-## Browser Compatibility
+Run the clock and two-swipe regression tests with:
 
-- **iOS Safari**: Full support with standalone mode
-- **Android Chrome**: Full support
-- **Desktop browsers**: Works but optimized for touch input
-
-## Project Structure
-
-```
-Magic-Ideas/
-├── assets/
-│   ├── css/
-│   │   └── base.css              # Base styling
-│   └── js/
-│       ├── gestureDetector.js    # Gesture detection (new modular system)
-│       ├── inputModes.js         # Input modes (ClockFace, TwoSwipe)
-│       ├── gestures.js           # Legacy gesture detection
-│       ├── swipe.js              # Legacy swipe engine
-│       └── storage.js            # LocalStorage utilities
-├── tricks/
-│   ├── swipe/                    # Swipe input trick
-│   │   ├── settings.html
-│   │   └── perform.html
-│   └── hangman/                  # Hangman drawing
-├── tools/
-│   ├── card-stack-trainer/       # Memorized deck PWA trainer
-│   └── time-travel/              # Time travel utility
-├── gesture-input-demo.html       # Interactive demo of gesture input modes
-├── contained-swipe.html          # Contained swipe variant
-├── index.html                    # Main landing page
-└── README.md                     # This file
+```bash
+node --test tests/swipe-input.test.js
 ```
 
 ## License
 
-This project is open source and available for personal and educational use.
-
-## Credits
-
-Inspired by iOS gesture-based interfaces and designed for magic tricks and interactive demonstrations.
+This project is available for personal and educational use.

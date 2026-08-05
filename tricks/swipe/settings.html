@@ -1,160 +1,282 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Swipe Input — Settings</title>
-
-  <!-- Critical fullscreen meta tags -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
+  <meta name="theme-color" content="#0b1020">
+  <title>Swipe Input — Settings</title>
   <link rel="stylesheet" href="../../assets/css/base.css">
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      min-height: 100dvh;
-      height: -webkit-fill-available;
-      overflow: hidden;
-    }
-    
-    /* Prevent iOS from showing navigation UI on touch */
-    button[data-href] {
-      -webkit-tap-highlight-color: transparent;
-      -webkit-touch-callout: none;
-      -webkit-user-select: none;
-      user-select: none;
-    }
+    html, body { min-height: 100%; height: auto; overflow: auto; }
+    body { background: #0b1020; }
+    .settings-shell { width: min(100%, 720px); margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); }
+    .settings-header { margin-bottom: 18px; }
+    .settings-header p { margin: 6px 0 0; color: var(--muted); line-height: 1.45; }
+    .settings-grid { display: grid; gap: 14px; }
+    .field { display: grid; gap: 7px; }
+    .field > label, legend { color: #dfe7ff; font-weight: 650; font-size: .98rem; }
+    .field-note { color: var(--muted); font-size: .86rem; line-height: 1.4; }
+    fieldset { margin: 0; padding: 0; border: 0; display: grid; gap: 9px; }
+    .choice { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; padding: 12px; border: 1px solid #2a386c; border-radius: 12px; background: #0f1630; }
+    .choice input { margin-top: 3px; }
+    .choice strong { display: block; color: var(--text); }
+    .choice span { display: block; margin-top: 3px; color: var(--muted); font-size: .85rem; line-height: 1.35; }
+    .check-row { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+    .check-row input { margin-top: 4px; }
+    input[type="file"] { width: 100%; color: var(--muted); }
+    .wallpaper-preview { display: none; position: relative; width: min(210px, 62vw); aspect-ratio: 9 / 19.5; overflow: hidden; border-radius: 24px; border: 2px solid #344679; background: #05070d; box-shadow: 0 12px 32px rgba(0,0,0,.35); }
+    .wallpaper-preview.visible { display: block; }
+    .wallpaper-preview img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center; }
+    .wallpaper-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .wallpaper-actions button { width: auto; padding: 10px 13px; }
+    .status { min-height: 1.3em; color: var(--muted); font-size: .88rem; }
+    .status.error { color: #fca5a5; }
+    .launch { position: sticky; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 2; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+    .guide { display: grid; gap: 12px; }
+    .guide h3 { margin: 0; font-size: 1rem; }
+    .guide p { margin: 0; color: var(--muted); line-height: 1.45; }
+    .mapping { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+    .mapping code { display: block; padding: 8px; border-radius: 9px; background: #0b1125; color: #dce9ff; text-align: center; font-size: .86rem; }
+    @media (max-width: 430px) { .mapping { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-  <div class="container stack">
-    <h2>Swipe Input — Settings</h2>
+  <main class="settings-shell">
+    <header class="settings-header">
+      <h1>Swipe Input</h1>
+      <p>Configure the covert input surface, automatic clipboard handoff, and optional full-screen fake Home Screen.</p>
+    </header>
 
-    <div class="card stack" style="gap:12px;font-size:1.05rem">
-      <div class="stack" style="gap:6px">
-        <label style="font-size:1.05rem">Auto-submit delay (seconds)</label>
-        <input id="delay" type="number" min="1" max="60" step="1" inputmode="numeric" style="width:6.5rem;padding:8px;font-size:1rem">
-      </div>
+    <div class="settings-grid">
+      <section class="card">
+        <fieldset>
+          <legend>Input method</legend>
+          <label class="choice">
+            <input id="modeTwoSwipe" type="radio" name="inputMode" value="twoswipe">
+            <span><strong>Two-swipe clock</strong><span>Recommended. First choose an anchor (0, 3, 6, or 9), then point to that digit or a neighbor.</span></span>
+          </label>
+          <label class="choice">
+            <input id="modeClockFace" type="radio" name="inputMode" value="clockface">
+            <span><strong>Direct clock face</strong><span>One swipe toward the digit. Fast, but requires more precise angles.</span></span>
+          </label>
+        </fieldset>
+      </section>
 
-      <div class="stack" style="gap:6px">
-        <label style="font-size:1.05rem">Enter name of Shortcut to auto-run after input</label>
-        <input id="shortcut" type="text" placeholder="e.g., City List" style="padding:8px;font-size:1rem">
-      </div>
+      <section class="card settings-grid">
+        <div class="field">
+          <label for="delay">Auto-submit delay</label>
+          <input id="delay" type="number" min="1" max="60" step="1" inputmode="numeric">
+          <span class="field-note">The countdown begins after a complete digit. A quick two-finger tap submits immediately.</span>
+        </div>
 
-      <div class="row" style="align-items:center;gap:8px">
-        <input id="useClockFace" type="checkbox" style="width:auto">
-        <label for="useClockFace" style="font-size:1rem">Use Clock Face mode (legacy, single swipe)</label>
-      </div>
+        <div class="field">
+          <label for="shortcut">iOS Shortcut name (optional)</label>
+          <input id="shortcut" type="text" autocomplete="off" placeholder="e.g. City List">
+        </div>
 
-      <div class="row" style="align-items:center;gap:8px">
-        <input id="clipboard" type="checkbox" style="width:auto">
-        <label for="clipboard" style="font-size:1rem">Copy result to clipboard</label>
-      </div>
+        <label class="check-row" for="clipboard">
+          <input id="clipboard" type="checkbox">
+          <span><strong>Automatically copy the current input</strong><span class="field-note">The clipboard is updated as each digit registers, while the swipe still has browser permission.</span></span>
+        </label>
+      </section>
 
-      <div class="row" style="align-items:center;gap:8px">
-        <input id="fakeHomescreen" type="checkbox" style="width:auto">
-        <label for="fakeHomescreen" style="font-size:1rem">Fake Homescreen (show uploaded image on Perform)</label>
-      </div>
+      <section class="card settings-grid">
+        <label class="check-row" for="fakeHomescreen">
+          <input id="fakeHomescreen" type="checkbox">
+          <span><strong>Use wallpaper performance mode</strong><span class="field-note">The uploaded image covers the full viewport with no visible input controls.</span></span>
+        </label>
 
-      <div class="stack" style="gap:6px">
-        <label style="font-size:0.95rem">Upload Homescreen Image (optional)</label>
-        <input id="homescreenImage" type="file" accept="image/*">
-      </div>
+        <div class="field">
+          <label for="homescreenImage">Home Screen screenshot or wallpaper</label>
+          <input id="homescreenImage" type="file" accept="image/*">
+        </div>
 
-      <div class="row" style="justify-content:center;margin-top:6px">
-        <button id="perform" class="xl" data-href="perform.html" style="min-width:240px;padding:14px 22px;font-size:1.08rem">Perform</button>
-      </div>
+        <div class="wallpaper-actions">
+          <figure id="wallpaperPreview" class="wallpaper-preview" aria-label="Wallpaper preview">
+            <img id="wallpaperPreviewImage" alt="Uploaded performance wallpaper preview">
+          </figure>
+          <button id="removeWallpaper" class="ghost" type="button" hidden>Remove image</button>
+        </div>
+        <div id="wallpaperStatus" class="status" role="status" aria-live="polite"></div>
+      </section>
+
+      <button id="perform" class="xl launch" type="button">Enter performance mode</button>
+
+      <section class="card guide">
+        <h3>Two-swipe clock map</h3>
+        <p>0 is at 12 o’clock, 3 is right, 6 is down, and 9 is left. The second swipe points to the anchor or a neighboring digit:</p>
+        <div class="mapping" aria-label="Two-swipe digit combinations">
+          <code>↑← = 9 · ↑↑ = 0 · ↑→ = 1</code>
+          <code>→↑ = 2 · →→ = 3 · →↓ = 4</code>
+          <code>↓→ = 5 · ↓↓ = 6 · ↓← = 7</code>
+          <code>←↓ = 8 · ←← = 9 · ←↑ = 0</code>
+        </div>
+        <p>An opposite second swipe is treated as a new first swipe, preventing accidental digits.</p>
+      </section>
+
+      <section class="card guide">
+        <h3>Performance controls</h3>
+        <p>Swipe anywhere on the performance screen. Double-tap clears. Quick two-finger tap submits. Hold two fingers for about three-quarters of a second to return to Settings.</p>
+      </section>
     </div>
+  </main>
 
-    <div style="margin-top:12px;padding:6px 10px;" class="card">
-      <div style="font-size:1rem;font-weight:600;margin-bottom:6px">Controls</div>
-      <div style="font-size:0.98rem;line-height:1.4">
-        <div>• Double-tap → Clear</div>
-        <div>• Two-finger down → Exit to Settings (only way to exit)</div>
-        <div>• Two-finger tap → Submit now</div>
-      </div>
-    </div>
-
-    <div style="margin-top:12px;padding:6px 10px;" class="card">
-      <div style="font-size:1rem;font-weight:600;margin-bottom:6px">Input Modes</div>
-      <div style="font-size:0.98rem;line-height:1.4">
-        <div><strong>Two-Swipe (default):</strong> More precise</div>
-        <div style="margin-left:12px;font-size:0.9rem">1st swipe: Pick base (↑=12, →=3, ↓=6, ←=9)</div>
-        <div style="margin-left:12px;font-size:0.9rem">2nd swipe: Refine (clockwise=+1, counter-clockwise=-1, same=exact)</div>
-        <div style="margin-top:6px"><strong>Clock Face (legacy):</strong> Quick single swipe</div>
-        <div style="margin-left:12px;font-size:0.9rem">Swipe direction maps to clock position (12→0, 1-9→digits)</div>
-      </div>
-    </div>
-  </div>
-
-  <script src="../../assets/js/storage.js"></script>
+  <script src="../../assets/js/storage.js?v=2"></script>
+  <script src="../../assets/js/swipe.js?v=2"></script>
   <script>
-    const defaults = { delay:3, shortcut:'', clipboard:false, postShortcut:'', fakeHomescreen:false, homescreenImage:'', useTwoSwipe:true };
-    const $ = id => document.getElementById(id);
+    const WALLPAPER_KEY = 'swipe.wallpaper';
+    const elements = {
+      delay: document.getElementById('delay'),
+      shortcut: document.getElementById('shortcut'),
+      clipboard: document.getElementById('clipboard'),
+      fakeHomescreen: document.getElementById('fakeHomescreen'),
+      homescreenImage: document.getElementById('homescreenImage'),
+      preview: document.getElementById('wallpaperPreview'),
+      previewImage: document.getElementById('wallpaperPreviewImage'),
+      removeWallpaper: document.getElementById('removeWallpaper'),
+      wallpaperStatus: document.getElementById('wallpaperStatus'),
+      perform: document.getElementById('perform')
+    };
 
-    let state = Storage.load('swipe', defaults);
+    let state = Swipe.normalizeConfig(Storage.load('swipe', {}));
+    let previewHandle = null;
 
-    $('delay').value        = state.delay;
-    $('shortcut').value     = state.shortcut;
-    $('useClockFace').checked = !state.useTwoSwipe; // checked when clock face mode is enabled
-    $('clipboard').checked  = !!state.clipboard;
-    const postEl = $('postShortcut'); if (postEl) postEl.value = state.postShortcut || '';
-    const fakeEl = $('fakeHomescreen'); if (fakeEl) fakeEl.checked = !!state.fakeHomescreen;
-    const imgEl  = $('homescreenImage');
-
-    const persist = () => Storage.save('swipe', state);
-
-    $('delay').addEventListener('input',  () => { state.delay    = Math.max(1, +$('delay').value || defaults.delay); persist(); });
-    $('shortcut').addEventListener('input', () => { state.shortcut = ($('shortcut').value || '').trim(); persist(); });
-    $('useClockFace').addEventListener('change', () => { state.useTwoSwipe = !$('useClockFace').checked; persist(); }); // inverted: checkbox enables clock face, state tracks two-swipe preference
-    $('clipboard').addEventListener('change', () => { state.clipboard = !!$('clipboard').checked; persist(); });
-    if (postEl) postEl.addEventListener('input', () => { state.postShortcut = (postEl.value || '').trim(); persist(); });
-    if (fakeEl) fakeEl.addEventListener('change', () => { state.fakeHomescreen = !!fakeEl.checked; persist(); });
-
-    if (imgEl) {
-      imgEl.addEventListener('change', e => {
-        const f = e.target.files && e.target.files[0];
-        if (!f) return;
-        const r = new FileReader();
-        r.onload = () => { state.homescreenImage = r.result; persist(); };
-        r.readAsDataURL(f);
-      });
+    function setStatus(message, isError = false) {
+      elements.wallpaperStatus.textContent = message;
+      elements.wallpaperStatus.classList.toggle('error', isError);
     }
 
-    const performButton = document.getElementById('perform');
-    if (performButton) {
-      // Handle both touch and click events to prevent iOS UI elements
-      const navigate = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        persist();
-        const href = e.currentTarget.getAttribute('data-href');
-        if (href) {
-          window.location.href = href;
+    function persist() {
+      state.inputMode = document.querySelector('input[name="inputMode"]:checked')?.value || 'twoswipe';
+      state.useTwoSwipe = state.inputMode === 'twoswipe';
+      state.delay = Math.min(60, Math.max(1, Number(elements.delay.value) || 3));
+      state.shortcut = elements.shortcut.value.trim();
+      state.clipboard = elements.clipboard.checked;
+      state.fakeHomescreen = elements.fakeHomescreen.checked;
+      if (!Storage.save('swipe', state)) setStatus('Settings could not be saved in this browsing mode.', true);
+    }
+
+    function fillForm() {
+      document.getElementById(state.inputMode === 'clockface' ? 'modeClockFace' : 'modeTwoSwipe').checked = true;
+      elements.delay.value = state.delay;
+      elements.shortcut.value = state.shortcut;
+      elements.clipboard.checked = state.clipboard;
+      elements.fakeHomescreen.checked = state.fakeHomescreen;
+    }
+
+    function clearPreviewUrl() {
+      if (previewHandle) previewHandle.revoke();
+      previewHandle = null;
+    }
+
+    function showPreview(image) {
+      clearPreviewUrl();
+      previewHandle = Storage.createImageUrl(image);
+      elements.previewImage.src = previewHandle.url;
+      elements.preview.classList.add('visible');
+      elements.removeWallpaper.hidden = false;
+    }
+
+    async function loadWallpaper() {
+      let image = await Storage.loadImage(WALLPAPER_KEY);
+
+      if (!image && state.homescreenImage) {
+        try {
+          await Storage.saveImage(WALLPAPER_KEY, state.homescreenImage);
+          image = await Storage.loadImage(WALLPAPER_KEY);
+          state.homescreenImage = '';
+          state.hasHomescreenImage = Boolean(image);
+          Storage.save('swipe', state);
+        } catch (_) {
+          image = state.homescreenImage;
         }
-      };
-      
-      // Prevent all touch events to block iOS UI
-      performButton.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }, { passive: false });
-      
-      performButton.addEventListener('touchend', (e) => {
-        // Don't prevent - allow touch to convert to click
-        e.stopPropagation();
-      }, { passive: false });
-      
-      performButton.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }, { passive: false });
-      
-      performButton.addEventListener('click', navigate);
+      }
+
+      state.hasHomescreenImage = Boolean(image);
+      if (image) {
+        showPreview(image);
+        setStatus('Wallpaper ready. It will fill the entire performance screen.');
+      } else {
+        elements.preview.classList.remove('visible');
+        elements.removeWallpaper.hidden = true;
+        setStatus('No wallpaper uploaded. Performance mode will use a black screen.');
+      }
+      Storage.save('swipe', state);
     }
+
+    async function verifyImage(file) {
+      const handle = Storage.createImageUrl(file);
+      try {
+        const probe = new Image();
+        probe.src = handle.url;
+        if (probe.decode) await probe.decode();
+        else await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; });
+      } finally {
+        handle.revoke();
+      }
+    }
+
+    elements.homescreenImage.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        setStatus('Choose a valid image file.', true);
+        return;
+      }
+
+      setStatus('Saving wallpaper…');
+      elements.homescreenImage.disabled = true;
+      try {
+        await verifyImage(file);
+        await Storage.saveImage(WALLPAPER_KEY, file);
+        state.hasHomescreenImage = true;
+        state.homescreenImage = '';
+        state.fakeHomescreen = true;
+        elements.fakeHomescreen.checked = true;
+        persist();
+        showPreview(await Storage.loadImage(WALLPAPER_KEY));
+        setStatus('Wallpaper saved and enabled for performance mode.');
+      } catch (error) {
+        setStatus(error?.message || 'The wallpaper could not be saved.', true);
+      } finally {
+        elements.homescreenImage.disabled = false;
+        elements.homescreenImage.value = '';
+      }
+    });
+
+    elements.removeWallpaper.addEventListener('click', async () => {
+      await Storage.deleteImage(WALLPAPER_KEY);
+      clearPreviewUrl();
+      elements.previewImage.removeAttribute('src');
+      elements.preview.classList.remove('visible');
+      elements.removeWallpaper.hidden = true;
+      state.hasHomescreenImage = false;
+      state.homescreenImage = '';
+      state.fakeHomescreen = false;
+      elements.fakeHomescreen.checked = false;
+      persist();
+      setStatus('Wallpaper removed.');
+    });
+
+    document.querySelectorAll('input[name="inputMode"]').forEach((input) => input.addEventListener('change', persist));
+    elements.delay.addEventListener('change', persist);
+    elements.shortcut.addEventListener('change', persist);
+    elements.clipboard.addEventListener('change', persist);
+    elements.fakeHomescreen.addEventListener('change', persist);
+    elements.perform.addEventListener('click', () => {
+      persist();
+      window.location.assign('perform.html');
+    });
+    window.addEventListener('pagehide', (event) => {
+      if (!event.persisted) clearPreviewUrl();
+    });
+
+    fillForm();
+    persist();
+    loadWallpaper();
   </script>
 </body>
 </html>
