@@ -9,11 +9,32 @@
   <meta name="theme-color" content="#0b1020">
   <link rel="manifest" href="contained-swipe.webmanifest">
   <title>Contained Swipe Input</title>
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const screenHeight = Math.max(window.innerHeight || 0, window.screen?.height || 0);
+      if (screenHeight) root.style.setProperty('--screen-height', `${Math.ceil(screenHeight)}px`);
+      try {
+        const config = JSON.parse(localStorage.getItem('mpad.swipe') || '{}');
+        const key = 'mpad.fast-media.swipe.wallpaper';
+        const wallpaper = localStorage.getItem(key) || sessionStorage.getItem(key);
+        if (config.fakeHomescreen && wallpaper?.startsWith('data:image/')) {
+          root.style.setProperty('--performance-wallpaper', `url(${JSON.stringify(wallpaper)})`);
+          root.style.backgroundImage = `url(${JSON.stringify(wallpaper)})`;
+          root.style.backgroundPosition = 'center';
+          root.style.backgroundRepeat = 'no-repeat';
+          root.style.backgroundSize = 'cover';
+        }
+      } catch (_) {}
+    })();
+  </script>
   <style>
     * { box-sizing: border-box; }
     :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    html, body { min-height: 100%; margin: 0; background: #0b1020; color: #eef2ff; }
-    body.performing { position: fixed; inset: 0; overflow: hidden; touch-action: none; }
+    html { width: 100%; min-height: var(--screen-height, 100%); height: var(--screen-height, 100%); margin: 0; background-color: #0b1020; color: #eef2ff; }
+    body { min-height: 100%; margin: 0; background-color: #0b1020; color: #eef2ff; }
+    html.performance-active { background-color: #000; background-image: var(--performance-wallpaper, none); background-position: center; background-repeat: no-repeat; background-size: cover; }
+    body.performing { position: fixed; inset: 0; width: auto; min-height: 0; height: auto; overflow: visible; background-color: #000; background-image: var(--performance-wallpaper, none); background-position: center; background-repeat: no-repeat; background-size: cover; touch-action: none; }
     [hidden] { display: none !important; }
     .settings { width: min(100%, 680px); margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); }
     h1 { margin: 0; font-size: clamp(1.8rem, 7vw, 2.4rem); }
@@ -30,17 +51,16 @@
     button.secondary { width: auto; min-height: 40px; background: #1b2850; color: #eef2ff; }
     .status { min-height: 1.3em; color: #9baad0; font-size: .88rem; }
     .status.error { color: #fca5a5; }
-    .perform { position: fixed; inset: 0; overflow: hidden; background: #000; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-    .wallpaper { position: fixed; inset: 0; z-index: 0; background-color: #000; background-repeat: no-repeat; background-position: center center; background-size: cover; pointer-events: none; }
+    .perform { position: fixed; inset: 0; overflow: visible; background-color: #000; background-image: var(--performance-wallpaper, none); background-position: center; background-repeat: no-repeat; background-size: cover; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+    .wallpaper { position: fixed; top: 0; left: 0; z-index: 0; width: 100vw; min-height: 100%; height: var(--screen-height, 100%); background-color: #000; background-image: var(--performance-wallpaper, none); background-repeat: no-repeat; background-position: center center; background-size: cover; pointer-events: none; }
     .perform-ui { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
     .practice-panel { display: none; position: absolute; inset: 0; place-content: center; justify-items: center; gap: 8px; padding: 24px; text-align: center; }
     .perform.practice-mode .practice-panel { display: grid; }
     .practice-current { max-width: 100%; color: rgba(238,244,255,.82); font-size: clamp(3.5rem, 17vw, 6.5rem); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .08em; overflow-wrap: anywhere; text-shadow: 0 3px 18px rgba(0,0,0,.82); }
     .practice-previous { color: rgba(238,244,255,.66); font-size: .84rem; text-shadow: 0 2px 8px #000; }
     .corner-peeks { position: absolute; right: max(10px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); left: max(10px, env(safe-area-inset-left)); display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
-    .peek { display: grid; gap: 1px; max-width: 46vw; color: rgba(255,255,255,.72); font-size: clamp(.57rem, 2.2vw, .68rem); font-weight: 650; letter-spacing: .08em; line-height: 1; text-transform: uppercase; text-shadow: -1px -1px 2px #000, 1px 1px 3px #000, 0 0 7px #000; }
-    .peek-current { justify-items: end; text-align: right; }
-    .peek output { max-width: 100%; color: rgba(255,255,255,.86); font-size: clamp(.68rem, 2.8vw, .84rem); font-variant-numeric: tabular-nums; letter-spacing: .05em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .peek { display: block; max-width: 46vw; color: rgba(255,255,255,.82); font-size: clamp(.68rem, 2.8vw, .84rem); font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .05em; line-height: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: -1px -1px 2px #000, 1px 1px 3px #000, 0 0 7px #000; }
+    .peek-current { text-align: right; }
     .toast { position: absolute; z-index: 2; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 9px 13px; border-radius: 11px; background: rgba(12,19,42,.9); color: #eaf1ff; opacity: 0; pointer-events: none; transition: opacity .15s; }
     .toast.visible { opacity: 1; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
@@ -73,7 +93,7 @@
       </label>
       <label class="check" for="practiceMode">
         <input id="practiceMode" type="checkbox">
-        <span>Practice Mode<small>Shows the current input large in the center. Performance mode keeps only the bottom-corner peeks.</small></span>
+        <span>Practice Mode<small>Shows the current input large in the center. Performance mode keeps only the two small corner numbers.</small></span>
       </label>
       <label class="check" for="fakeHomescreen">
         <input id="fakeHomescreen" type="checkbox">
@@ -103,19 +123,19 @@
         <div class="practice-previous">Previous <output id="practicePrevious">—</output></div>
       </div>
       <div class="corner-peeks">
-        <div class="peek"><span>Previous</span><output id="peekPrevious">—</output></div>
-        <div class="peek peek-current"><span>Current</span><output id="peekCurrent">—</output></div>
+        <output id="peekPrevious" class="peek">—</output>
+        <output id="peekCurrent" class="peek peek-current">—</output>
       </div>
     </div>
     <div id="liveStatus" class="sr-only" aria-live="polite"></div>
     <div id="toast" class="toast" role="status"></div>
   </main>
 
-  <script src="assets/js/storage.js?v=3"></script>
-  <script src="assets/js/clockInput.js?v=3"></script>
-  <script src="assets/js/gestureDetector.js?v=3"></script>
-  <script src="assets/js/gestures.js?v=3"></script>
-  <script src="assets/js/swipe.js?v=3"></script>
+  <script src="assets/js/storage.js?v=4"></script>
+  <script src="assets/js/clockInput.js?v=4"></script>
+  <script src="assets/js/gestureDetector.js?v=4"></script>
+  <script src="assets/js/gestures.js?v=4"></script>
+  <script src="assets/js/swipe.js?v=4"></script>
   <script>
     const WALLPAPER_KEY = 'swipe.wallpaper';
     const settingsPage = document.getElementById('settingsPage');
@@ -129,9 +149,9 @@
       fakeHomescreen: document.getElementById('fakeHomescreen'),
       image: document.getElementById('homescreenImage'),
       remove: document.getElementById('removeWallpaper'),
-      status: document.getElementById('wallpaperStatus')
+      status: document.getElementById('wallpaperStatus'),
+      start: document.getElementById('startPerform')
     };
-    const wallpaper = document.getElementById('wallpaper');
     const practiceCurrent = document.getElementById('practiceCurrent');
     const practicePrevious = document.getElementById('practicePrevious');
     const peekCurrent = document.getElementById('peekCurrent');
@@ -141,9 +161,26 @@
     let state = Swipe.normalizeConfig(Storage.load('swipe', {}));
     let engine = null;
     let wallpaperHandle = null;
+    let preparedWallpaperSource = '';
+    let wallpaperReadyPromise = Promise.resolve();
     let toastTimer = null;
-    let session = 0;
     let previousValue = '—';
+
+    function syncScreenHeight() {
+      const screenHeight = Math.max(window.innerHeight || 0, window.screen?.height || 0);
+      if (screenHeight) document.documentElement.style.setProperty('--screen-height', `${Math.ceil(screenHeight)}px`);
+    }
+
+    function setWallpaperSource(source) {
+      const cssValue = source ? `url(${JSON.stringify(source)})` : 'none';
+      const rootStyle = document.documentElement.style;
+      rootStyle.setProperty('--performance-wallpaper', cssValue);
+      rootStyle.backgroundImage = cssValue;
+      rootStyle.backgroundPosition = 'center';
+      rootStyle.backgroundRepeat = 'no-repeat';
+      rootStyle.backgroundSize = 'cover';
+      performPage.classList.toggle('wallpaper-mode', Boolean(source));
+    }
 
     function renderCurrent(value = '', pending = false) {
       const display = pending ? `${value}·` : (value || '—');
@@ -175,6 +212,8 @@
       state.practiceMode = fields.practiceMode.checked;
       state.fakeHomescreen = fields.fakeHomescreen.checked;
       Storage.save('swipe', state);
+      if (!state.fakeHomescreen) setWallpaperSource('');
+      else if (preparedWallpaperSource) setWallpaperSource(preparedWallpaperSource);
     }
 
     function setWallpaperStatus(message, isError = false) {
@@ -183,11 +222,71 @@
     }
 
     async function refreshWallpaperStatus() {
-      const image = await Storage.loadImage(WALLPAPER_KEY);
+      let image = await Storage.loadImage(WALLPAPER_KEY);
+      if (!image && state.homescreenImage) {
+        try {
+          await Storage.saveImage(WALLPAPER_KEY, state.homescreenImage);
+          image = await Storage.loadImage(WALLPAPER_KEY);
+          state.homescreenImage = '';
+        } catch (_) {
+          image = state.homescreenImage;
+        }
+      }
       state.hasHomescreenImage = Boolean(image || state.homescreenImage);
+      preparedWallpaperSource = '';
+      if (wallpaperHandle) wallpaperHandle.revoke();
+      wallpaperHandle = null;
+
+      if (image) {
+        if (!Storage.loadInstantImage(WALLPAPER_KEY)) {
+          setWallpaperStatus('Preparing instant wallpaper…');
+          await Storage.saveInstantImage(WALLPAPER_KEY, image);
+        }
+        preparedWallpaperSource = Storage.loadInstantImage(WALLPAPER_KEY) || '';
+
+        if (preparedWallpaperSource) {
+          try {
+            const probe = new Image();
+            probe.src = preparedWallpaperSource;
+            if (probe.decode) await probe.decode();
+            else await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; });
+          } catch (_) {
+            Storage.deleteInstantImage(WALLPAPER_KEY);
+            preparedWallpaperSource = '';
+          }
+        }
+
+        if (!preparedWallpaperSource) {
+          wallpaperHandle = Storage.createImageUrl(image);
+          try {
+            const probe = new Image();
+            probe.src = wallpaperHandle.url;
+            if (probe.decode) await probe.decode();
+            else await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; });
+            preparedWallpaperSource = wallpaperHandle.url;
+          } catch (_) {
+            wallpaperHandle.revoke();
+            wallpaperHandle = null;
+            state.hasHomescreenImage = false;
+          }
+        }
+      }
+
       fields.remove.hidden = !state.hasHomescreenImage;
-      setWallpaperStatus(state.hasHomescreenImage ? 'Full-screen background ready.' : 'No background uploaded. Performance mode will use black.');
+      setWallpaperStatus(state.hasHomescreenImage ? 'Full-screen background preloaded.' : 'No background uploaded. Performance mode will use black.');
       Storage.save('swipe', state);
+    }
+
+    async function verifyImage(file) {
+      const handle = Storage.createImageUrl(file);
+      try {
+        const probe = new Image();
+        probe.src = handle.url;
+        if (probe.decode) await probe.decode();
+        else await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; });
+      } finally {
+        handle.revoke();
+      }
     }
 
     function showToast(message) {
@@ -199,38 +298,7 @@
       toastTimer = setTimeout(() => toast.classList.remove('visible'), 1200);
     }
 
-    async function applyWallpaper(currentSession) {
-      performPage.classList.remove('wallpaper-mode');
-      wallpaper.style.backgroundImage = 'none';
-      if (!state.fakeHomescreen) return;
-      let image = await Storage.loadImage(WALLPAPER_KEY);
-      if (!image && state.homescreenImage) image = state.homescreenImage;
-      if (!image || currentSession !== session) return;
-
-      if (wallpaperHandle) wallpaperHandle.revoke();
-      const handle = Storage.createImageUrl(image);
-      wallpaperHandle = handle;
-      try {
-        const probe = new Image();
-        probe.src = handle.url;
-        if (probe.decode) await probe.decode();
-        else await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; });
-        if (currentSession === session && wallpaperHandle === handle) {
-          wallpaper.style.backgroundImage = `url(${JSON.stringify(handle.url)})`;
-          performPage.classList.add('wallpaper-mode');
-        } else {
-          handle.revoke();
-          if (wallpaperHandle === handle) wallpaperHandle = null;
-        }
-      } catch (_) {
-        handle.revoke();
-        if (wallpaperHandle === handle) wallpaperHandle = null;
-        showToast('Wallpaper could not be displayed');
-      }
-    }
-
     function showSettings() {
-      session += 1;
       if (engine) engine.destroy();
       engine = null;
       clearTimeout(toastTimer);
@@ -238,17 +306,21 @@
       performPage.hidden = true;
       settingsPage.hidden = false;
       document.body.classList.remove('performing');
-      if (wallpaperHandle) wallpaperHandle.revoke();
-      wallpaperHandle = null;
-      wallpaper.style.backgroundImage = 'none';
+      document.documentElement.classList.remove('performance-active');
       performPage.classList.remove('wallpaper-mode');
       performPage.classList.remove('practice-mode');
     }
 
-    function showPerform() {
+    async function showPerform() {
       saveSettings();
-      session += 1;
-      const currentSession = session;
+      const launchButton = fields.start;
+      launchButton.disabled = true;
+      launchButton.textContent = 'Opening performance…';
+      try { await wallpaperReadyPromise; } catch (_) {}
+      launchButton.disabled = false;
+      launchButton.textContent = 'Start contained performance';
+      setWallpaperSource(state.fakeHomescreen ? preparedWallpaperSource : '');
+      document.documentElement.classList.add('performance-active');
       settingsPage.hidden = true;
       performPage.hidden = false;
       document.body.classList.add('performing');
@@ -273,7 +345,6 @@
         onStatus: showToast,
         onExit: showSettings
       });
-      applyWallpaper(currentSession);
     }
 
     fields.image.addEventListener('change', async (event) => {
@@ -284,17 +355,22 @@
         return;
       }
       setWallpaperStatus('Saving wallpaper…');
+      fields.start.disabled = true;
       try {
+        await verifyImage(file);
         await Storage.saveImage(WALLPAPER_KEY, file);
+        await Storage.saveInstantImage(WALLPAPER_KEY, file);
         state.hasHomescreenImage = true;
         state.homescreenImage = '';
         state.fakeHomescreen = true;
         fields.fakeHomescreen.checked = true;
         saveSettings();
-        await refreshWallpaperStatus();
+        wallpaperReadyPromise = refreshWallpaperStatus();
+        await wallpaperReadyPromise;
       } catch (error) {
         setWallpaperStatus(error?.message || 'Wallpaper could not be saved.', true);
       } finally {
+        fields.start.disabled = false;
         fields.image.value = '';
       }
     });
@@ -306,16 +382,23 @@
       state.fakeHomescreen = false;
       fields.fakeHomescreen.checked = false;
       saveSettings();
-      await refreshWallpaperStatus();
+      wallpaperReadyPromise = refreshWallpaperStatus();
+      await wallpaperReadyPromise;
     });
-    document.getElementById('startPerform').addEventListener('click', showPerform);
+    fields.start.addEventListener('click', showPerform);
     [fields.inputMode, fields.delay, fields.shortcut, fields.clipboard, fields.practiceMode, fields.fakeHomescreen].forEach((field) => field.addEventListener('change', saveSettings));
 
     fillForm();
     saveSettings();
     renderPrevious();
     renderCurrent();
-    refreshWallpaperStatus();
+    syncScreenHeight();
+    wallpaperReadyPromise = refreshWallpaperStatus();
+    window.addEventListener('resize', syncScreenHeight);
+    window.visualViewport?.addEventListener('resize', syncScreenHeight);
+    window.addEventListener('pagehide', () => {
+      if (wallpaperHandle) wallpaperHandle.revoke();
+    });
   </script>
 </body>
 </html>

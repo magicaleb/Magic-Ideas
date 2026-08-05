@@ -5,7 +5,7 @@
   "description": "Contained full-screen covert clock-swipe input for performance.",
   "start_url": "./contained-swipe.html",
   "scope": "./",
-  "display": "standalone",
+  "display": "fullscreen",
   "display_override": ["fullscreen", "standalone"],
   "orientation": "portrait",
   "background_color": "#000000",

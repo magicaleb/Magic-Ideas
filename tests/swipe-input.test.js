@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 
 const ClockInput = require('../assets/js/clockInput.js');
 const GestureDetector = require('../assets/js/gestureDetector.js');
@@ -227,6 +228,44 @@ test('legacy data URL wallpaper can be migrated to blob storage', () => {
   const blob = Storage.dataUrlToBlob('data:image/png;base64,iVBORw0KGgo=');
   assert.equal(blob.type, 'image/png');
   assert.equal(blob.size, 8);
+});
+
+test('instant wallpaper cache stores a synchronous first-paint image', async () => {
+  const originalLocalStorage = global.localStorage;
+  const originalSessionStorage = global.sessionStorage;
+  const records = new Map();
+  global.localStorage = {
+    getItem(key) { return records.get(key) || null; },
+    setItem(key, value) { records.set(key, value); },
+    removeItem(key) { records.delete(key); }
+  };
+  global.sessionStorage = global.localStorage;
+
+  try {
+    const image = 'data:image/jpeg;base64,aW5zdGFudA==';
+    assert.equal(await Storage.saveInstantImage('test.wallpaper', image), true);
+    assert.equal(Storage.loadInstantImage('test.wallpaper'), image);
+    assert.equal(Storage.deleteInstantImage('test.wallpaper'), true);
+    assert.equal(Storage.loadInstantImage('test.wallpaper'), null);
+  } finally {
+    if (originalLocalStorage === undefined) delete global.localStorage;
+    else global.localStorage = originalLocalStorage;
+    if (originalSessionStorage === undefined) delete global.sessionStorage;
+    else global.sessionStorage = originalSessionStorage;
+  }
+});
+
+test('performance markup keeps peeks unlabeled and avoids the iOS 100dvh trap', () => {
+  const main = fs.readFileSync(require.resolve('../tricks/swipe/perform.html'), 'utf8');
+  const contained = fs.readFileSync(require.resolve('../contained-swipe.html'), 'utf8');
+  const baseCss = fs.readFileSync(require.resolve('../assets/css/base.css'), 'utf8');
+  const manifest = JSON.parse(fs.readFileSync(require.resolve('../tricks/swipe/manifest.webmanifest'), 'utf8'));
+
+  assert.doesNotMatch(main, /<div class="corner-peeks">\s*<[^>]+>\s*<span>/);
+  assert.doesNotMatch(contained, /<div class="corner-peeks">\s*<[^>]+>\s*<span>/);
+  assert.doesNotMatch(main, /height:\s*100dvh/);
+  assert.doesNotMatch(baseCss, /-webkit-fill-available/);
+  assert.equal(manifest.display, 'fullscreen');
 });
 
 test('shared engine copies the growing buffer as digits register and submits the final value', async () => {

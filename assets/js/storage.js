@@ -4,6 +4,7 @@ const Storage = (() => {
 
   const PREFIX = 'mpad.';
   const MEDIA_PREFIX = `${PREFIX}media.`;
+  const INSTANT_MEDIA_PREFIX = `${PREFIX}fast-media.`;
   const DB_NAME = 'magic-ideas-media';
   const DB_VERSION = 1;
   const IMAGE_STORE = 'images';
@@ -111,6 +112,96 @@ const Storage = (() => {
     });
   }
 
+  async function optimizeImageDataUrl(blob) {
+    const directDataUrlLimit = 2_000_000;
+    if (blob.size <= 1_200_000) {
+      const direct = await blobToDataUrl(blob);
+      if (direct.length <= directDataUrlLimit) return direct;
+    }
+
+    if (typeof document === 'undefined' || typeof Image === 'undefined') return null;
+    const handle = createImageUrl(blob);
+    try {
+      const image = new Image();
+      image.src = handle.url;
+      if (image.decode) await image.decode();
+      else await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+      });
+
+      const sourceWidth = image.naturalWidth || image.width;
+      const sourceHeight = image.naturalHeight || image.height;
+      if (!sourceWidth || !sourceHeight) return null;
+
+      const maxPixels = 2_400_000;
+      const scale = Math.min(1, Math.sqrt(maxPixels / (sourceWidth * sourceHeight)));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+      canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+      const context = canvas.getContext('2d', { alpha: false });
+      if (!context) return null;
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      let output = canvas.toDataURL('image/webp', 0.9);
+      if (!output.startsWith('data:image/webp')) output = canvas.toDataURL('image/jpeg', 0.9);
+
+      if (output.length > directDataUrlLimit) {
+        canvas.width = Math.max(1, Math.round(sourceWidth * scale * 0.76));
+        canvas.height = Math.max(1, Math.round(sourceHeight * scale * 0.76));
+        const smallerContext = canvas.getContext('2d', { alpha: false });
+        if (!smallerContext) return null;
+        smallerContext.drawImage(image, 0, 0, canvas.width, canvas.height);
+        output = canvas.toDataURL('image/jpeg', 0.84);
+      }
+
+      return output.length <= directDataUrlLimit ? output : null;
+    } finally {
+      handle.revoke();
+    }
+  }
+
+  async function saveInstantImage(key, image) {
+    let dataUrl = null;
+    try {
+      if (typeof image === 'string') {
+        if (!image.startsWith('data:image/')) return false;
+        dataUrl = image.length <= 2_000_000
+          ? image
+          : await optimizeImageDataUrl(dataUrlToBlob(image));
+      } else if (typeof Blob !== 'undefined' && image instanceof Blob) {
+        dataUrl = await optimizeImageDataUrl(image);
+      }
+
+      if (!dataUrl) return false;
+      try {
+        localStorage.setItem(INSTANT_MEDIA_PREFIX + key, dataUrl);
+        return true;
+      } catch (_) {
+        sessionStorage.setItem(INSTANT_MEDIA_PREFIX + key, dataUrl);
+        return true;
+      }
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function loadInstantImage(key) {
+    let value = null;
+    try { value = localStorage.getItem(INSTANT_MEDIA_PREFIX + key); } catch (_) {}
+    if (!value) {
+      try { value = sessionStorage.getItem(INSTANT_MEDIA_PREFIX + key); } catch (_) {}
+    }
+    return value && value.startsWith('data:image/') ? value : null;
+  }
+
+  function deleteInstantImage(key) {
+    let succeeded = false;
+    try { localStorage.removeItem(INSTANT_MEDIA_PREFIX + key); succeeded = true; } catch (_) {}
+    try { sessionStorage.removeItem(INSTANT_MEDIA_PREFIX + key); succeeded = true; } catch (_) {}
+    return succeeded;
+  }
+
   function dataUrlToBlob(dataUrl) {
     const match = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(dataUrl || '');
     if (!match) throw new Error('Invalid image data');
@@ -163,6 +254,7 @@ const Storage = (() => {
   async function deleteImage(key) {
     try { await deleteImageFromDatabase(key); } catch (_) {}
     try { localStorage.removeItem(MEDIA_PREFIX + key); } catch (_) {}
+    deleteInstantImage(key);
     return true;
   }
 
@@ -178,8 +270,11 @@ const Storage = (() => {
     save,
     remove,
     saveImage,
+    saveInstantImage,
     loadImage,
+    loadInstantImage,
     deleteImage,
+    deleteInstantImage,
     createImageUrl,
     dataUrlToBlob
   });

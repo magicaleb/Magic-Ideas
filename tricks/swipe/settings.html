@@ -10,6 +10,22 @@
   <title>Swipe Input — Settings</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="../../assets/css/base.css">
+  <script>
+    (() => {
+      try {
+        const config = JSON.parse(localStorage.getItem('mpad.swipe') || '{}');
+        const key = 'mpad.fast-media.swipe.wallpaper';
+        const wallpaper = localStorage.getItem(key) || sessionStorage.getItem(key);
+        if (config.fakeHomescreen && wallpaper?.startsWith('data:image/')) {
+          const root = document.documentElement.style;
+          root.backgroundImage = `url(${JSON.stringify(wallpaper)})`;
+          root.backgroundPosition = 'center';
+          root.backgroundRepeat = 'no-repeat';
+          root.backgroundSize = 'cover';
+        }
+      } catch (_) {}
+    })();
+  </script>
   <style>
     html, body { min-height: 100%; height: auto; overflow: auto; }
     body { background: #0b1020; }
@@ -85,7 +101,7 @@
 
         <label class="check-row" for="practiceMode">
           <input id="practiceMode" type="checkbox">
-          <span><strong>Practice Mode</strong><span class="field-note">Shows the current input in large text at the center. Leave this off for performance; small current and previous peeks remain in the bottom corners.</span></span>
+          <span><strong>Practice Mode</strong><span class="field-note">Shows the current input in large text at the center. Leave this off for performance; the bottom corners show only the two small numbers.</span></span>
         </label>
       </section>
 
@@ -130,8 +146,8 @@
     </div>
   </main>
 
-  <script src="../../assets/js/storage.js?v=3"></script>
-  <script src="../../assets/js/swipe.js?v=3"></script>
+  <script src="../../assets/js/storage.js?v=4"></script>
+  <script src="../../assets/js/swipe.js?v=4"></script>
   <script>
     const WALLPAPER_KEY = 'swipe.wallpaper';
     const elements = {
@@ -150,10 +166,41 @@
 
     let state = Swipe.normalizeConfig(Storage.load('swipe', {}));
     let previewHandle = null;
+    let wallpaperReadyPromise = Promise.resolve();
 
     function setStatus(message, isError = false) {
       elements.wallpaperStatus.textContent = message;
       elements.wallpaperStatus.classList.toggle('error', isError);
+    }
+
+    function syncRootWallpaper() {
+      const wallpaper = state.fakeHomescreen ? Storage.loadInstantImage(WALLPAPER_KEY) : null;
+      const rootStyle = document.documentElement.style;
+      rootStyle.backgroundImage = wallpaper ? `url(${JSON.stringify(wallpaper)})` : 'none';
+      rootStyle.backgroundPosition = 'center';
+      rootStyle.backgroundRepeat = 'no-repeat';
+      rootStyle.backgroundSize = 'cover';
+    }
+
+    async function warmInstantWallpaper() {
+      const wallpaper = Storage.loadInstantImage(WALLPAPER_KEY);
+      if (!wallpaper) return false;
+      try {
+        const probe = new Image();
+        probe.src = wallpaper;
+        if (probe.decode) await probe.decode();
+        else await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; });
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    async function ensureInstantWallpaper(image) {
+      if (Storage.loadInstantImage(WALLPAPER_KEY) && await warmInstantWallpaper()) return true;
+      Storage.deleteInstantImage(WALLPAPER_KEY);
+      if (!await Storage.saveInstantImage(WALLPAPER_KEY, image)) return false;
+      return warmInstantWallpaper();
     }
 
     function persist() {
@@ -165,6 +212,7 @@
       state.practiceMode = elements.practiceMode.checked;
       state.fakeHomescreen = elements.fakeHomescreen.checked;
       if (!Storage.save('swipe', state)) setStatus('Settings could not be saved in this browsing mode.', true);
+      syncRootWallpaper();
     }
 
     function fillForm() {
@@ -206,8 +254,11 @@
 
       state.hasHomescreenImage = Boolean(image);
       if (image) {
+        setStatus('Preparing instant wallpaper…');
+        const instantReady = await ensureInstantWallpaper(image);
+        syncRootWallpaper();
         showPreview(image);
-        setStatus('Wallpaper ready. It will fill the entire performance screen.');
+        setStatus(instantReady ? 'Wallpaper ready for instant full-screen display.' : 'Wallpaper ready. This browsing mode could not retain the instant copy.', !instantReady);
       } else {
         elements.preview.classList.remove('visible');
         elements.removeWallpaper.hidden = true;
@@ -238,20 +289,24 @@
 
       setStatus('Saving wallpaper…');
       elements.homescreenImage.disabled = true;
+      elements.perform.disabled = true;
       try {
         await verifyImage(file);
         await Storage.saveImage(WALLPAPER_KEY, file);
+        const instantReady = await ensureInstantWallpaper(file);
         state.hasHomescreenImage = true;
         state.homescreenImage = '';
         state.fakeHomescreen = true;
         elements.fakeHomescreen.checked = true;
         persist();
-        showPreview(await Storage.loadImage(WALLPAPER_KEY));
-        setStatus('Wallpaper saved and enabled for performance mode.');
+        syncRootWallpaper();
+        showPreview(file);
+        setStatus(instantReady ? 'Wallpaper saved, preloaded, and enabled for performance mode.' : 'Wallpaper saved, but this browsing mode could not retain the instant copy.', !instantReady);
       } catch (error) {
         setStatus(error?.message || 'The wallpaper could not be saved.', true);
       } finally {
         elements.homescreenImage.disabled = false;
+        elements.perform.disabled = false;
         elements.homescreenImage.value = '';
       }
     });
@@ -267,6 +322,7 @@
       state.fakeHomescreen = false;
       elements.fakeHomescreen.checked = false;
       persist();
+      syncRootWallpaper();
       setStatus('Wallpaper removed.');
     });
 
@@ -276,8 +332,11 @@
     elements.clipboard.addEventListener('change', persist);
     elements.practiceMode.addEventListener('change', persist);
     elements.fakeHomescreen.addEventListener('change', persist);
-    elements.perform.addEventListener('click', () => {
+    elements.perform.addEventListener('click', async () => {
       persist();
+      elements.perform.disabled = true;
+      elements.perform.textContent = 'Opening performance…';
+      try { await wallpaperReadyPromise; } catch (_) {}
       window.location.assign('perform.html');
     });
     window.addEventListener('pagehide', (event) => {
@@ -286,7 +345,7 @@
 
     fillForm();
     persist();
-    loadWallpaper();
+    wallpaperReadyPromise = loadWallpaper();
   </script>
 </body>
 </html>

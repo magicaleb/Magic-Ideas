@@ -6,7 +6,7 @@ A mobile-first collection of magic utilities, gesture experiments, and performan
 
 Open [`tricks/swipe/settings.html`](./tricks/swipe/settings.html) to configure the trick, then enter Performance mode.
 
-Performance mode turns the entire viewport into an invisible input surface. A swipe can start anywhere on the screen, including over an uploaded fake Home Screen background. There is no keypad. Small bottom-corner peeks show the previous submitted value on the left and current input on the right; `—` means there is no value yet.
+Performance mode turns the entire viewport into an invisible input surface. A swipe can start anywhere on the screen, including over an uploaded fake Home Screen background. There is no keypad. Two unlabeled bottom-corner numbers show the previous submitted value on the left and current input on the right; `—` means there is no value yet.
 
 ### Two-swipe clock (default)
 
@@ -54,11 +54,13 @@ Clipboard access requires a secure context (HTTPS or localhost) and can still be
 
 ### Wallpaper performance mode
 
-Settings accepts an image or Home Screen screenshot. The image is stored in IndexedDB rather than inside the small localStorage settings record, avoiding the common mobile failure caused by large photo data URLs.
+Settings accepts an image or Home Screen screenshot. The original is stored in IndexedDB rather than inside the small localStorage settings record, avoiding the common mobile failure caused by large photo data URLs. While Settings is open, the app also prepares a size-limited instant copy so the wallpaper is present on the first painted frame of Performance mode instead of appearing after another full decode.
 
 In Performance mode the image is applied to a fixed, full-viewport CSS background layer with `background-size: cover` and centered positioning. It is not rendered as an inline photo, and it cannot intercept gestures. If wallpaper mode is disabled or no valid image is available, this layer is solid black so the phone can appear off. For an exact fake Home Screen, upload a screenshot from the same device and orientation.
 
-The Swipe Input pages include standalone web-app metadata. On iPhone, open the site in Safari, choose **Share → Add to Home Screen**, then launch the saved icon. A normal or in-app browser view can only fill its webpage viewport; web code cannot remove that browser’s own top and bottom controls.
+The Swipe Input pages request fullscreen web-app display, avoid the problematic `100dvh`/`-webkit-fill-available` combination, and extend the wallpaper layer to the reported physical screen height. On iPhone, open the site in Safari, choose **Share → Add to Home Screen**, then launch the saved icon. A normal or in-app browser view can only fill its webpage viewport; web code cannot remove that browser’s own top and bottom controls.
+
+Some current iOS 26.5.x and iOS 27 beta releases have a [WebKit regression](https://bugs.webkit.org/show_bug.cgi?id=301994) that can reserve a system-owned strip below a Home Screen web app. That strip is outside the DOM, so no page element can draw into it. The root-canvas and physical-screen-height handling here cover code-side viewport gaps; an OS-owned strip ultimately requires Apple’s WebKit fix.
 
 ### Contained variant
 
