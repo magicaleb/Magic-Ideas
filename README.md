@@ -6,7 +6,7 @@ A mobile-first collection of magic utilities, gesture experiments, and performan
 
 Open [`tricks/swipe/settings.html`](./tricks/swipe/settings.html) to configure the trick, then enter Performance mode.
 
-Performance mode turns the entire viewport into an invisible input surface. A swipe can start anywhere on the screen, including over an uploaded fake Home Screen image. There is no visible keypad in wallpaper mode.
+Performance mode turns the entire viewport into an invisible input surface. A swipe can start anywhere on the screen, including over an uploaded fake Home Screen background. There is no keypad. Small bottom-corner peeks show the previous submitted value on the left and current input on the right; `—` means there is no value yet.
 
 ### Two-swipe clock (default)
 
@@ -38,10 +38,13 @@ Clock positions 10 and 11 do not enter digits.
 
 - Double-tap → clear the current input
 - Quick two-finger tap → submit immediately
-- Hold two fingers for about 750 ms → exit to Settings
+- Two-finger downward swipe → exit to Settings
+- Hold two fingers for about 750 ms → exit fallback
 - Wait for the configured delay → auto-submit
 
-Swipes are not counted as taps, so a fast two-swipe digit cannot accidentally trigger the double-tap clear command. Quick two-finger submit and two-finger hold-to-exit are also classified separately.
+Swipes are not counted as taps, so a fast two-swipe digit cannot accidentally trigger the double-tap clear command. Quick two-finger submit, two-finger downward exit, and two-finger hold-to-exit are also classified separately.
+
+The optional **Practice Mode** setting adds a large current-input display at the center, with the previous value underneath. It is off by default; performance mode otherwise retains only the two small corner peeks.
 
 ### Clipboard and Shortcuts
 
@@ -53,9 +56,9 @@ Clipboard access requires a secure context (HTTPS or localhost) and can still be
 
 Settings accepts an image or Home Screen screenshot. The image is stored in IndexedDB rather than inside the small localStorage settings record, avoiding the common mobile failure caused by large photo data URLs.
 
-In Performance mode the image is rendered by a fixed, full-viewport `<img>` with `object-fit: cover`. It fills the screen edge-to-edge and does not intercept gestures. For an exact fake Home Screen, upload a screenshot from the same device and orientation.
+In Performance mode the image is applied to a fixed, full-viewport CSS background layer with `background-size: cover` and centered positioning. It is not rendered as an inline photo, and it cannot intercept gestures. If wallpaper mode is disabled or no valid image is available, this layer is solid black so the phone can appear off. For an exact fake Home Screen, upload a screenshot from the same device and orientation.
 
-For the least browser chrome on iPhone, open the site in Safari, choose **Share → Add to Home Screen**, and launch it from the saved icon. A normal browser tab can only fill its webpage viewport; it cannot remove Safari’s own interface.
+The Swipe Input pages include standalone web-app metadata. On iPhone, open the site in Safari, choose **Share → Add to Home Screen**, then launch the saved icon. A normal or in-app browser view can only fill its webpage viewport; web code cannot remove that browser’s own top and bottom controls.
 
 ### Contained variant
 
@@ -70,7 +73,7 @@ Open [`gesture-input-demo.html`](./gesture-input-demo.html) to test both input m
 | File | Responsibility |
 |---|---|
 | `assets/js/clockInput.js` | Clock orientation, digit mapping, and the two-swipe state machine |
-| `assets/js/gestureDetector.js` | Pointer/touch detection and distinct swipe, tap, two-finger tap, and hold gestures |
+| `assets/js/gestureDetector.js` | Pointer/touch detection and distinct swipe, tap, two-finger tap, hold, and two-finger swipe gestures |
 | `assets/js/gestures.js` | Small compatibility facade used by the performance engine |
 | `assets/js/swipe.js` | Numeric buffer, clipboard syncing, auto-submit, Shortcut routing, and lifecycle |
 | `assets/js/storage.js` | Local settings plus IndexedDB-backed wallpaper storage |

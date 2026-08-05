@@ -151,16 +151,49 @@ test('two-finger hold emits exit gesture and cannot also submit', () => {
   assert.equal(taps, 0);
 });
 
+test('two-finger downward swipe is distinct from tap and hold gestures', () => {
+  let now = 0;
+  let holdCallback = null;
+  const swipes = [];
+  let taps = 0;
+  let holds = 0;
+  const detector = new GestureDetector({
+    now: () => now,
+    setTimer(callback) { holdCallback = callback; return 1; },
+    clearTimer() { holdCallback = null; }
+  });
+  detector.onTwoFingerSwipe((gesture) => { swipes.push(gesture.direction); });
+  detector.onTwoFingerTap(() => { taps += 1; });
+  detector.onTwoFingerHold(() => { holds += 1; });
+
+  detector.pointerDown(1, 40, 40);
+  now += 20;
+  detector.pointerDown(2, 80, 40);
+  now += 80;
+  detector.pointerMove(1, 42, 115);
+  detector.pointerMove(2, 79, 120);
+  now += 40;
+  detector.pointerUp(1, 42, 115);
+  detector.pointerUp(2, 79, 120);
+
+  assert.equal(holdCallback, null);
+  assert.deepEqual(swipes, ['down']);
+  assert.equal(taps, 0);
+  assert.equal(holds, 0);
+});
+
 test('adding a second finger to an existing swipe cannot trigger submit or exit', () => {
   let holdCallback = null;
   let taps = 0;
   let holds = 0;
+  let twoFingerSwipes = 0;
   const detector = new GestureDetector({
     setTimer(callback) { holdCallback = callback; return 1; },
     clearTimer() { holdCallback = null; }
   });
   detector.onTwoFingerTap(() => { taps += 1; });
   detector.onTwoFingerHold(() => { holds += 1; });
+  detector.onTwoFingerSwipe(() => { twoFingerSwipes += 1; });
 
   detector.pointerDown(1, 20, 100);
   detector.pointerMove(1, 20, 40);
@@ -171,6 +204,7 @@ test('adding a second finger to an existing swipe cannot trigger submit or exit'
   assert.equal(holdCallback, null);
   assert.equal(taps, 0);
   assert.equal(holds, 0);
+  assert.equal(twoFingerSwipes, 0);
 });
 
 test('configuration migration enables automatic clipboard and preserves later opt-out', () => {
@@ -178,10 +212,15 @@ test('configuration migration enables automatic clipboard and preserves later op
   assert.equal(migrated.version, Swipe.CONFIG_VERSION);
   assert.equal(migrated.clipboard, true);
   assert.equal(migrated.inputMode, 'twoswipe');
+  assert.equal(migrated.practiceMode, false);
 
-  const current = Swipe.normalizeConfig({ version: Swipe.CONFIG_VERSION, clipboard: false, inputMode: 'clockface' });
+  const versionTwoOptOut = Swipe.normalizeConfig({ version: 2, clipboard: false });
+  assert.equal(versionTwoOptOut.clipboard, false);
+
+  const current = Swipe.normalizeConfig({ version: Swipe.CONFIG_VERSION, clipboard: false, inputMode: 'clockface', practiceMode: true });
   assert.equal(current.clipboard, false);
   assert.equal(current.inputMode, 'clockface');
+  assert.equal(current.practiceMode, true);
 });
 
 test('legacy data URL wallpaper can be migrated to blob storage', () => {
@@ -202,6 +241,7 @@ test('shared engine copies the growing buffer as digits register and submits the
   const callbacks = {};
   const clipboardWrites = [];
   const submissions = [];
+  const exits = [];
 
   global.ClockInput = ClockInput;
   global.Gestures = {
@@ -211,6 +251,7 @@ test('shared engine copies the growing buffer as digits register and submits the
         onDoubleTap(callback) { callbacks.doubleTap = callback; },
         onTwoFingerTap(callback) { callbacks.twoFingerTap = callback; },
         onTwoFingerHold(callback) { callbacks.twoFingerHold = callback; },
+        onTwoFingerSwipe(callback) { callbacks.twoFingerSwipe = callback; },
         destroy() { callbacks.destroyed = true; }
       };
     }
@@ -226,7 +267,11 @@ test('shared engine copies the growing buffer as digits register and submits the
   try {
     const engine = Swipe.start(
       { version: Swipe.CONFIG_VERSION, clipboard: true, inputMode: 'twoswipe', delay: 60 },
-      { element: {}, onSubmit(value, route) { submissions.push({ value, route }); } }
+      {
+        element: {},
+        onSubmit(value, route) { submissions.push({ value, route }); },
+        onExit(reason) { exits.push(reason); }
+      }
     );
 
     callbacks.swipe(-90, { direction: 'up', deltaX: 0, deltaY: -80 });
@@ -244,6 +289,11 @@ test('shared engine copies the growing buffer as digits register and submits the
     callbacks.twoFingerTap();
     assert.equal(engine.getBuffer(), '');
     assert.deepEqual(submissions, [{ value: '03', route: 'clipboard' }]);
+
+    callbacks.twoFingerSwipe({ direction: 'right' });
+    assert.deepEqual(exits, []);
+    callbacks.twoFingerSwipe({ direction: 'down' });
+    assert.deepEqual(exits, ['twoFingerSwipeDown']);
     engine.destroy();
     assert.equal(callbacks.destroyed, true);
   } finally {

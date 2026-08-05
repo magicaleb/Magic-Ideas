@@ -2,8 +2,8 @@
  * Full-surface gesture detector for mobile performance screens.
  *
  * Swipes and taps are classified separately, so two quick swipes can never be
- * mistaken for a double-tap. A quick two-finger tap submits; a deliberate
- * two-finger hold is a separate gesture and can safely exit performance mode.
+ * mistaken for a double-tap. A quick two-finger tap, a deliberate two-finger
+ * hold, and a two-finger directional swipe are classified independently.
  */
 (function attachGestureDetector(root, factory) {
   const GestureDetector = factory();
@@ -30,6 +30,9 @@
       this.twoFingerTapDuration = Math.max(150, Number(options.twoFingerTapDuration) || 360);
       this.twoFingerMaxMovement = Math.max(8, Number(options.twoFingerMaxMovement) || 30);
       this.twoFingerHoldDuration = Math.max(400, Number(options.twoFingerHoldDuration) || 750);
+      this.twoFingerSwipeDistance = Math.max(32, Number(options.twoFingerSwipeDistance) || 52);
+      this.twoFingerSwipeDuration = Math.max(500, Number(options.twoFingerSwipeDuration) || 1800);
+      this.twoFingerSwipeAxisRatio = Math.max(1, Number(options.twoFingerSwipeAxisRatio) || 1.15);
       this.preventDefault = options.preventDefault !== false;
       this.now = typeof options.now === 'function' ? options.now : () => Date.now();
       this.setTimer = options.setTimer || setTimeout;
@@ -40,7 +43,8 @@
         tap: new Set(),
         doubleTap: new Set(),
         twoFingerTap: new Set(),
-        twoFingerHold: new Set()
+        twoFingerHold: new Set(),
+        twoFingerSwipe: new Set()
       };
 
       this.element = null;
@@ -57,6 +61,7 @@
     onDoubleTap(handler) { return this.addHandler('doubleTap', handler); }
     onTwoFingerTap(handler) { return this.addHandler('twoFingerTap', handler); }
     onTwoFingerHold(handler) { return this.addHandler('twoFingerHold', handler); }
+    onTwoFingerSwipe(handler) { return this.addHandler('twoFingerSwipe', handler); }
     onTwoFingerDown(handler) { return this.onTwoFingerHold(handler); }
 
     addHandler(type, handler) {
@@ -203,6 +208,8 @@
       pointer.current = { x, y };
 
       if (this.multiTouch && this.multiTouch.ids.has(id)) {
+        const point = this.multiTouch.points.get(id);
+        if (point) point.current = { x, y };
         if (distance(pointer.start, pointer.current) > this.twoFingerMaxMovement) {
           this.multiTouch.moved = true;
           this.cancelHoldTimer();
@@ -296,9 +303,17 @@
 
       this.multiTouch = {
         ids: new Set(pointers.map((pointer) => pointer.id)),
+        points: new Map(pointers.map((pointer) => [
+          pointer.id,
+          {
+            start: { ...pointer.current },
+            current: { ...pointer.current }
+          }
+        ])),
         startedAt,
         ended: new Set(),
         moved: alreadyMoved,
+        swipeEligible: !alreadyMoved,
         cancelled: false,
         holdFired: false,
         holdTimer: null
@@ -318,6 +333,8 @@
     finishMultiPointer(id, pointer, endedAt, cancelled) {
       if (!this.multiTouch) return;
       this.multiTouch.ended.add(id);
+      const point = this.multiTouch.points.get(id);
+      if (point) point.current = { ...pointer.current };
       if (cancelled) this.multiTouch.cancelled = true;
       if (distance(pointer.start, pointer.current) > this.twoFingerMaxMovement) {
         this.multiTouch.moved = true;
@@ -330,9 +347,49 @@
       this.multiTouch = null;
       const duration = endedAt - multi.startedAt;
 
+      const swipe = this.classifyTwoFingerSwipe(multi, duration);
+      if (swipe) {
+        this.emit('twoFingerSwipe', swipe);
+        return;
+      }
+
       if (!multi.cancelled && !multi.moved && !multi.holdFired && duration <= this.twoFingerTapDuration) {
         this.emit('twoFingerTap', { type: 'twoFingerTap', duration });
       }
+    }
+
+    classifyTwoFingerSwipe(multi, duration) {
+      if (
+        multi.cancelled ||
+        multi.holdFired ||
+        !multi.swipeEligible ||
+        duration > this.twoFingerSwipeDuration
+      ) return null;
+
+      const movements = Array.from(multi.points.values()).map(({ start, current }) => {
+        const deltaX = current.x - start.x;
+        const deltaY = current.y - start.y;
+        const horizontal = Math.abs(deltaX) > Math.abs(deltaY);
+        const primary = horizontal ? Math.abs(deltaX) : Math.abs(deltaY);
+        const secondary = horizontal ? Math.abs(deltaY) : Math.abs(deltaX);
+        const direction = horizontal
+          ? (deltaX > 0 ? 'right' : 'left')
+          : (deltaY > 0 ? 'down' : 'up');
+        return { deltaX, deltaY, primary, secondary, direction, start, current };
+      });
+
+      if (movements.length !== 2) return null;
+      if (movements.some(({ primary }) => primary < this.twoFingerSwipeDistance)) return null;
+      if (movements.some(({ primary, secondary }) => primary < secondary * this.twoFingerSwipeAxisRatio)) return null;
+      if (movements[0].direction !== movements[1].direction) return null;
+
+      return {
+        type: 'twoFingerSwipe',
+        direction: movements[0].direction,
+        duration,
+        distance: Math.min(movements[0].primary, movements[1].primary),
+        movements
+      };
     }
 
     cancelHoldTimer() {

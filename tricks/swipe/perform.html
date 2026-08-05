@@ -7,6 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="manifest.webmanifest">
   <title>Swipe Input — Perform</title>
   <style>
     * { box-sizing: border-box; }
@@ -27,56 +28,79 @@
       user-select: none;
       -webkit-touch-callout: none;
     }
-    .perform-root { position: fixed; inset: 0; isolation: isolate; touch-action: none; }
-    .wallpaper-layer { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #000; pointer-events: none; }
-    .wallpaper-image { width: 100%; height: 100%; display: none; object-fit: cover; object-position: center center; pointer-events: none; }
-    .perform-root.wallpaper-mode .wallpaper-image { display: block; }
-    .performance-ui { position: absolute; inset: 0; z-index: 1; display: grid; grid-template-rows: 1fr auto; place-items: center; padding: max(24px, env(safe-area-inset-top)) 20px max(30px, env(safe-area-inset-bottom)); transition: opacity .12s linear; pointer-events: none; }
-    .perform-root.wallpaper-mode .performance-ui { opacity: 0; visibility: hidden; }
-    .digits { align-self: center; color: rgba(235,241,255,.76); font-size: clamp(3.5rem, 17vw, 6.5rem); font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: .08em; overflow-wrap: anywhere; text-align: center; text-shadow: 0 3px 18px rgba(0,0,0,.7); }
-    .last { display: flex; align-items: center; gap: 8px; color: rgba(220,230,255,.5); font-size: .85rem; }
+    .perform-root { position: fixed; inset: 0; isolation: isolate; background: #000; touch-action: none; }
+    .wallpaper-layer { position: fixed; inset: 0; z-index: 0; background-color: #000; background-repeat: no-repeat; background-position: center center; background-size: cover; pointer-events: none; }
+    .performance-ui { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+    .practice-panel { display: none; position: absolute; inset: 0; place-content: center; justify-items: center; gap: 8px; padding: 24px; text-align: center; }
+    .perform-root.practice-mode .practice-panel { display: grid; }
+    .practice-current { max-width: 100%; color: rgba(235,241,255,.82); font-size: clamp(3.5rem, 17vw, 6.5rem); font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: .08em; overflow-wrap: anywhere; text-shadow: 0 3px 18px rgba(0,0,0,.82); }
+    .practice-previous { color: rgba(235,241,255,.66); font-size: .84rem; font-variant-numeric: tabular-nums; text-shadow: 0 2px 8px rgba(0,0,0,.95); }
+    .corner-peeks { position: absolute; right: max(10px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); left: max(10px, env(safe-area-inset-left)); display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+    .peek { display: grid; gap: 1px; max-width: 46vw; color: rgba(255,255,255,.72); font-size: clamp(.57rem, 2.2vw, .68rem); font-weight: 650; letter-spacing: .08em; line-height: 1; text-transform: uppercase; text-shadow: -1px -1px 2px #000, 1px 1px 3px #000, 0 0 7px #000; }
+    .peek-current { justify-items: end; text-align: right; }
+    .peek output { max-width: 100%; color: rgba(255,255,255,.86); font-size: clamp(.68rem, 2.8vw, .84rem); font-variant-numeric: tabular-nums; letter-spacing: .05em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .last output { padding: 5px 10px; border-radius: 999px; background: rgba(24,35,70,.75); color: rgba(230,240,255,.72); }
     .toast { position: fixed; z-index: 2; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(8px); max-width: calc(100vw - 32px); padding: 9px 13px; border: 1px solid rgba(80,105,175,.55); border-radius: 12px; background: rgba(8,14,31,.88); color: rgba(235,241,255,.82); font-size: .86rem; opacity: 0; transition: opacity .16s, transform .16s; pointer-events: none; text-align: center; }
     .toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
-    .perform-root.wallpaper-mode + .toast { display: none; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
   </style>
 </head>
 <body>
   <main id="performRoot" class="perform-root" aria-label="Full-screen swipe input surface">
-    <div class="wallpaper-layer" aria-hidden="true">
-      <img id="wallpaperImage" class="wallpaper-image" alt="">
-    </div>
+    <div id="wallpaperLayer" class="wallpaper-layer" aria-hidden="true"></div>
     <div class="performance-ui" aria-hidden="true">
-      <div id="digits" class="digits">—</div>
-      <div class="last">Last submitted <output id="last">none</output></div>
+      <div class="practice-panel">
+        <output id="practiceCurrent" class="practice-current">—</output>
+        <div class="practice-previous">Previous <output id="practicePrevious">—</output></div>
+      </div>
+      <div class="corner-peeks">
+        <div class="peek peek-previous"><span>Previous</span><output id="peekPrevious">—</output></div>
+        <div class="peek peek-current"><span>Current</span><output id="peekCurrent">—</output></div>
+      </div>
     </div>
     <div id="liveStatus" class="sr-only" aria-live="polite"></div>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="../../assets/js/storage.js?v=2"></script>
-  <script src="../../assets/js/clockInput.js?v=2"></script>
-  <script src="../../assets/js/gestureDetector.js?v=2"></script>
-  <script src="../../assets/js/gestures.js?v=2"></script>
-  <script src="../../assets/js/swipe.js?v=2"></script>
+  <script src="../../assets/js/storage.js?v=3"></script>
+  <script src="../../assets/js/clockInput.js?v=3"></script>
+  <script src="../../assets/js/gestureDetector.js?v=3"></script>
+  <script src="../../assets/js/gestures.js?v=3"></script>
+  <script src="../../assets/js/swipe.js?v=3"></script>
   <script>
     const WALLPAPER_KEY = 'swipe.wallpaper';
     const state = Swipe.normalizeConfig(Storage.load('swipe', {}));
     Storage.save('swipe', state);
 
     const root = document.getElementById('performRoot');
-    const wallpaperImage = document.getElementById('wallpaperImage');
-    const digits = document.getElementById('digits');
-    const last = document.getElementById('last');
+    const wallpaperLayer = document.getElementById('wallpaperLayer');
+    const practiceCurrent = document.getElementById('practiceCurrent');
+    const practicePrevious = document.getElementById('practicePrevious');
+    const peekCurrent = document.getElementById('peekCurrent');
+    const peekPrevious = document.getElementById('peekPrevious');
     const toast = document.getElementById('toast');
     const liveStatus = document.getElementById('liveStatus');
     let wallpaperHandle = null;
     let toastTimer = null;
+    let previousValue = '—';
+
+    root.classList.toggle('practice-mode', state.practiceMode);
+
+    function renderCurrent(value = '', pending = false) {
+      const display = pending ? `${value}·` : (value || '—');
+      peekCurrent.textContent = display;
+      practiceCurrent.textContent = display;
+    }
+
+    function renderPrevious(value = '') {
+      previousValue = value || '—';
+      peekPrevious.textContent = previousValue;
+      practicePrevious.textContent = previousValue;
+    }
 
     function showStatus(message) {
       liveStatus.textContent = message;
-      if (root.classList.contains('wallpaper-mode')) return;
+      if (!state.practiceMode) return;
       clearTimeout(toastTimer);
       toast.textContent = message;
       toast.classList.add('visible');
@@ -88,6 +112,8 @@
     }
 
     async function applyWallpaper() {
+      wallpaperLayer.style.backgroundImage = 'none';
+      root.classList.remove('wallpaper-mode');
       if (!state.fakeHomescreen) return;
       let image = await Storage.loadImage(WALLPAPER_KEY);
 
@@ -110,12 +136,16 @@
 
       if (wallpaperHandle) wallpaperHandle.revoke();
       wallpaperHandle = Storage.createImageUrl(image);
-      wallpaperImage.src = wallpaperHandle.url;
       try {
-        if (wallpaperImage.decode) await wallpaperImage.decode();
-        else await new Promise((resolve, reject) => { wallpaperImage.onload = resolve; wallpaperImage.onerror = reject; });
+        const probe = new Image();
+        probe.src = wallpaperHandle.url;
+        if (probe.decode) await probe.decode();
+        else await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; });
+        wallpaperLayer.style.backgroundImage = `url(${JSON.stringify(wallpaperHandle.url)})`;
         root.classList.add('wallpaper-mode');
       } catch (_) {
+        wallpaperHandle.revoke();
+        wallpaperHandle = null;
         showStatus('Wallpaper could not be displayed — using black performance screen');
       }
     }
@@ -123,25 +153,25 @@
     const engine = Swipe.start(state, {
       element: root,
       onDigit(digit, buffer) {
-        digits.textContent = buffer || '—';
+        renderCurrent(buffer);
         if (digit !== null) pulse();
       },
       onSequence(result, buffer) {
         if (!result.complete && result.stage === 'second') {
-          digits.textContent = `${buffer || ''}·`;
+          renderCurrent(buffer, true);
         }
       },
       onClipboard(value, succeeded) {
         if (succeeded) liveStatus.textContent = `${value} copied`;
       },
       onClear() {
-        digits.textContent = '—';
+        renderCurrent();
         pulse(24);
         showStatus('Cleared');
       },
       onSubmit(value, route) {
-        last.textContent = value;
-        digits.textContent = '—';
+        renderPrevious(value);
+        renderCurrent();
         pulse([18, 35, 18]);
         showStatus(route === 'shortcut' ? 'Sent to Shortcut' : route === 'clipboard' ? 'Copied and submitted' : 'Submitted');
       },
@@ -149,6 +179,8 @@
       onExit() { window.location.assign('settings.html'); }
     });
 
+    renderPrevious();
+    renderCurrent();
     applyWallpaper();
     window.addEventListener('pagehide', (event) => {
       // Keep the engine alive when iOS temporarily parks this page while an

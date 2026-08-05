@@ -1,0 +1,13 @@
+{
+  "id": "./contained-swipe.html",
+  "name": "Magic Ideas — Contained Swipe Input",
+  "short_name": "Swipe Input",
+  "description": "Contained full-screen covert clock-swipe input for performance.",
+  "start_url": "./contained-swipe.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000"
+}

@@ -21,6 +21,7 @@ const Gestures = (() => {
       onDoubleTap(callback) { return detector.onDoubleTap(callback); },
       onTwoFingerTap(callback) { return detector.onTwoFingerTap(callback); },
       onTwoFingerHold(callback) { return detector.onTwoFingerHold(callback); },
+      onTwoFingerSwipe(callback) { return detector.onTwoFingerSwipe(callback); },
       // Kept as an alias for old callers. It is intentionally a hold now so
       // the exit gesture cannot collide with a quick two-finger submit.
       onTwoFingerDown(callback) { return detector.onTwoFingerHold(callback); },
@@ -50,6 +51,7 @@ const Gestures = (() => {
     onDoubleTap(callback, target) { return init(target || document).onDoubleTap(callback); },
     onTwoFingerTap(callback, target) { return init(target || document).onTwoFingerTap(callback); },
     onTwoFingerHold(callback, target) { return init(target || document).onTwoFingerHold(callback); },
+    onTwoFingerSwipe(callback, target) { return init(target || document).onTwoFingerSwipe(callback); },
     onTwoFingerDown(callback, target) { return init(target || document).onTwoFingerHold(callback); },
     destroy() {
       if (defaultInstance) defaultInstance.destroy();

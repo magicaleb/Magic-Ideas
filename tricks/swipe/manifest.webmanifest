@@ -1,0 +1,13 @@
+{
+  "id": "./settings.html",
+  "name": "Magic Ideas — Swipe Input",
+  "short_name": "Swipe Input",
+  "description": "Full-screen covert clock-swipe input for performance.",
+  "start_url": "./settings.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000"
+}

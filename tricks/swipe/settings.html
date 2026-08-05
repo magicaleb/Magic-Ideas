@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0b1020">
   <title>Swipe Input — Settings</title>
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="../../assets/css/base.css">
   <style>
     html, body { min-height: 100%; height: auto; overflow: auto; }
@@ -81,12 +82,17 @@
           <input id="clipboard" type="checkbox">
           <span><strong>Automatically copy the current input</strong><span class="field-note">The clipboard is updated as each digit registers, while the swipe still has browser permission.</span></span>
         </label>
+
+        <label class="check-row" for="practiceMode">
+          <input id="practiceMode" type="checkbox">
+          <span><strong>Practice Mode</strong><span class="field-note">Shows the current input in large text at the center. Leave this off for performance; small current and previous peeks remain in the bottom corners.</span></span>
+        </label>
       </section>
 
       <section class="card settings-grid">
         <label class="check-row" for="fakeHomescreen">
           <input id="fakeHomescreen" type="checkbox">
-          <span><strong>Use wallpaper performance mode</strong><span class="field-note">The uploaded image covers the full viewport with no visible input controls.</span></span>
+          <span><strong>Use wallpaper performance mode</strong><span class="field-note">The uploaded image becomes a fixed, full-screen CSS background. Without an image, the performance screen stays black.</span></span>
         </label>
 
         <div class="field">
@@ -119,19 +125,20 @@
 
       <section class="card guide">
         <h3>Performance controls</h3>
-        <p>Swipe anywhere on the performance screen. Double-tap clears. Quick two-finger tap submits. Hold two fingers for about three-quarters of a second to return to Settings.</p>
+        <p>Swipe anywhere on the performance screen. Double-tap clears. Quick two-finger tap submits. Swipe down with two fingers to return to Settings; a two-finger hold is also kept as a fallback.</p>
       </section>
     </div>
   </main>
 
-  <script src="../../assets/js/storage.js?v=2"></script>
-  <script src="../../assets/js/swipe.js?v=2"></script>
+  <script src="../../assets/js/storage.js?v=3"></script>
+  <script src="../../assets/js/swipe.js?v=3"></script>
   <script>
     const WALLPAPER_KEY = 'swipe.wallpaper';
     const elements = {
       delay: document.getElementById('delay'),
       shortcut: document.getElementById('shortcut'),
       clipboard: document.getElementById('clipboard'),
+      practiceMode: document.getElementById('practiceMode'),
       fakeHomescreen: document.getElementById('fakeHomescreen'),
       homescreenImage: document.getElementById('homescreenImage'),
       preview: document.getElementById('wallpaperPreview'),
@@ -155,6 +162,7 @@
       state.delay = Math.min(60, Math.max(1, Number(elements.delay.value) || 3));
       state.shortcut = elements.shortcut.value.trim();
       state.clipboard = elements.clipboard.checked;
+      state.practiceMode = elements.practiceMode.checked;
       state.fakeHomescreen = elements.fakeHomescreen.checked;
       if (!Storage.save('swipe', state)) setStatus('Settings could not be saved in this browsing mode.', true);
     }
@@ -164,6 +172,7 @@
       elements.delay.value = state.delay;
       elements.shortcut.value = state.shortcut;
       elements.clipboard.checked = state.clipboard;
+      elements.practiceMode.checked = state.practiceMode;
       elements.fakeHomescreen.checked = state.fakeHomescreen;
     }
 
@@ -265,6 +274,7 @@
     elements.delay.addEventListener('change', persist);
     elements.shortcut.addEventListener('change', persist);
     elements.clipboard.addEventListener('change', persist);
+    elements.practiceMode.addEventListener('change', persist);
     elements.fakeHomescreen.addEventListener('change', persist);
     elements.perform.addEventListener('click', () => {
       persist();

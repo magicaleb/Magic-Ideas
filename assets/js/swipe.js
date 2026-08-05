@@ -2,7 +2,8 @@
 const Swipe = (() => {
   'use strict';
 
-  const CONFIG_VERSION = 2;
+  const CONFIG_VERSION = 3;
+  const CLIPBOARD_DEFAULT_VERSION = 2;
   const DEFAULTS = Object.freeze({
     version: CONFIG_VERSION,
     delay: 3,
@@ -10,6 +11,7 @@ const Swipe = (() => {
     postShortcut: '',
     clipboard: true,
     fakeHomescreen: false,
+    practiceMode: false,
     hasHomescreenImage: false,
     homescreenImage: '',
     inputMode: 'twoswipe',
@@ -30,8 +32,9 @@ const Swipe = (() => {
       postShortcut: String(source.postShortcut || '').trim(),
       // Clipboard is promoted to an on-by-default core behavior in v2. A user
       // can still explicitly turn it off after the one-time migration.
-      clipboard: oldVersion >= CONFIG_VERSION ? source.clipboard !== false : true,
+      clipboard: oldVersion >= CLIPBOARD_DEFAULT_VERSION ? source.clipboard !== false : true,
       fakeHomescreen: Boolean(source.fakeHomescreen),
+      practiceMode: Boolean(source.practiceMode),
       hasHomescreenImage: Boolean(source.hasHomescreenImage || source.homescreenImage),
       homescreenImage: typeof source.homescreenImage === 'string' ? source.homescreenImage : '',
       inputMode,
@@ -103,6 +106,7 @@ const Swipe = (() => {
       minSwipeDistance: 32,
       maxTapDistance: 14,
       twoFingerHoldDuration: 750,
+      twoFingerSwipeDistance: 52,
       preventDefault: true
     });
 
@@ -234,17 +238,23 @@ const Swipe = (() => {
       paint();
     }
 
-    gestureInput.onSwipe(processSwipe);
-    gestureInput.onDoubleTap(() => clear('doubleTap'));
-    gestureInput.onTwoFingerTap(() => submit('twoFingerTap'));
-    gestureInput.onTwoFingerHold(() => {
-      clear('exit');
+    function exitPerformance(reason) {
+      if (destroyed) return;
+      clear(reason);
       if (typeof hooks.onExit === 'function') {
-        call(hooks.onExit);
+        call(hooks.onExit, reason);
       } else {
         try { window.location.assign('settings.html'); } catch (_) {}
       }
+    }
+
+    gestureInput.onSwipe(processSwipe);
+    gestureInput.onDoubleTap(() => clear('doubleTap'));
+    gestureInput.onTwoFingerTap(() => submit('twoFingerTap'));
+    gestureInput.onTwoFingerSwipe((gesture) => {
+      if (gesture.direction === 'down') exitPerformance('twoFingerSwipeDown');
     });
+    gestureInput.onTwoFingerHold(() => exitPerformance('twoFingerHold'));
 
     paint();
 

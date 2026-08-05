@@ -7,6 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0b1020">
+  <link rel="manifest" href="contained-swipe.webmanifest">
   <title>Contained Swipe Input</title>
   <style>
     * { box-sizing: border-box; }
@@ -30,15 +31,18 @@
     .status { min-height: 1.3em; color: #9baad0; font-size: .88rem; }
     .status.error { color: #fca5a5; }
     .perform { position: fixed; inset: 0; overflow: hidden; background: #000; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-    .wallpaper { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; display: none; object-fit: cover; object-position: center; pointer-events: none; }
-    .perform.wallpaper-mode .wallpaper { display: block; }
-    .perform-ui { position: absolute; inset: 0; z-index: 1; display: grid; grid-template-rows: 1fr auto; place-items: center; padding: max(24px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom)); pointer-events: none; }
-    .perform.wallpaper-mode .perform-ui { visibility: hidden; }
-    .digits { color: rgba(238,244,255,.72); font-size: clamp(3.5rem, 17vw, 6.5rem); font-weight: 800; letter-spacing: .08em; text-align: center; text-shadow: 0 3px 18px #000; }
-    .last { color: rgba(218,228,255,.5); font-size: .86rem; }
+    .wallpaper { position: fixed; inset: 0; z-index: 0; background-color: #000; background-repeat: no-repeat; background-position: center center; background-size: cover; pointer-events: none; }
+    .perform-ui { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+    .practice-panel { display: none; position: absolute; inset: 0; place-content: center; justify-items: center; gap: 8px; padding: 24px; text-align: center; }
+    .perform.practice-mode .practice-panel { display: grid; }
+    .practice-current { max-width: 100%; color: rgba(238,244,255,.82); font-size: clamp(3.5rem, 17vw, 6.5rem); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .08em; overflow-wrap: anywhere; text-shadow: 0 3px 18px rgba(0,0,0,.82); }
+    .practice-previous { color: rgba(238,244,255,.66); font-size: .84rem; text-shadow: 0 2px 8px #000; }
+    .corner-peeks { position: absolute; right: max(10px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); left: max(10px, env(safe-area-inset-left)); display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+    .peek { display: grid; gap: 1px; max-width: 46vw; color: rgba(255,255,255,.72); font-size: clamp(.57rem, 2.2vw, .68rem); font-weight: 650; letter-spacing: .08em; line-height: 1; text-transform: uppercase; text-shadow: -1px -1px 2px #000, 1px 1px 3px #000, 0 0 7px #000; }
+    .peek-current { justify-items: end; text-align: right; }
+    .peek output { max-width: 100%; color: rgba(255,255,255,.86); font-size: clamp(.68rem, 2.8vw, .84rem); font-variant-numeric: tabular-nums; letter-spacing: .05em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .toast { position: absolute; z-index: 2; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 9px 13px; border-radius: 11px; background: rgba(12,19,42,.9); color: #eaf1ff; opacity: 0; pointer-events: none; transition: opacity .15s; }
     .toast.visible { opacity: 1; }
-    .perform.wallpaper-mode .toast { display: none; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
   </style>
 </head>
@@ -67,9 +71,13 @@
         <input id="clipboard" type="checkbox">
         <span>Automatically copy each completed input<small>The clipboard updates as every digit registers.</small></span>
       </label>
+      <label class="check" for="practiceMode">
+        <input id="practiceMode" type="checkbox">
+        <span>Practice Mode<small>Shows the current input large in the center. Performance mode keeps only the bottom-corner peeks.</small></span>
+      </label>
       <label class="check" for="fakeHomescreen">
         <input id="fakeHomescreen" type="checkbox">
-        <span>Use uploaded image as the full-screen wallpaper</span>
+        <span>Use uploaded image as the full-screen background<small>Without one, the performance surface stays black.</small></span>
       </label>
       <div class="field">
         <label for="homescreenImage">Wallpaper or Home Screen screenshot</label>
@@ -83,25 +91,31 @@
     <section class="card">
       <strong>Controls</strong>
       <small>Swipe anywhere. In two-swipe mode: ↑←/↑↑/↑→ gives 9/0/1; →↑/→→/→↓ gives 2/3/4; ↓→/↓↓/↓← gives 5/6/7; ←↓/←←/←↑ gives 8/9/0.</small>
-      <small>Double-tap clears. Quick two-finger tap submits. Hold two fingers for about three-quarters of a second to return here.</small>
+      <small>Double-tap clears. Quick two-finger tap submits. Swipe down with two fingers to return here; a two-finger hold is also available as a fallback.</small>
     </section>
   </main>
 
   <main id="performPage" class="perform" aria-label="Contained full-screen swipe input" hidden>
-    <img id="wallpaper" class="wallpaper" alt="">
+    <div id="wallpaper" class="wallpaper" aria-hidden="true"></div>
     <div class="perform-ui" aria-hidden="true">
-      <div id="digits" class="digits">—</div>
-      <div class="last">Last submitted: <span id="lastValue">none</span></div>
+      <div class="practice-panel">
+        <output id="practiceCurrent" class="practice-current">—</output>
+        <div class="practice-previous">Previous <output id="practicePrevious">—</output></div>
+      </div>
+      <div class="corner-peeks">
+        <div class="peek"><span>Previous</span><output id="peekPrevious">—</output></div>
+        <div class="peek peek-current"><span>Current</span><output id="peekCurrent">—</output></div>
+      </div>
     </div>
     <div id="liveStatus" class="sr-only" aria-live="polite"></div>
     <div id="toast" class="toast" role="status"></div>
   </main>
 
-  <script src="assets/js/storage.js?v=2"></script>
-  <script src="assets/js/clockInput.js?v=2"></script>
-  <script src="assets/js/gestureDetector.js?v=2"></script>
-  <script src="assets/js/gestures.js?v=2"></script>
-  <script src="assets/js/swipe.js?v=2"></script>
+  <script src="assets/js/storage.js?v=3"></script>
+  <script src="assets/js/clockInput.js?v=3"></script>
+  <script src="assets/js/gestureDetector.js?v=3"></script>
+  <script src="assets/js/gestures.js?v=3"></script>
+  <script src="assets/js/swipe.js?v=3"></script>
   <script>
     const WALLPAPER_KEY = 'swipe.wallpaper';
     const settingsPage = document.getElementById('settingsPage');
@@ -111,14 +125,17 @@
       delay: document.getElementById('delay'),
       shortcut: document.getElementById('shortcut'),
       clipboard: document.getElementById('clipboard'),
+      practiceMode: document.getElementById('practiceMode'),
       fakeHomescreen: document.getElementById('fakeHomescreen'),
       image: document.getElementById('homescreenImage'),
       remove: document.getElementById('removeWallpaper'),
       status: document.getElementById('wallpaperStatus')
     };
     const wallpaper = document.getElementById('wallpaper');
-    const digits = document.getElementById('digits');
-    const lastValue = document.getElementById('lastValue');
+    const practiceCurrent = document.getElementById('practiceCurrent');
+    const practicePrevious = document.getElementById('practicePrevious');
+    const peekCurrent = document.getElementById('peekCurrent');
+    const peekPrevious = document.getElementById('peekPrevious');
     const liveStatus = document.getElementById('liveStatus');
     const toast = document.getElementById('toast');
     let state = Swipe.normalizeConfig(Storage.load('swipe', {}));
@@ -126,12 +143,26 @@
     let wallpaperHandle = null;
     let toastTimer = null;
     let session = 0;
+    let previousValue = '—';
+
+    function renderCurrent(value = '', pending = false) {
+      const display = pending ? `${value}·` : (value || '—');
+      peekCurrent.textContent = display;
+      practiceCurrent.textContent = display;
+    }
+
+    function renderPrevious(value = '') {
+      previousValue = value || '—';
+      peekPrevious.textContent = previousValue;
+      practicePrevious.textContent = previousValue;
+    }
 
     function fillForm() {
       fields.inputMode.value = state.inputMode;
       fields.delay.value = state.delay;
       fields.shortcut.value = state.shortcut;
       fields.clipboard.checked = state.clipboard;
+      fields.practiceMode.checked = state.practiceMode;
       fields.fakeHomescreen.checked = state.fakeHomescreen;
     }
 
@@ -141,6 +172,7 @@
       state.delay = Math.min(60, Math.max(1, Number(fields.delay.value) || 3));
       state.shortcut = fields.shortcut.value.trim();
       state.clipboard = fields.clipboard.checked;
+      state.practiceMode = fields.practiceMode.checked;
       state.fakeHomescreen = fields.fakeHomescreen.checked;
       Storage.save('swipe', state);
     }
@@ -154,13 +186,13 @@
       const image = await Storage.loadImage(WALLPAPER_KEY);
       state.hasHomescreenImage = Boolean(image || state.homescreenImage);
       fields.remove.hidden = !state.hasHomescreenImage;
-      setWallpaperStatus(state.hasHomescreenImage ? 'Wallpaper ready.' : 'No wallpaper uploaded.');
+      setWallpaperStatus(state.hasHomescreenImage ? 'Full-screen background ready.' : 'No background uploaded. Performance mode will use black.');
       Storage.save('swipe', state);
     }
 
     function showToast(message) {
       liveStatus.textContent = message;
-      if (performPage.classList.contains('wallpaper-mode')) return;
+      if (!state.practiceMode) return;
       clearTimeout(toastTimer);
       toast.textContent = message;
       toast.classList.add('visible');
@@ -169,19 +201,30 @@
 
     async function applyWallpaper(currentSession) {
       performPage.classList.remove('wallpaper-mode');
+      wallpaper.style.backgroundImage = 'none';
       if (!state.fakeHomescreen) return;
       let image = await Storage.loadImage(WALLPAPER_KEY);
       if (!image && state.homescreenImage) image = state.homescreenImage;
       if (!image || currentSession !== session) return;
 
       if (wallpaperHandle) wallpaperHandle.revoke();
-      wallpaperHandle = Storage.createImageUrl(image);
-      wallpaper.src = wallpaperHandle.url;
+      const handle = Storage.createImageUrl(image);
+      wallpaperHandle = handle;
       try {
-        if (wallpaper.decode) await wallpaper.decode();
-        else await new Promise((resolve, reject) => { wallpaper.onload = resolve; wallpaper.onerror = reject; });
-        if (currentSession === session) performPage.classList.add('wallpaper-mode');
+        const probe = new Image();
+        probe.src = handle.url;
+        if (probe.decode) await probe.decode();
+        else await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; });
+        if (currentSession === session && wallpaperHandle === handle) {
+          wallpaper.style.backgroundImage = `url(${JSON.stringify(handle.url)})`;
+          performPage.classList.add('wallpaper-mode');
+        } else {
+          handle.revoke();
+          if (wallpaperHandle === handle) wallpaperHandle = null;
+        }
       } catch (_) {
+        handle.revoke();
+        if (wallpaperHandle === handle) wallpaperHandle = null;
         showToast('Wallpaper could not be displayed');
       }
     }
@@ -190,13 +233,16 @@
       session += 1;
       if (engine) engine.destroy();
       engine = null;
+      clearTimeout(toastTimer);
+      toast.classList.remove('visible');
       performPage.hidden = true;
       settingsPage.hidden = false;
       document.body.classList.remove('performing');
       if (wallpaperHandle) wallpaperHandle.revoke();
       wallpaperHandle = null;
-      wallpaper.removeAttribute('src');
+      wallpaper.style.backgroundImage = 'none';
       performPage.classList.remove('wallpaper-mode');
+      performPage.classList.remove('practice-mode');
     }
 
     function showPerform() {
@@ -206,18 +252,22 @@
       settingsPage.hidden = true;
       performPage.hidden = false;
       document.body.classList.add('performing');
-      digits.textContent = '—';
+      clearTimeout(toastTimer);
+      toast.classList.remove('visible');
+      performPage.classList.toggle('practice-mode', state.practiceMode);
+      renderPrevious(previousValue);
+      renderCurrent();
 
       if (engine) engine.destroy();
       engine = Swipe.start(state, {
         element: performPage,
-        onDigit(digit, buffer) { digits.textContent = buffer || '—'; },
-        onSequence(result, buffer) { if (!result.complete && result.stage === 'second') digits.textContent = `${buffer || ''}·`; },
+        onDigit(digit, buffer) { renderCurrent(buffer); },
+        onSequence(result, buffer) { if (!result.complete && result.stage === 'second') renderCurrent(buffer, true); },
         onClipboard(value, succeeded) { if (succeeded) liveStatus.textContent = `${value} copied`; },
-        onClear() { digits.textContent = '—'; showToast('Cleared'); },
+        onClear() { renderCurrent(); showToast('Cleared'); },
         onSubmit(value, route) {
-          lastValue.textContent = value;
-          digits.textContent = '—';
+          renderPrevious(value);
+          renderCurrent();
           showToast(route === 'shortcut' ? 'Sent to Shortcut' : route === 'clipboard' ? 'Copied and submitted' : 'Submitted');
         },
         onStatus: showToast,
@@ -259,10 +309,12 @@
       await refreshWallpaperStatus();
     });
     document.getElementById('startPerform').addEventListener('click', showPerform);
-    [fields.inputMode, fields.delay, fields.shortcut, fields.clipboard, fields.fakeHomescreen].forEach((field) => field.addEventListener('change', saveSettings));
+    [fields.inputMode, fields.delay, fields.shortcut, fields.clipboard, fields.practiceMode, fields.fakeHomescreen].forEach((field) => field.addEventListener('change', saveSettings));
 
     fillForm();
     saveSettings();
+    renderPrevious();
+    renderCurrent();
     refreshWallpaperStatus();
   </script>
 </body>
