@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const ClockInput = require('../assets/js/clockInput.js');
+const InputProfiles = require('../assets/js/inputProfiles.js');
 const GestureDetector = require('../assets/js/gestureDetector.js');
 const Swipe = require('../assets/js/swipe.js');
 const Storage = require('../assets/js/storage.js');
@@ -69,6 +70,64 @@ test('an ambiguous opposite swipe restarts instead of entering a wrong digit', (
   const result = input.process('left');
   assert.equal(result.complete, true);
   assert.equal(result.digit, 7);
+});
+
+test('playing-card face resolves suit first and rank in one or two more swipes', () => {
+  const compact = new InputProfiles.CardInput({ setTimer: () => 1, clearTimer() {} });
+  assert.equal(compact.process('right').preview, '♥️');
+  assert.equal(compact.process('up').complete, false);
+  assert.deepEqual(
+    compact.process('up'),
+    {
+      complete: true,
+      stage: 'complete',
+      value: 'A ♥️',
+      rank: 'A',
+      suit: InputProfiles.SUITS.right
+    }
+  );
+
+  compact.process('left');
+  const king = compact.process('left');
+  assert.equal(king.complete, true);
+  assert.equal(king.value, 'K ♣️');
+
+  const words = new InputProfiles.CardInput({ format: 'words', setTimer: () => 1, clearTimer() {} });
+  words.process('down');
+  words.process('down');
+  assert.equal(words.process('right').value, 'Ten of Diamonds');
+});
+
+test('custom faces map arbitrary outputs to two-direction combinations', () => {
+  const face = InputProfiles.createBlankFace('Test face', 'test-face');
+  face.map.up.right = 'hello';
+  const input = new InputProfiles.CustomFaceInput(face, { setTimer: () => 1, clearTimer() {} });
+  assert.equal(input.process('up').complete, false);
+  assert.equal(input.process('right').value, 'hello');
+
+  input.process('down');
+  const restarted = input.process('up');
+  assert.equal(restarted.complete, false);
+  assert.equal(restarted.restarted, true);
+  assert.equal(restarted.firstDirection, 'up');
+});
+
+test('tap maps resolve physical screen regions and preserve custom actions', () => {
+  const grid = InputProfiles.normalizeTapGrid({
+    rows: 2,
+    columns: 2,
+    zones: [
+      { kind: 'append', value: '7' },
+      { kind: 'suit', value: 'hearts' },
+      { kind: 'rank', value: 'Q' },
+      { kind: 'set', value: 'secret' }
+    ]
+  });
+  const rect = { left: 10, top: 20, width: 200, height: 400 };
+  assert.deepEqual(InputProfiles.resolveTapZone(grid, { x: 60, y: 70 }, rect).action, { kind: 'append', value: '7' });
+  assert.deepEqual(InputProfiles.resolveTapZone(grid, { x: 160, y: 70 }, rect).action, { kind: 'suit', value: 'hearts' });
+  assert.deepEqual(InputProfiles.resolveTapZone(grid, { x: 160, y: 300 }, rect).action, { kind: 'set', value: 'secret' });
+  assert.equal(InputProfiles.resolveTapZone(grid, { x: 500, y: 500 }, rect), null);
 });
 
 test('two fast swipes never count as a double-tap', () => {
@@ -224,6 +283,28 @@ test('configuration migration enables automatic clipboard and preserves later op
   assert.equal(current.practiceMode, true);
 });
 
+test('configuration saves Shortcut names and normalizes new input profiles', () => {
+  const legacyShortcut = Swipe.normalizeConfig({ version: 3, shortcut: 'Card Reveal' });
+  assert.deepEqual(legacyShortcut.shortcutNames, ['Card Reveal']);
+  assert.equal(legacyShortcut.shortcutEnabled, true);
+
+  const current = Swipe.normalizeConfig({
+    version: Swipe.CONFIG_VERSION,
+    shortcut: 'Numbers',
+    shortcutNames: ['Numbers', 'Cards', 'numbers', ''],
+    shortcutEnabled: false,
+    inputMode: 'cards',
+    cardOutputFormat: 'words',
+    tapGrid: { rows: 99, columns: 1, zones: [] }
+  });
+  assert.deepEqual(current.shortcutNames, ['Numbers', 'Cards']);
+  assert.equal(current.shortcutEnabled, false);
+  assert.equal(current.inputMode, 'cards');
+  assert.equal(current.cardOutputFormat, 'words');
+  assert.equal(current.tapGrid.rows, 8);
+  assert.equal(current.tapGrid.columns, 2);
+});
+
 test('legacy data URL wallpaper can be migrated to blob storage', () => {
   const blob = Storage.dataUrlToBlob('data:image/png;base64,iVBORw0KGgo=');
   assert.equal(blob.type, 'image/png');
@@ -344,6 +425,89 @@ test('shared engine copies the growing buffer as digits register and submits the
       } else {
         global[key] = value;
       }
+    }
+  }
+});
+
+test('tap-zone mode accepts rapid taps without double-tap clearing', async () => {
+  const originalGlobals = {
+    ClockInput: global.ClockInput,
+    InputProfiles: global.InputProfiles,
+    Gestures: global.Gestures,
+    Storage: global.Storage,
+    document: global.document,
+    navigator: global.navigator,
+    window: global.window
+  };
+  const callbacks = {};
+  const writes = [];
+  const submissions = [];
+
+  global.ClockInput = ClockInput;
+  global.InputProfiles = InputProfiles;
+  global.Gestures = {
+    create() {
+      return {
+        onSwipe(callback) { callbacks.swipe = callback; },
+        onTap(callback) { callbacks.tap = callback; },
+        onDoubleTap(callback) { callbacks.doubleTap = callback; },
+        onTwoFingerTap(callback) { callbacks.twoFingerTap = callback; },
+        onTwoFingerHold(callback) { callbacks.twoFingerHold = callback; },
+        onTwoFingerSwipe(callback) { callbacks.twoFingerSwipe = callback; },
+        destroy() {}
+      };
+    }
+  };
+  global.Storage = { load() { return {}; } };
+  global.document = { body: null, getElementById() { return null; } };
+  Object.defineProperty(global, 'navigator', {
+    configurable: true,
+    value: { clipboard: { writeText(value) { writes.push(value); return Promise.resolve(); } } }
+  });
+  global.window = { innerWidth: 100, innerHeight: 100, location: { assign() {} } };
+
+  try {
+    const engine = Swipe.start(
+      {
+        version: Swipe.CONFIG_VERSION,
+        clipboard: true,
+        inputMode: 'tapzones',
+        delay: 60,
+        tapGrid: {
+          rows: 2,
+          columns: 2,
+          zones: [
+            { kind: 'append', value: '1' },
+            { kind: 'append', value: '2' },
+            { kind: 'backspace', value: '' },
+            { kind: 'submit', value: '' }
+          ]
+        }
+      },
+      {
+        element: { getBoundingClientRect() { return { left: 0, top: 0, width: 100, height: 100 }; } },
+        onSubmit(value, route) { submissions.push({ value, route }); }
+      }
+    );
+
+    assert.equal(callbacks.doubleTap, undefined);
+    callbacks.tap({ x: 25, y: 25 });
+    callbacks.tap({ x: 75, y: 25 });
+    await Promise.resolve();
+    assert.equal(engine.getBuffer(), '12');
+    assert.deepEqual(writes, ['1', '12']);
+
+    callbacks.tap({ x: 25, y: 75 });
+    await Promise.resolve();
+    assert.equal(engine.getBuffer(), '1');
+    callbacks.tap({ x: 75, y: 75 });
+    assert.deepEqual(submissions, [{ value: '1', route: 'clipboard' }]);
+    engine.destroy();
+  } finally {
+    for (const [key, value] of Object.entries(originalGlobals)) {
+      if (key === 'navigator') Object.defineProperty(global, key, { configurable: true, writable: true, value });
+      else if (value === undefined) delete global[key];
+      else global[key] = value;
     }
   }
 });

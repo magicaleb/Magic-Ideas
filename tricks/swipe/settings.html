@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#0b1020">
+  <meta name="theme-color" content="#080d1a">
   <title>Swipe Input — Settings</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="../../assets/css/base.css">
@@ -17,158 +17,301 @@
         const key = 'mpad.fast-media.swipe.wallpaper';
         const wallpaper = localStorage.getItem(key) || sessionStorage.getItem(key);
         if (config.fakeHomescreen && wallpaper?.startsWith('data:image/')) {
-          const root = document.documentElement.style;
-          root.backgroundImage = `url(${JSON.stringify(wallpaper)})`;
-          root.backgroundPosition = 'center';
-          root.backgroundRepeat = 'no-repeat';
-          root.backgroundSize = 'cover';
+          document.documentElement.style.backgroundImage = `url(${JSON.stringify(wallpaper)})`;
         }
       } catch (_) {}
     })();
   </script>
   <style>
+    :root { color-scheme: dark; }
     html, body { min-height: 100%; height: auto; overflow: auto; }
-    body { background: #0b1020; }
-    .settings-shell { width: min(100%, 720px); margin: 0 auto; padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); }
-    .settings-header { margin-bottom: 18px; }
-    .settings-header p { margin: 6px 0 0; color: var(--muted); line-height: 1.45; }
-    .settings-grid { display: grid; gap: 14px; }
-    .field { display: grid; gap: 7px; }
-    .field > label, legend { color: #dfe7ff; font-weight: 650; font-size: .98rem; }
-    .field-note { color: var(--muted); font-size: .86rem; line-height: 1.4; }
-    fieldset { margin: 0; padding: 0; border: 0; display: grid; gap: 9px; }
-    .choice { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; padding: 12px; border: 1px solid #2a386c; border-radius: 12px; background: #0f1630; }
-    .choice input { margin-top: 3px; }
-    .choice strong { display: block; color: var(--text); }
-    .choice span { display: block; margin-top: 3px; color: var(--muted); font-size: .85rem; line-height: 1.35; }
-    .check-row { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
-    .check-row input { margin-top: 4px; }
-    input[type="file"] { width: 100%; color: var(--muted); }
-    .wallpaper-preview { display: none; position: relative; width: min(210px, 62vw); aspect-ratio: 9 / 19.5; overflow: hidden; border-radius: 24px; border: 2px solid #344679; background: #05070d; box-shadow: 0 12px 32px rgba(0,0,0,.35); }
+    body { background: radial-gradient(circle at 50% -10%, #18244a 0, #080d1a 42%, #060a14 100%); }
+    button, input, select { font: inherit; }
+    select, input[type="text"], input[type="number"] { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid #2b3966; border-radius: 10px; background: #0b1328; color: #eef3ff; }
+    select:disabled, input:disabled, button:disabled { opacity: .48; }
+    .settings-shell { width: min(100%, 880px); margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 14px calc(96px + env(safe-area-inset-bottom)); }
+    .settings-header { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: 0 2px 14px; }
+    .settings-header h1 { margin: 0; font-size: clamp(1.65rem, 7vw, 2.25rem); letter-spacing: -.03em; }
+    .settings-header p { max-width: 520px; margin: 4px 0 0; color: #93a4ca; font-size: .9rem; line-height: 1.4; }
+    .settings-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 11px; }
+    .panel { margin: 0; padding: 14px; border: 1px solid #202e55; border-radius: 14px; background: rgba(15,23,46,.94); box-shadow: 0 10px 28px rgba(0,0,0,.2); }
+    .panel.wide { grid-column: 1 / -1; }
+    details.panel { padding: 0; }
+    details.panel > summary { padding: 14px; color: #eef3ff; font-weight: 750; cursor: pointer; list-style: none; }
+    details.panel > summary::-webkit-details-marker { display: none; }
+    details.panel > summary::after { content: '+'; float: right; color: #7dd3fc; font-size: 1.15rem; font-weight: 500; }
+    details.panel[open] > summary::after { content: '−'; }
+    details.panel > .panel-body { padding: 0 14px 14px; }
+    .panel-title { margin: 0 0 11px; color: #f4f7ff; font-size: .94rem; }
+    .compact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .field { display: grid; align-content: start; gap: 5px; min-width: 0; }
+    .field > label { color: #dce6ff; font-size: .84rem; font-weight: 700; }
+    .field-note, .mode-note, .status { color: #8fa1c9; font-size: .78rem; line-height: 1.4; }
+    .mode-note { margin: 9px 0 0; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; }
+    .toggle-copy strong { display: block; color: #e8eeff; font-size: .88rem; }
+    .toggle-copy span { display: block; margin-top: 2px; color: #899bc2; font-size: .75rem; line-height: 1.3; }
+    .switch { position: relative; flex: 0 0 auto; width: 44px; height: 26px; }
+    .switch input { position: absolute; opacity: 0; pointer-events: none; }
+    .switch span { position: absolute; inset: 0; border-radius: 999px; background: #34405e; transition: .16s; }
+    .switch span::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: white; transition: .16s; box-shadow: 0 2px 7px #0008; }
+    .switch input:checked + span { background: #4ade80; }
+    .switch input:checked + span::after { transform: translateX(18px); }
+    .divider { height: 1px; margin: 11px 0; background: #26345b; }
+    .inline { display: flex; gap: 7px; align-items: center; }
+    .inline > :first-child { min-width: 0; flex: 1; }
+    .small-button { width: auto; min-height: 40px; padding: 8px 11px; border-radius: 10px; white-space: nowrap; }
+    .small-button.danger { background: #402033; color: #fecdd3; }
+    .mode-panel[hidden], .custom-text-fields[hidden] { display: none !important; }
+    .guide-strip { display: grid; gap: 6px; margin-top: 10px; padding: 10px; border: 1px solid #26355f; border-radius: 10px; background: #0a1124; }
+    .guide-strip code { color: #d9e8ff; font-size: .77rem; line-height: 1.5; white-space: normal; }
+    .face-toolbar { display: grid; grid-template-columns: 1fr auto auto; gap: 7px; }
+    .face-matrix { display: grid; grid-template-columns: 28px repeat(4, minmax(0, 1fr)); gap: 5px; align-items: center; margin-top: 10px; }
+    .face-matrix .axis { color: #92a5ce; font-size: .75rem; text-align: center; }
+    .face-matrix input { min-width: 0; min-height: 36px; padding: 5px; border-radius: 8px; text-align: center; }
+    .tap-toolbar { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(70px, .7fr)) auto; gap: 7px; align-items: end; }
+    .tap-editor-wrap { display: grid; grid-template-columns: minmax(145px, 210px) 1fr; gap: 13px; align-items: start; margin-top: 11px; }
+    .tap-grid { display: grid; grid-template-columns: repeat(var(--tap-columns), minmax(0, 1fr)); grid-template-rows: repeat(var(--tap-rows), minmax(0, 1fr)); gap: 4px; width: 100%; aspect-ratio: 9 / 17.5; padding: 7px; border: 2px solid #344675; border-radius: 20px; background: #060a13; overflow: hidden; }
+    .tap-cell { min-width: 0; min-height: 0; padding: 2px; border: 1px solid #27375e; border-radius: 7px; background: #111b34; color: #dbe7ff; font-size: clamp(.62rem, 2.4vw, .78rem); overflow: hidden; text-overflow: ellipsis; }
+    .tap-cell.selected { outline: 2px solid #67e8f9; background: #193354; }
+    .tap-cell.empty { color: #536384; }
+    .zone-editor { display: grid; gap: 9px; padding: 11px; border: 1px solid #27365e; border-radius: 11px; background: #0a1124; }
+    .zone-editor h3 { margin: 0; font-size: .9rem; }
+    .wallpaper-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+    .wallpaper-preview { display: none; width: 74px; margin: 0; aspect-ratio: 9 / 19.5; overflow: hidden; border: 1px solid #405181; border-radius: 12px; background: #000; }
     .wallpaper-preview.visible { display: block; }
-    .wallpaper-preview img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center; }
-    .wallpaper-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-    .wallpaper-actions button { width: auto; padding: 10px 13px; }
-    .status { min-height: 1.3em; color: var(--muted); font-size: .88rem; }
+    .wallpaper-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .status { min-height: 1.1em; margin-top: 7px; }
     .status.error { color: #fca5a5; }
-    .launch { position: sticky; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 2; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
-    .guide { display: grid; gap: 12px; }
-    .guide h3 { margin: 0; font-size: 1rem; }
-    .guide p { margin: 0; color: var(--muted); line-height: 1.45; }
-    .mapping { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-    .mapping code { display: block; padding: 8px; border-radius: 9px; background: #0b1125; color: #dce9ff; text-align: center; font-size: .86rem; }
-    @media (max-width: 430px) { .mapping { grid-template-columns: 1fr; } }
+    .launch-bar { position: fixed; z-index: 5; right: 0; bottom: 0; left: 0; padding: 10px max(14px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); background: linear-gradient(0deg, #060a14 60%, transparent); pointer-events: none; }
+    .launch { display: block; width: min(852px, 100%); margin: 0 auto; min-height: 54px; padding: 13px 18px; border-radius: 13px; box-shadow: 0 12px 32px #000a; pointer-events: auto; font-size: 1rem; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media (max-width: 680px) {
+      .settings-layout { grid-template-columns: 1fr; }
+      .panel.wide { grid-column: auto; }
+      .settings-header p { max-width: none; }
+      .tap-toolbar { grid-template-columns: 1fr 1fr; }
+      .tap-toolbar .preset-field { grid-column: 1 / -1; }
+    }
+    @media (max-width: 430px) {
+      .settings-shell { padding-inline: 10px; }
+      .compact-grid { grid-template-columns: 1fr; }
+      .tap-editor-wrap { grid-template-columns: minmax(125px, 44%) 1fr; gap: 8px; }
+      .zone-editor { padding: 8px; }
+      .face-toolbar { grid-template-columns: 1fr auto; }
+      .face-toolbar .danger { grid-column: 1 / -1; }
+    }
   </style>
 </head>
 <body>
   <main class="settings-shell">
     <header class="settings-header">
-      <h1>Swipe Input</h1>
-      <p>Configure the covert input surface, automatic clipboard handoff, and optional full-screen fake Home Screen.</p>
+      <div>
+        <h1>Swipe Input</h1>
+        <p>Build a covert input surface, then send the result straight to the clipboard or an iOS Shortcut.</p>
+      </div>
     </header>
 
-    <div class="settings-grid">
-      <section class="card">
-        <fieldset>
-          <legend>Input method</legend>
-          <label class="choice">
-            <input id="modeTwoSwipe" type="radio" name="inputMode" value="twoswipe">
-            <span><strong>Two-swipe clock</strong><span>Recommended. First choose an anchor (0, 3, 6, or 9), then point to that digit or a neighbor.</span></span>
-          </label>
-          <label class="choice">
-            <input id="modeClockFace" type="radio" name="inputMode" value="clockface">
-            <span><strong>Direct clock face</strong><span>One swipe toward the digit. Fast, but requires more precise angles.</span></span>
-          </label>
-        </fieldset>
-      </section>
+    <div class="settings-layout">
+      <section class="panel wide">
+        <div class="compact-grid">
+          <div class="field">
+            <label for="inputMode">Input method</label>
+            <select id="inputMode">
+              <option value="twoswipe">Two-swipe numbers</option>
+              <option value="clockface">Direct clock numbers</option>
+              <option value="cards">Playing-card face</option>
+              <option value="customface">Custom clock face</option>
+              <option value="tapzones">Screen tap zones</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="delay">Auto-submit</label>
+            <select id="delay">
+              <option value="1">After 1 second</option>
+              <option value="2">After 2 seconds</option>
+              <option value="3">After 3 seconds</option>
+              <option value="5">After 5 seconds</option>
+              <option value="8">After 8 seconds</option>
+              <option value="15">After 15 seconds</option>
+              <option value="30">After 30 seconds</option>
+              <option value="60">After 60 seconds</option>
+            </select>
+          </div>
+        </div>
+        <p id="modeNote" class="mode-note"></p>
 
-      <section class="card settings-grid">
-        <div class="field">
-          <label for="delay">Auto-submit delay</label>
-          <input id="delay" type="number" min="1" max="60" step="1" inputmode="numeric">
-          <span class="field-note">The countdown begins after a complete digit. A quick two-finger tap submits immediately.</span>
+        <div id="cardPanel" class="mode-panel" hidden>
+          <div class="divider"></div>
+          <div class="field">
+            <label for="cardOutputFormat">Copied card format</label>
+            <select id="cardOutputFormat">
+              <option value="compact">Compact — A ♥️</option>
+              <option value="words">Spelled out — Ace of Hearts</option>
+            </select>
+          </div>
+          <div class="guide-strip">
+            <code>Suit: ↑ ♠️ · → ♥️ · ↓ ♦️ · ← ♣️</code>
+            <code>Rank: ← = K · ↑ then ↑/→/↓/← = A/2/3/4 · → then = 5/6/7/8 · ↓ then = 9/10/J/Q</code>
+          </div>
         </div>
 
-        <div class="field">
-          <label for="shortcut">iOS Shortcut name (optional)</label>
-          <input id="shortcut" type="text" autocomplete="off" placeholder="e.g. City List">
+        <div id="customFacePanel" class="mode-panel" hidden>
+          <div class="divider"></div>
+          <div class="face-toolbar">
+            <select id="customFaceSelect" aria-label="Saved custom clock face"></select>
+            <button id="newFace" class="ghost small-button" type="button">New</button>
+            <button id="deleteFace" class="small-button danger" type="button">Delete</button>
+          </div>
+          <div class="field" style="margin-top:9px">
+            <label for="faceName">Face name</label>
+            <input id="faceName" type="text" maxlength="48" autocomplete="off">
+          </div>
+          <p class="mode-note">First swipe chooses a row; second swipe chooses a column. Empty combinations are ignored.</p>
+          <div id="faceMatrix" class="face-matrix" aria-label="Custom two-swipe output map"></div>
         </div>
 
-        <label class="check-row" for="clipboard">
-          <input id="clipboard" type="checkbox">
-          <span><strong>Automatically copy the current input</strong><span class="field-note">The clipboard is updated as each digit registers, while the swipe still has browser permission.</span></span>
-        </label>
-
-        <label class="check-row" for="practiceMode">
-          <input id="practiceMode" type="checkbox">
-          <span><strong>Practice Mode</strong><span class="field-note">Shows the current input in large text at the center. Leave this off for performance; the bottom corners show only the two small numbers.</span></span>
-        </label>
-      </section>
-
-      <section class="card settings-grid">
-        <label class="check-row" for="fakeHomescreen">
-          <input id="fakeHomescreen" type="checkbox">
-          <span><strong>Use wallpaper performance mode</strong><span class="field-note">The uploaded image becomes a fixed, full-screen CSS background. Without an image, the performance screen stays black.</span></span>
-        </label>
-
-        <div class="field">
-          <label for="homescreenImage">Home Screen screenshot or wallpaper</label>
-          <input id="homescreenImage" type="file" accept="image/*">
+        <div id="tapZonePanel" class="mode-panel" hidden>
+          <div class="divider"></div>
+          <div class="tap-toolbar">
+            <div class="field preset-field">
+              <label for="tapPreset">Starting map</label>
+              <select id="tapPreset">
+                <option value="numbers">Home Screen numbers</option>
+                <option value="cards">Suits and card values</option>
+                <option value="blank">Blank 4 × 6</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="tapRows">Rows</label>
+              <select id="tapRows"></select>
+            </div>
+            <div class="field">
+              <label for="tapColumns">Columns</label>
+              <select id="tapColumns"></select>
+            </div>
+            <button id="applyTapPreset" class="ghost small-button" type="button">Apply</button>
+          </div>
+          <p class="mode-note">Every cell covers that part of the real performance screen. Turn on Practice Mode to see the map while calibrating; it disappears in performance.</p>
+          <div class="tap-editor-wrap">
+            <div id="tapGrid" class="tap-grid" aria-label="Tap zone map"></div>
+            <div class="zone-editor">
+              <h3 id="selectedZoneTitle">Zone 1</h3>
+              <div class="field">
+                <label for="zoneAssignment">Input</label>
+                <select id="zoneAssignment"></select>
+              </div>
+              <div id="customTextFields" class="custom-text-fields" hidden>
+                <div class="field">
+                  <label for="zoneCustomValue">Custom output</label>
+                  <input id="zoneCustomValue" type="text" maxlength="80" autocomplete="off">
+                </div>
+                <div class="field" style="margin-top:8px">
+                  <label for="zoneCustomBehavior">Behavior</label>
+                  <select id="zoneCustomBehavior">
+                    <option value="append">Append to current input</option>
+                    <option value="set">Replace current input</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      </section>
 
-        <div class="wallpaper-actions">
-          <figure id="wallpaperPreview" class="wallpaper-preview" aria-label="Wallpaper preview">
-            <img id="wallpaperPreviewImage" alt="Uploaded performance wallpaper preview">
-          </figure>
-          <button id="removeWallpaper" class="ghost" type="button" hidden>Remove image</button>
+      <section class="panel">
+        <h2 class="panel-title">Output</h2>
+        <div class="toggle-row">
+          <div class="toggle-copy"><strong>Copy automatically</strong><span>Updates after every completed input.</span></div>
+          <label class="switch"><input id="clipboard" type="checkbox" aria-label="Copy automatically"><span aria-hidden="true"></span></label>
         </div>
-        <div id="wallpaperStatus" class="status" role="status" aria-live="polite"></div>
-      </section>
-
-      <button id="perform" class="xl launch" type="button">Enter performance mode</button>
-
-      <section class="card guide">
-        <h3>Two-swipe clock map</h3>
-        <p>0 is at 12 o’clock, 3 is right, 6 is down, and 9 is left. The second swipe points to the anchor or a neighboring digit:</p>
-        <div class="mapping" aria-label="Two-swipe digit combinations">
-          <code>↑← = 9 · ↑↑ = 0 · ↑→ = 1</code>
-          <code>→↑ = 2 · →→ = 3 · →↓ = 4</code>
-          <code>↓→ = 5 · ↓↓ = 6 · ↓← = 7</code>
-          <code>←↓ = 8 · ←← = 9 · ←↑ = 0</code>
+        <div class="divider"></div>
+        <div class="toggle-row">
+          <div class="toggle-copy"><strong>Run iOS Shortcut</strong><span>Optional after automatic submit.</span></div>
+          <label class="switch"><input id="shortcutEnabled" type="checkbox" aria-label="Run iOS Shortcut"><span aria-hidden="true"></span></label>
         </div>
-        <p>An opposite second swipe is treated as a new first swipe, preventing accidental digits.</p>
+        <div class="field" style="margin-top:9px">
+          <label for="shortcutSelect">Saved Shortcut</label>
+          <select id="shortcutSelect"></select>
+        </div>
+        <div class="inline" style="margin-top:7px">
+          <input id="newShortcut" type="text" maxlength="120" autocomplete="off" placeholder="Add Shortcut name">
+          <button id="addShortcut" class="ghost small-button" type="button">Add</button>
+          <button id="deleteShortcut" class="small-button danger" type="button" aria-label="Delete selected Shortcut">Delete</button>
+        </div>
       </section>
 
-      <section class="card guide">
-        <h3>Performance controls</h3>
-        <p>Swipe anywhere on the performance screen. Double-tap clears. Quick two-finger tap submits. Swipe down with two fingers to return to Settings; a two-finger hold is also kept as a fallback.</p>
+      <section class="panel">
+        <h2 class="panel-title">Performance</h2>
+        <div class="toggle-row">
+          <div class="toggle-copy"><strong>Practice Mode</strong><span>Large center output and tap-map overlay.</span></div>
+          <label class="switch"><input id="practiceMode" type="checkbox" aria-label="Practice Mode"><span aria-hidden="true"></span></label>
+        </div>
+        <div class="divider"></div>
+        <div class="toggle-row">
+          <div class="toggle-copy"><strong>Wallpaper mode</strong><span>Full-screen image; black when none exists.</span></div>
+          <label class="switch"><input id="fakeHomescreen" type="checkbox" aria-label="Wallpaper mode"><span aria-hidden="true"></span></label>
+        </div>
       </section>
+
+      <details class="panel">
+        <summary>Wallpaper</summary>
+        <div class="panel-body">
+          <div class="wallpaper-row">
+            <div class="field">
+              <label for="homescreenImage">Home Screen screenshot or image</label>
+              <input id="homescreenImage" type="file" accept="image/*">
+              <button id="removeWallpaper" class="ghost small-button" type="button" hidden>Remove image</button>
+            </div>
+            <figure id="wallpaperPreview" class="wallpaper-preview" aria-label="Wallpaper preview"><img id="wallpaperPreviewImage" alt="Performance wallpaper preview"></figure>
+          </div>
+          <div id="wallpaperStatus" class="status" role="status" aria-live="polite"></div>
+        </div>
+      </details>
+
+      <details class="panel">
+        <summary>Controls & quick guide</summary>
+        <div class="panel-body">
+          <div id="dynamicGuide" class="guide-strip"></div>
+          <p class="mode-note">Quick two-finger tap submits. Two-finger swipe down returns here; two-finger hold is the fallback. Double-tap clears in swipe modes. In tap-zone mode, assign Clear or Backspace to a zone.</p>
+        </div>
+      </details>
     </div>
   </main>
 
-  <script src="../../assets/js/storage.js?v=4"></script>
-  <script src="../../assets/js/swipe.js?v=4"></script>
+  <div class="launch-bar"><button id="perform" class="launch" type="button">Enter performance mode</button></div>
+
+  <script src="../../assets/js/storage.js?v=6"></script>
+  <script src="../../assets/js/inputProfiles.js?v=6"></script>
+  <script src="../../assets/js/swipe.js?v=6"></script>
   <script>
     const WALLPAPER_KEY = 'swipe.wallpaper';
+    const directions = InputProfiles.DIRECTIONS;
+    const directionSymbols = InputProfiles.DIRECTION_SYMBOLS;
+    const $ = (id) => document.getElementById(id);
     const elements = {
-      delay: document.getElementById('delay'),
-      shortcut: document.getElementById('shortcut'),
-      clipboard: document.getElementById('clipboard'),
-      practiceMode: document.getElementById('practiceMode'),
-      fakeHomescreen: document.getElementById('fakeHomescreen'),
-      homescreenImage: document.getElementById('homescreenImage'),
-      preview: document.getElementById('wallpaperPreview'),
-      previewImage: document.getElementById('wallpaperPreviewImage'),
-      removeWallpaper: document.getElementById('removeWallpaper'),
-      wallpaperStatus: document.getElementById('wallpaperStatus'),
-      perform: document.getElementById('perform')
+      inputMode: $('inputMode'), delay: $('delay'), modeNote: $('modeNote'),
+      cardPanel: $('cardPanel'), cardOutputFormat: $('cardOutputFormat'),
+      customFacePanel: $('customFacePanel'), customFaceSelect: $('customFaceSelect'), newFace: $('newFace'), deleteFace: $('deleteFace'), faceName: $('faceName'), faceMatrix: $('faceMatrix'),
+      tapZonePanel: $('tapZonePanel'), tapPreset: $('tapPreset'), tapRows: $('tapRows'), tapColumns: $('tapColumns'), applyTapPreset: $('applyTapPreset'), tapGrid: $('tapGrid'),
+      selectedZoneTitle: $('selectedZoneTitle'), zoneAssignment: $('zoneAssignment'), customTextFields: $('customTextFields'), zoneCustomValue: $('zoneCustomValue'), zoneCustomBehavior: $('zoneCustomBehavior'),
+      clipboard: $('clipboard'), shortcutEnabled: $('shortcutEnabled'), shortcutSelect: $('shortcutSelect'), newShortcut: $('newShortcut'), addShortcut: $('addShortcut'), deleteShortcut: $('deleteShortcut'),
+      practiceMode: $('practiceMode'), fakeHomescreen: $('fakeHomescreen'), homescreenImage: $('homescreenImage'), preview: $('wallpaperPreview'), previewImage: $('wallpaperPreviewImage'), removeWallpaper: $('removeWallpaper'), wallpaperStatus: $('wallpaperStatus'),
+      dynamicGuide: $('dynamicGuide'), perform: $('perform')
     };
 
     let state = Swipe.normalizeConfig(Storage.load('swipe', {}));
+    let selectedTapIndex = 0;
     let previewHandle = null;
     let wallpaperReadyPromise = Promise.resolve();
 
-    function setStatus(message, isError = false) {
+    function saveState() {
+      state = Swipe.normalizeConfig(state);
+      if (!Storage.save('swipe', state)) setWallpaperStatus('Settings could not be saved in this browsing mode.', true);
+      syncRootWallpaper();
+    }
+
+    function setWallpaperStatus(message, isError = false) {
       elements.wallpaperStatus.textContent = message;
       elements.wallpaperStatus.classList.toggle('error', isError);
     }
@@ -182,46 +325,244 @@
       rootStyle.backgroundSize = 'cover';
     }
 
-    async function warmInstantWallpaper() {
-      const wallpaper = Storage.loadInstantImage(WALLPAPER_KEY);
-      if (!wallpaper) return false;
-      try {
-        const probe = new Image();
-        probe.src = wallpaper;
-        if (probe.decode) await probe.decode();
-        else await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; });
-        return true;
-      } catch (_) {
-        return false;
+    function selectDelay(value) {
+      const rounded = String(Math.min(60, Math.max(1, Number(value) || 3)));
+      if (![...elements.delay.options].some((option) => option.value === rounded)) {
+        elements.delay.add(new Option(`After ${rounded} seconds`, rounded));
       }
+      elements.delay.value = rounded;
     }
 
-    async function ensureInstantWallpaper(image) {
-      if (Storage.loadInstantImage(WALLPAPER_KEY) && await warmInstantWallpaper()) return true;
-      Storage.deleteInstantImage(WALLPAPER_KEY);
-      if (!await Storage.saveInstantImage(WALLPAPER_KEY, image)) return false;
-      return warmInstantWallpaper();
+    function renderShortcutMenu() {
+      elements.shortcutSelect.replaceChildren();
+      if (!state.shortcutNames.length) elements.shortcutSelect.add(new Option('No saved Shortcuts', ''));
+      state.shortcutNames.forEach((name) => elements.shortcutSelect.add(new Option(name, name)));
+      elements.shortcutSelect.value = state.shortcut;
+      const hasShortcut = Boolean(state.shortcut);
+      elements.shortcutSelect.disabled = !state.shortcutNames.length;
+      elements.shortcutEnabled.disabled = !hasShortcut;
+      elements.shortcutEnabled.checked = state.shortcutEnabled && hasShortcut;
+      elements.deleteShortcut.disabled = !hasShortcut;
     }
 
-    function persist() {
-      state.inputMode = document.querySelector('input[name="inputMode"]:checked')?.value || 'twoswipe';
-      state.useTwoSwipe = state.inputMode === 'twoswipe';
-      state.delay = Math.min(60, Math.max(1, Number(elements.delay.value) || 3));
-      state.shortcut = elements.shortcut.value.trim();
-      state.clipboard = elements.clipboard.checked;
-      state.practiceMode = elements.practiceMode.checked;
-      state.fakeHomescreen = elements.fakeHomescreen.checked;
-      if (!Storage.save('swipe', state)) setStatus('Settings could not be saved in this browsing mode.', true);
-      syncRootWallpaper();
+    function addShortcut() {
+      const name = elements.newShortcut.value.trim();
+      if (!name) return;
+      const existing = state.shortcutNames.find((item) => item.toLocaleLowerCase() === name.toLocaleLowerCase());
+      if (!existing) state.shortcutNames.push(name);
+      state.shortcut = existing || name;
+      state.shortcutEnabled = true;
+      elements.newShortcut.value = '';
+      saveState();
+      renderShortcutMenu();
+    }
+
+    function deleteShortcut() {
+      if (!state.shortcut) return;
+      state.shortcutNames = state.shortcutNames.filter((name) => name !== state.shortcut);
+      state.shortcut = state.shortcutNames[0] || '';
+      state.shortcutEnabled = Boolean(state.shortcut) && state.shortcutEnabled;
+      saveState();
+      renderShortcutMenu();
+    }
+
+    function activeFace() {
+      return state.customFaces.find((face) => face.id === state.activeCustomFaceId) || null;
+    }
+
+    function ensureFace() {
+      if (activeFace()) return;
+      const face = InputProfiles.createBlankFace('My clock face');
+      state.customFaces.push(face);
+      state.activeCustomFaceId = face.id;
+      saveState();
+    }
+
+    function renderFaceMenu() {
+      ensureFace();
+      elements.customFaceSelect.replaceChildren();
+      state.customFaces.forEach((face) => elements.customFaceSelect.add(new Option(face.name, face.id)));
+      elements.customFaceSelect.value = state.activeCustomFaceId;
+      elements.deleteFace.disabled = state.customFaces.length <= 1;
+    }
+
+    function renderFaceEditor() {
+      renderFaceMenu();
+      const face = activeFace();
+      elements.faceName.value = face?.name || '';
+      elements.faceMatrix.replaceChildren();
+      const corner = document.createElement('span');
+      corner.className = 'axis';
+      corner.textContent = '1↓ 2→';
+      elements.faceMatrix.append(corner);
+      directions.forEach((direction) => {
+        const label = document.createElement('span');
+        label.className = 'axis';
+        label.textContent = directionSymbols[direction];
+        elements.faceMatrix.append(label);
+      });
+      directions.forEach((first) => {
+        const rowLabel = document.createElement('span');
+        rowLabel.className = 'axis';
+        rowLabel.textContent = directionSymbols[first];
+        elements.faceMatrix.append(rowLabel);
+        directions.forEach((second) => {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.maxLength = 80;
+          input.value = face.map[first][second];
+          input.setAttribute('aria-label', `${first} then ${second} output`);
+          input.addEventListener('change', () => {
+            const currentFace = activeFace();
+            if (!currentFace) return;
+            currentFace.map[first][second] = input.value;
+            saveState();
+          });
+          elements.faceMatrix.append(input);
+        });
+      });
+    }
+
+    function addFace() {
+      const face = InputProfiles.createBlankFace(`Custom face ${state.customFaces.length + 1}`);
+      state.customFaces.push(face);
+      state.activeCustomFaceId = face.id;
+      saveState();
+      renderFaceEditor();
+      elements.faceName.focus();
+      elements.faceName.select();
+    }
+
+    function deleteFace() {
+      if (state.customFaces.length <= 1) return;
+      state.customFaces = state.customFaces.filter((face) => face.id !== state.activeCustomFaceId);
+      state.activeCustomFaceId = state.customFaces[0]?.id || '';
+      saveState();
+      renderFaceEditor();
+    }
+
+    function populateTapControls() {
+      for (let rows = 2; rows <= 8; rows += 1) elements.tapRows.add(new Option(String(rows), String(rows)));
+      for (let columns = 2; columns <= 5; columns += 1) elements.tapColumns.add(new Option(String(columns), String(columns)));
+
+      elements.zoneAssignment.add(new Option('Unused', 'empty'));
+      const digitGroup = document.createElement('optgroup');
+      digitGroup.label = 'Append a number';
+      for (let digit = 0; digit <= 9; digit += 1) digitGroup.append(new Option(String(digit), `append:${digit}`));
+      elements.zoneAssignment.append(digitGroup);
+      const suitGroup = document.createElement('optgroup');
+      suitGroup.label = 'Card suit';
+      Object.values(InputProfiles.SUITS).forEach((suit) => suitGroup.append(new Option(`${suit.emoji} ${suit.plural}`, `suit:${suit.id}`)));
+      elements.zoneAssignment.append(suitGroup);
+      const rankGroup = document.createElement('optgroup');
+      rankGroup.label = 'Card value';
+      InputProfiles.RANKS.forEach((rank) => rankGroup.append(new Option(rank, `rank:${rank}`)));
+      elements.zoneAssignment.append(rankGroup);
+      const controlGroup = document.createElement('optgroup');
+      controlGroup.label = 'Controls';
+      controlGroup.append(new Option('Backspace', 'backspace'), new Option('Clear all', 'clear'), new Option('Submit now', 'submit'));
+      elements.zoneAssignment.append(controlGroup);
+      elements.zoneAssignment.add(new Option('Custom text…', 'custom'));
+    }
+
+    function assignmentFor(action) {
+      if (action.kind === 'append' && /^\d$/.test(action.value)) return `append:${action.value}`;
+      if (action.kind === 'suit' || action.kind === 'rank') return `${action.kind}:${action.value}`;
+      if (['empty', 'backspace', 'clear', 'submit'].includes(action.kind)) return action.kind;
+      return 'custom';
+    }
+
+    function renderSelectedZone() {
+      const action = state.tapGrid.zones[selectedTapIndex] || { kind: 'empty', value: '' };
+      const row = Math.floor(selectedTapIndex / state.tapGrid.columns) + 1;
+      const column = selectedTapIndex % state.tapGrid.columns + 1;
+      elements.selectedZoneTitle.textContent = `Row ${row}, column ${column}`;
+      elements.zoneAssignment.value = assignmentFor(action);
+      const custom = elements.zoneAssignment.value === 'custom';
+      elements.customTextFields.hidden = !custom;
+      elements.zoneCustomValue.value = custom ? action.value : '';
+      elements.zoneCustomBehavior.value = action.kind === 'set' ? 'set' : 'append';
+    }
+
+    function renderTapGrid() {
+      state.tapGrid = InputProfiles.normalizeTapGrid(state.tapGrid);
+      selectedTapIndex = Math.min(selectedTapIndex, state.tapGrid.zones.length - 1);
+      elements.tapRows.value = state.tapGrid.rows;
+      elements.tapColumns.value = state.tapGrid.columns;
+      elements.tapGrid.style.setProperty('--tap-rows', state.tapGrid.rows);
+      elements.tapGrid.style.setProperty('--tap-columns', state.tapGrid.columns);
+      elements.tapGrid.replaceChildren();
+      state.tapGrid.zones.forEach((action, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `tap-cell${index === selectedTapIndex ? ' selected' : ''}${action.kind === 'empty' ? ' empty' : ''}`;
+        button.textContent = InputProfiles.tapActionLabel(action);
+        button.setAttribute('aria-label', `Zone ${index + 1}: ${InputProfiles.tapActionLabel(action, true)}`);
+        button.addEventListener('click', () => { selectedTapIndex = index; renderTapGrid(); });
+        elements.tapGrid.append(button);
+      });
+      renderSelectedZone();
+    }
+
+    function setZoneActionFromForm() {
+      const selection = elements.zoneAssignment.value;
+      let action;
+      if (selection === 'custom') {
+        action = { kind: elements.zoneCustomBehavior.value, value: elements.zoneCustomValue.value };
+      } else if (selection.includes(':')) {
+        const separator = selection.indexOf(':');
+        action = { kind: selection.slice(0, separator), value: selection.slice(separator + 1) };
+      } else {
+        action = { kind: selection, value: '' };
+      }
+      state.tapGrid.zones[selectedTapIndex] = InputProfiles.normalizeTapAction(action);
+      saveState();
+      renderTapGrid();
+    }
+
+    function resizeTapGrid() {
+      state.tapGrid = InputProfiles.normalizeTapGrid({ rows: elements.tapRows.value, columns: elements.tapColumns.value, zones: state.tapGrid.zones });
+      selectedTapIndex = 0;
+      saveState();
+      renderTapGrid();
+    }
+
+    function applyTapPreset() {
+      state.tapGrid = InputProfiles.defaultTapGrid(elements.tapPreset.value);
+      selectedTapIndex = 0;
+      saveState();
+      renderTapGrid();
+    }
+
+    const modeCopy = {
+      twoswipe: ['Two swipes per digit; 12 o’clock is always straight up.', '<code>↑← 9 · ↑↑ 0 · ↑→ 1 &nbsp; | &nbsp; →↑ 2 · →→ 3 · →↓ 4</code><code>↓→ 5 · ↓↓ 6 · ↓← 7 &nbsp; | &nbsp; ←↓ 8 · ←← 9 · ←↑ 0</code>'],
+      clockface: ['One swipe points directly to 0–9 on a clock face. 0 is at 12 o’clock.', '<code>12 = 0 · 1–9 match their clock positions. The 10 and 11 o’clock sectors are unused.</code>'],
+      cards: ['First choose a suit, then enter its value with one or two more swipes.', '<code>Suit: ↑ ♠️ · → ♥️ · ↓ ♦️ · ← ♣️</code><code>Rank groups: ← K · ↑ A–4 · → 5–8 · ↓ 9–Q</code>'],
+      customface: ['A reusable two-swipe map where every direction pair can output your own text.', '<code>Choose a first-swipe row and second-swipe column in the editor above. Outputs append to the current input.</code>'],
+      tapzones: ['Tap anywhere in a mapped screen region. Empty regions do nothing.', '<code>Use Practice Mode to line zones up with icons or app titles, then switch it off to hide the map.</code>']
+    };
+
+    function renderMode() {
+      const mode = state.inputMode;
+      elements.cardPanel.hidden = mode !== 'cards';
+      elements.customFacePanel.hidden = mode !== 'customface';
+      elements.tapZonePanel.hidden = mode !== 'tapzones';
+      elements.modeNote.textContent = modeCopy[mode][0];
+      elements.dynamicGuide.innerHTML = modeCopy[mode][1];
+      if (mode === 'customface') renderFaceEditor();
+      if (mode === 'tapzones') renderTapGrid();
     }
 
     function fillForm() {
-      document.getElementById(state.inputMode === 'clockface' ? 'modeClockFace' : 'modeTwoSwipe').checked = true;
-      elements.delay.value = state.delay;
-      elements.shortcut.value = state.shortcut;
+      elements.inputMode.value = state.inputMode;
+      selectDelay(state.delay);
+      elements.cardOutputFormat.value = state.cardOutputFormat;
       elements.clipboard.checked = state.clipboard;
+      elements.shortcutEnabled.checked = state.shortcutEnabled;
       elements.practiceMode.checked = state.practiceMode;
       elements.fakeHomescreen.checked = state.fakeHomescreen;
+      renderShortcutMenu();
+      renderMode();
     }
 
     function clearPreviewUrl() {
@@ -237,34 +578,45 @@
       elements.removeWallpaper.hidden = false;
     }
 
+    async function warmInstantWallpaper() {
+      const wallpaper = Storage.loadInstantImage(WALLPAPER_KEY);
+      if (!wallpaper) return false;
+      try {
+        const probe = new Image();
+        probe.src = wallpaper;
+        if (probe.decode) await probe.decode();
+        else await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; });
+        return true;
+      } catch (_) { return false; }
+    }
+
+    async function ensureInstantWallpaper(image) {
+      if (Storage.loadInstantImage(WALLPAPER_KEY) && await warmInstantWallpaper()) return true;
+      Storage.deleteInstantImage(WALLPAPER_KEY);
+      if (!await Storage.saveInstantImage(WALLPAPER_KEY, image)) return false;
+      return warmInstantWallpaper();
+    }
+
     async function loadWallpaper() {
       let image = await Storage.loadImage(WALLPAPER_KEY);
-
       if (!image && state.homescreenImage) {
         try {
           await Storage.saveImage(WALLPAPER_KEY, state.homescreenImage);
           image = await Storage.loadImage(WALLPAPER_KEY);
           state.homescreenImage = '';
-          state.hasHomescreenImage = Boolean(image);
-          Storage.save('swipe', state);
-        } catch (_) {
-          image = state.homescreenImage;
-        }
+        } catch (_) { image = state.homescreenImage; }
       }
-
       state.hasHomescreenImage = Boolean(image);
       if (image) {
-        setStatus('Preparing instant wallpaper…');
         const instantReady = await ensureInstantWallpaper(image);
-        syncRootWallpaper();
         showPreview(image);
-        setStatus(instantReady ? 'Wallpaper ready for instant full-screen display.' : 'Wallpaper ready. This browsing mode could not retain the instant copy.', !instantReady);
+        setWallpaperStatus(instantReady ? 'Ready for instant full-screen display.' : 'Saved, but instant caching is unavailable in this browsing mode.', !instantReady);
       } else {
         elements.preview.classList.remove('visible');
         elements.removeWallpaper.hidden = true;
-        setStatus('No wallpaper uploaded. Performance mode will use a black screen.');
+        setWallpaperStatus('No image saved; performance uses solid black.');
       }
-      Storage.save('swipe', state);
+      saveState();
     }
 
     async function verifyImage(file) {
@@ -274,20 +626,55 @@
         probe.src = handle.url;
         if (probe.decode) await probe.decode();
         else await new Promise((resolve, reject) => { probe.onload = resolve; probe.onerror = reject; });
-      } finally {
-        handle.revoke();
-      }
+      } finally { handle.revoke(); }
     }
+
+    elements.inputMode.addEventListener('change', () => {
+      state.inputMode = elements.inputMode.value;
+      state.useTwoSwipe = state.inputMode === 'twoswipe';
+      if (state.inputMode === 'customface') ensureFace();
+      saveState();
+      renderMode();
+    });
+    elements.delay.addEventListener('change', () => { state.delay = Number(elements.delay.value); saveState(); });
+    elements.cardOutputFormat.addEventListener('change', () => { state.cardOutputFormat = elements.cardOutputFormat.value; saveState(); });
+    elements.clipboard.addEventListener('change', () => { state.clipboard = elements.clipboard.checked; saveState(); });
+    elements.shortcutEnabled.addEventListener('change', () => { state.shortcutEnabled = elements.shortcutEnabled.checked; saveState(); });
+    elements.shortcutSelect.addEventListener('change', () => { state.shortcut = elements.shortcutSelect.value; saveState(); renderShortcutMenu(); });
+    elements.addShortcut.addEventListener('click', addShortcut);
+    elements.newShortcut.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addShortcut(); } });
+    elements.deleteShortcut.addEventListener('click', deleteShortcut);
+    elements.practiceMode.addEventListener('change', () => { state.practiceMode = elements.practiceMode.checked; saveState(); });
+    elements.fakeHomescreen.addEventListener('change', () => { state.fakeHomescreen = elements.fakeHomescreen.checked; saveState(); });
+    elements.customFaceSelect.addEventListener('change', () => { state.activeCustomFaceId = elements.customFaceSelect.value; saveState(); renderFaceEditor(); });
+    elements.newFace.addEventListener('click', addFace);
+    elements.deleteFace.addEventListener('click', deleteFace);
+    elements.faceName.addEventListener('change', () => {
+      const face = activeFace();
+      if (!face) return;
+      face.name = elements.faceName.value.trim() || 'Untitled face';
+      saveState();
+      renderFaceMenu();
+    });
+    elements.applyTapPreset.addEventListener('click', applyTapPreset);
+    elements.tapRows.addEventListener('change', resizeTapGrid);
+    elements.tapColumns.addEventListener('change', resizeTapGrid);
+    elements.zoneAssignment.addEventListener('change', () => {
+      const custom = elements.zoneAssignment.value === 'custom';
+      elements.customTextFields.hidden = !custom;
+      if (custom) {
+        elements.zoneCustomValue.value = '';
+        elements.zoneCustomValue.focus();
+      } else setZoneActionFromForm();
+    });
+    elements.zoneCustomValue.addEventListener('change', setZoneActionFromForm);
+    elements.zoneCustomBehavior.addEventListener('change', setZoneActionFromForm);
 
     elements.homescreenImage.addEventListener('change', async (event) => {
       const file = event.target.files?.[0];
       if (!file) return;
-      if (!file.type.startsWith('image/')) {
-        setStatus('Choose a valid image file.', true);
-        return;
-      }
-
-      setStatus('Saving wallpaper…');
+      if (!file.type.startsWith('image/')) { setWallpaperStatus('Choose a valid image file.', true); return; }
+      setWallpaperStatus('Saving and preloading…');
       elements.homescreenImage.disabled = true;
       elements.perform.disabled = true;
       try {
@@ -298,12 +685,11 @@
         state.homescreenImage = '';
         state.fakeHomescreen = true;
         elements.fakeHomescreen.checked = true;
-        persist();
-        syncRootWallpaper();
+        saveState();
         showPreview(file);
-        setStatus(instantReady ? 'Wallpaper saved, preloaded, and enabled for performance mode.' : 'Wallpaper saved, but this browsing mode could not retain the instant copy.', !instantReady);
+        setWallpaperStatus(instantReady ? 'Saved, preloaded, and enabled.' : 'Saved, but instant caching is unavailable.', !instantReady);
       } catch (error) {
-        setStatus(error?.message || 'The wallpaper could not be saved.', true);
+        setWallpaperStatus(error?.message || 'The wallpaper could not be saved.', true);
       } finally {
         elements.homescreenImage.disabled = false;
         elements.perform.disabled = false;
@@ -321,30 +707,22 @@
       state.homescreenImage = '';
       state.fakeHomescreen = false;
       elements.fakeHomescreen.checked = false;
-      persist();
-      syncRootWallpaper();
-      setStatus('Wallpaper removed.');
+      saveState();
+      setWallpaperStatus('Image removed; performance uses solid black.');
     });
 
-    document.querySelectorAll('input[name="inputMode"]').forEach((input) => input.addEventListener('change', persist));
-    elements.delay.addEventListener('change', persist);
-    elements.shortcut.addEventListener('change', persist);
-    elements.clipboard.addEventListener('change', persist);
-    elements.practiceMode.addEventListener('change', persist);
-    elements.fakeHomescreen.addEventListener('change', persist);
     elements.perform.addEventListener('click', async () => {
-      persist();
+      saveState();
       elements.perform.disabled = true;
       elements.perform.textContent = 'Opening performance…';
       try { await wallpaperReadyPromise; } catch (_) {}
       window.location.assign('perform.html');
     });
-    window.addEventListener('pagehide', (event) => {
-      if (!event.persisted) clearPreviewUrl();
-    });
+    window.addEventListener('pagehide', (event) => { if (!event.persisted) clearPreviewUrl(); });
 
+    populateTapControls();
     fillForm();
-    persist();
+    saveState();
     wallpaperReadyPromise = loadWallpaper();
   </script>
 </body>

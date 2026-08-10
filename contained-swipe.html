@@ -49,11 +49,19 @@
     small { color: #9baad0; line-height: 1.4; }
     button { width: 100%; min-height: 50px; padding: 12px 16px; border: 0; border-radius: 12px; background: linear-gradient(90deg, #60a5fa, #6ee7b7); color: #05111b; font: inherit; font-weight: 800; cursor: pointer; }
     button.secondary { width: auto; min-height: 40px; background: #1b2850; color: #eef2ff; }
+    .inline { display: flex; gap: 8px; }
+    .inline > :first-child { flex: 1; min-width: 0; }
+    .editor-link { display: block; padding: 11px 12px; border: 1px solid #314173; border-radius: 11px; color: #bfdbfe; text-align: center; }
     .status { min-height: 1.3em; color: #9baad0; font-size: .88rem; }
     .status.error { color: #fca5a5; }
     .perform { position: fixed; inset: 0; overflow: visible; background-color: #000; background-image: var(--performance-wallpaper, none); background-position: center; background-repeat: no-repeat; background-size: cover; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
     .wallpaper { position: fixed; top: 0; left: 0; z-index: 0; width: 100vw; min-height: 100%; height: var(--screen-height, 100%); background-color: #000; background-image: var(--performance-wallpaper, none); background-repeat: no-repeat; background-position: center center; background-size: cover; pointer-events: none; }
     .perform-ui { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+    .tap-practice-grid { display: none; position: absolute; inset: 0; grid-template-columns: repeat(var(--tap-columns), minmax(0, 1fr)); grid-template-rows: repeat(var(--tap-rows), minmax(0, 1fr)); gap: 1px; }
+    .perform.practice-mode.tap-mode .tap-practice-grid { display: grid; }
+    .tap-practice-cell { display: grid; min-width: 0; place-items: center; border: 1px solid rgba(125,211,252,.5); background: rgba(6,12,25,.16); color: rgba(255,255,255,.88); font-size: clamp(.62rem, 2.5vw, .84rem); font-weight: 750; text-align: center; text-shadow: 0 1px 5px #000; overflow: hidden; }
+    .tap-practice-cell.empty { color: transparent; }
+    .tap-practice-cell.active { background: rgba(45,212,191,.32); }
     .practice-panel { display: none; position: absolute; inset: 0; place-content: center; justify-items: center; gap: 8px; padding: 24px; text-align: center; }
     .perform.practice-mode .practice-panel { display: grid; }
     .practice-current { max-width: 100%; color: rgba(238,244,255,.82); font-size: clamp(3.5rem, 17vw, 6.5rem); font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .08em; overflow-wrap: anywhere; text-shadow: 0 3px 18px rgba(0,0,0,.82); }
@@ -77,15 +85,33 @@
         <select id="inputMode">
           <option value="twoswipe">Two-swipe clock (recommended)</option>
           <option value="clockface">Direct clock face</option>
+          <option value="cards">Playing-card face</option>
+          <option value="customface">Custom clock face</option>
+          <option value="tapzones">Screen tap zones</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="cardOutputFormat">Playing-card output</label>
+        <select id="cardOutputFormat">
+          <option value="compact">A ♥️</option>
+          <option value="words">Ace of Hearts</option>
         </select>
       </div>
       <div class="field">
         <label for="delay">Auto-submit delay</label>
         <input id="delay" type="number" min="1" max="60" step="1" inputmode="numeric">
       </div>
+      <label class="check" for="shortcutEnabled">
+        <input id="shortcutEnabled" type="checkbox">
+        <span>Run selected iOS Shortcut</span>
+      </label>
       <div class="field">
-        <label for="shortcut">iOS Shortcut name (optional)</label>
-        <input id="shortcut" type="text" autocomplete="off">
+        <label for="shortcutSelect">Saved Shortcut</label>
+        <select id="shortcutSelect"></select>
+      </div>
+      <div class="inline">
+        <input id="newShortcut" type="text" autocomplete="off" placeholder="Add Shortcut name">
+        <button id="addShortcut" class="secondary" type="button">Add</button>
       </div>
       <label class="check" for="clipboard">
         <input id="clipboard" type="checkbox">
@@ -106,6 +132,7 @@
       <button id="removeWallpaper" class="secondary" type="button" hidden>Remove wallpaper</button>
       <div id="wallpaperStatus" class="status" role="status" aria-live="polite"></div>
       <button id="startPerform" type="button">Start contained performance</button>
+      <a class="editor-link" href="tricks/swipe/settings.html">Open custom face & tap-map editor</a>
     </section>
 
     <section class="card">
@@ -118,6 +145,7 @@
   <main id="performPage" class="perform" aria-label="Contained full-screen swipe input" hidden>
     <div id="wallpaper" class="wallpaper" aria-hidden="true"></div>
     <div class="perform-ui" aria-hidden="true">
+      <div id="tapPracticeGrid" class="tap-practice-grid"></div>
       <div class="practice-panel">
         <output id="practiceCurrent" class="practice-current">—</output>
         <div class="practice-previous">Previous <output id="practicePrevious">—</output></div>
@@ -131,11 +159,12 @@
     <div id="toast" class="toast" role="status"></div>
   </main>
 
-  <script src="assets/js/storage.js?v=4"></script>
-  <script src="assets/js/clockInput.js?v=4"></script>
-  <script src="assets/js/gestureDetector.js?v=4"></script>
-  <script src="assets/js/gestures.js?v=4"></script>
-  <script src="assets/js/swipe.js?v=4"></script>
+  <script src="assets/js/storage.js?v=6"></script>
+  <script src="assets/js/clockInput.js?v=6"></script>
+  <script src="assets/js/inputProfiles.js?v=6"></script>
+  <script src="assets/js/gestureDetector.js?v=6"></script>
+  <script src="assets/js/gestures.js?v=6"></script>
+  <script src="assets/js/swipe.js?v=6"></script>
   <script>
     const WALLPAPER_KEY = 'swipe.wallpaper';
     const settingsPage = document.getElementById('settingsPage');
@@ -143,7 +172,11 @@
     const fields = {
       inputMode: document.getElementById('inputMode'),
       delay: document.getElementById('delay'),
-      shortcut: document.getElementById('shortcut'),
+      cardOutputFormat: document.getElementById('cardOutputFormat'),
+      shortcutEnabled: document.getElementById('shortcutEnabled'),
+      shortcutSelect: document.getElementById('shortcutSelect'),
+      newShortcut: document.getElementById('newShortcut'),
+      addShortcut: document.getElementById('addShortcut'),
       clipboard: document.getElementById('clipboard'),
       practiceMode: document.getElementById('practiceMode'),
       fakeHomescreen: document.getElementById('fakeHomescreen'),
@@ -156,6 +189,7 @@
     const practicePrevious = document.getElementById('practicePrevious');
     const peekCurrent = document.getElementById('peekCurrent');
     const peekPrevious = document.getElementById('peekPrevious');
+    const tapPracticeGrid = document.getElementById('tapPracticeGrid');
     const liveStatus = document.getElementById('liveStatus');
     const toast = document.getElementById('toast');
     let state = Swipe.normalizeConfig(Storage.load('swipe', {}));
@@ -182,10 +216,45 @@
       performPage.classList.toggle('wallpaper-mode', Boolean(source));
     }
 
-    function renderCurrent(value = '', pending = false) {
-      const display = pending ? `${value}·` : (value || '—');
+    function renderCurrent(value = '', pending = false, preview = '') {
+      const partial = [value, preview].filter(Boolean).join(' ');
+      const display = pending ? `${partial}·` : (value || '—');
       peekCurrent.textContent = display;
       practiceCurrent.textContent = display;
+    }
+
+    function renderTapPracticeGrid() {
+      tapPracticeGrid.style.setProperty('--tap-rows', state.tapGrid.rows);
+      tapPracticeGrid.style.setProperty('--tap-columns', state.tapGrid.columns);
+      tapPracticeGrid.replaceChildren();
+      state.tapGrid.zones.forEach((action) => {
+        const cell = document.createElement('span');
+        cell.className = `tap-practice-cell${action.kind === 'empty' ? ' empty' : ''}`;
+        cell.textContent = InputProfiles.tapActionLabel(action, true);
+        tapPracticeGrid.append(cell);
+      });
+    }
+
+    function renderShortcutMenu() {
+      fields.shortcutSelect.replaceChildren();
+      if (!state.shortcutNames.length) fields.shortcutSelect.add(new Option('No saved Shortcuts', ''));
+      state.shortcutNames.forEach((name) => fields.shortcutSelect.add(new Option(name, name)));
+      fields.shortcutSelect.value = state.shortcut;
+      fields.shortcutSelect.disabled = !state.shortcutNames.length;
+      fields.shortcutEnabled.disabled = !state.shortcut;
+      fields.shortcutEnabled.checked = state.shortcutEnabled;
+    }
+
+    function addShortcut() {
+      const name = fields.newShortcut.value.trim();
+      if (!name) return;
+      const existing = state.shortcutNames.find((item) => item.toLocaleLowerCase() === name.toLocaleLowerCase());
+      if (!existing) state.shortcutNames.push(name);
+      state.shortcut = existing || name;
+      state.shortcutEnabled = true;
+      fields.newShortcut.value = '';
+      renderShortcutMenu();
+      saveSettings();
     }
 
     function renderPrevious(value = '') {
@@ -197,20 +266,24 @@
     function fillForm() {
       fields.inputMode.value = state.inputMode;
       fields.delay.value = state.delay;
-      fields.shortcut.value = state.shortcut;
+      fields.cardOutputFormat.value = state.cardOutputFormat;
       fields.clipboard.checked = state.clipboard;
       fields.practiceMode.checked = state.practiceMode;
       fields.fakeHomescreen.checked = state.fakeHomescreen;
+      renderShortcutMenu();
     }
 
     function saveSettings() {
       state.inputMode = fields.inputMode.value;
       state.useTwoSwipe = state.inputMode === 'twoswipe';
       state.delay = Math.min(60, Math.max(1, Number(fields.delay.value) || 3));
-      state.shortcut = fields.shortcut.value.trim();
+      state.cardOutputFormat = fields.cardOutputFormat.value;
+      state.shortcut = fields.shortcutSelect.value;
+      state.shortcutEnabled = fields.shortcutEnabled.checked && Boolean(state.shortcut);
       state.clipboard = fields.clipboard.checked;
       state.practiceMode = fields.practiceMode.checked;
       state.fakeHomescreen = fields.fakeHomescreen.checked;
+      state = Swipe.normalizeConfig(state);
       Storage.save('swipe', state);
       if (!state.fakeHomescreen) setWallpaperSource('');
       else if (preparedWallpaperSource) setWallpaperSource(preparedWallpaperSource);
@@ -309,6 +382,7 @@
       document.documentElement.classList.remove('performance-active');
       performPage.classList.remove('wallpaper-mode');
       performPage.classList.remove('practice-mode');
+      performPage.classList.remove('tap-mode');
     }
 
     async function showPerform() {
@@ -327,6 +401,8 @@
       clearTimeout(toastTimer);
       toast.classList.remove('visible');
       performPage.classList.toggle('practice-mode', state.practiceMode);
+      performPage.classList.toggle('tap-mode', state.inputMode === 'tapzones');
+      renderTapPracticeGrid();
       renderPrevious(previousValue);
       renderCurrent();
 
@@ -334,7 +410,14 @@
       engine = Swipe.start(state, {
         element: performPage,
         onDigit(digit, buffer) { renderCurrent(buffer); },
-        onSequence(result, buffer) { if (!result.complete && result.stage === 'second') renderCurrent(buffer, true); },
+        onSequence(result, buffer) { if (!result.complete && result.stage !== 'first') renderCurrent(buffer, true, result.preview || ''); },
+        onTapZone(zone) {
+          if (!state.practiceMode) return;
+          const cell = tapPracticeGrid.children[zone.index];
+          if (!cell) return;
+          cell.classList.add('active');
+          setTimeout(() => cell.classList.remove('active'), 150);
+        },
         onClipboard(value, succeeded) { if (succeeded) liveStatus.textContent = `${value} copied`; },
         onClear() { renderCurrent(); showToast('Cleared'); },
         onSubmit(value, route) {
@@ -386,7 +469,9 @@
       await wallpaperReadyPromise;
     });
     fields.start.addEventListener('click', showPerform);
-    [fields.inputMode, fields.delay, fields.shortcut, fields.clipboard, fields.practiceMode, fields.fakeHomescreen].forEach((field) => field.addEventListener('change', saveSettings));
+    fields.addShortcut.addEventListener('click', addShortcut);
+    fields.newShortcut.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addShortcut(); } });
+    [fields.inputMode, fields.delay, fields.cardOutputFormat, fields.shortcutEnabled, fields.shortcutSelect, fields.clipboard, fields.practiceMode, fields.fakeHomescreen].forEach((field) => field.addEventListener('change', saveSettings));
 
     fillForm();
     saveSettings();

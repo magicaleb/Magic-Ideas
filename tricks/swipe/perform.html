@@ -44,6 +44,11 @@
     .perform-root { position: fixed; inset: 0; isolation: isolate; overflow: visible; background-color: #000; background-image: var(--performance-wallpaper, none); background-position: center center; background-repeat: no-repeat; background-size: cover; touch-action: none; }
     .wallpaper-layer { position: fixed; top: 0; left: 0; z-index: 0; width: 100vw; min-height: 100%; height: var(--screen-height, 100%); background-color: #000; background-image: var(--performance-wallpaper, none); background-repeat: no-repeat; background-position: center center; background-size: cover; pointer-events: none; }
     .performance-ui { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+    .tap-practice-grid { display: none; position: absolute; inset: 0; grid-template-columns: repeat(var(--tap-columns), minmax(0, 1fr)); grid-template-rows: repeat(var(--tap-rows), minmax(0, 1fr)); gap: 1px; background: rgba(0,0,0,.12); }
+    .perform-root.practice-mode.tap-mode .tap-practice-grid { display: grid; }
+    .tap-practice-cell { display: grid; min-width: 0; place-items: center; border: 1px solid rgba(125,211,252,.5); background: rgba(6,12,25,.16); color: rgba(255,255,255,.88); font-size: clamp(.62rem, 2.5vw, .84rem); font-weight: 750; text-align: center; text-shadow: 0 1px 5px #000; overflow: hidden; }
+    .tap-practice-cell.empty { color: transparent; }
+    .tap-practice-cell.active { background: rgba(45,212,191,.32); }
     .practice-panel { display: none; position: absolute; inset: 0; place-content: center; justify-items: center; gap: 8px; padding: 24px; text-align: center; }
     .perform-root.practice-mode .practice-panel { display: grid; }
     .practice-current { max-width: 100%; color: rgba(235,241,255,.82); font-size: clamp(3.5rem, 17vw, 6.5rem); font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: .08em; overflow-wrap: anywhere; text-shadow: 0 3px 18px rgba(0,0,0,.82); }
@@ -61,6 +66,7 @@
   <main id="performRoot" class="perform-root" aria-label="Full-screen swipe input surface">
     <div id="wallpaperLayer" class="wallpaper-layer" aria-hidden="true"></div>
     <div class="performance-ui" aria-hidden="true">
+      <div id="tapPracticeGrid" class="tap-practice-grid"></div>
       <div class="practice-panel">
         <output id="practiceCurrent" class="practice-current">—</output>
         <div class="practice-previous">Previous <output id="practicePrevious">—</output></div>
@@ -74,11 +80,12 @@
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="../../assets/js/storage.js?v=4"></script>
-  <script src="../../assets/js/clockInput.js?v=4"></script>
-  <script src="../../assets/js/gestureDetector.js?v=4"></script>
-  <script src="../../assets/js/gestures.js?v=4"></script>
-  <script src="../../assets/js/swipe.js?v=4"></script>
+  <script src="../../assets/js/storage.js?v=6"></script>
+  <script src="../../assets/js/clockInput.js?v=6"></script>
+  <script src="../../assets/js/inputProfiles.js?v=6"></script>
+  <script src="../../assets/js/gestureDetector.js?v=6"></script>
+  <script src="../../assets/js/gestures.js?v=6"></script>
+  <script src="../../assets/js/swipe.js?v=6"></script>
   <script>
     const WALLPAPER_KEY = 'swipe.wallpaper';
     const state = Swipe.normalizeConfig(Storage.load('swipe', {}));
@@ -89,6 +96,7 @@
     const practicePrevious = document.getElementById('practicePrevious');
     const peekCurrent = document.getElementById('peekCurrent');
     const peekPrevious = document.getElementById('peekPrevious');
+    const tapPracticeGrid = document.getElementById('tapPracticeGrid');
     const toast = document.getElementById('toast');
     const liveStatus = document.getElementById('liveStatus');
     let wallpaperHandle = null;
@@ -96,6 +104,7 @@
     let previousValue = '—';
 
     root.classList.toggle('practice-mode', state.practiceMode);
+    root.classList.toggle('tap-mode', state.inputMode === 'tapzones');
 
     function syncScreenHeight() {
       const screenHeight = Math.max(window.innerHeight || 0, window.screen?.height || 0);
@@ -109,10 +118,24 @@
       root.classList.toggle('wallpaper-mode', Boolean(source));
     }
 
-    function renderCurrent(value = '', pending = false) {
-      const display = pending ? `${value}·` : (value || '—');
+    function renderCurrent(value = '', pending = false, preview = '') {
+      const partial = [value, preview].filter(Boolean).join(' ');
+      const display = pending ? `${partial}·` : (value || '—');
       peekCurrent.textContent = display;
       practiceCurrent.textContent = display;
+    }
+
+    function renderTapPracticeGrid() {
+      if (state.inputMode !== 'tapzones') return;
+      tapPracticeGrid.style.setProperty('--tap-rows', state.tapGrid.rows);
+      tapPracticeGrid.style.setProperty('--tap-columns', state.tapGrid.columns);
+      tapPracticeGrid.replaceChildren();
+      state.tapGrid.zones.forEach((action) => {
+        const cell = document.createElement('span');
+        cell.className = `tap-practice-cell${action.kind === 'empty' ? ' empty' : ''}`;
+        cell.textContent = InputProfiles.tapActionLabel(action, true);
+        tapPracticeGrid.append(cell);
+      });
     }
 
     function renderPrevious(value = '') {
@@ -178,9 +201,14 @@
         if (digit !== null) pulse();
       },
       onSequence(result, buffer) {
-        if (!result.complete && result.stage === 'second') {
-          renderCurrent(buffer, true);
-        }
+        if (!result.complete && result.stage !== 'first') renderCurrent(buffer, true, result.preview || '');
+      },
+      onTapZone(zone) {
+        if (!state.practiceMode) return;
+        const cell = tapPracticeGrid.children[zone.index];
+        if (!cell) return;
+        cell.classList.add('active');
+        setTimeout(() => cell.classList.remove('active'), 150);
       },
       onClipboard(value, succeeded) {
         if (succeeded) liveStatus.textContent = `${value} copied`;
@@ -202,6 +230,7 @@
 
     renderPrevious();
     renderCurrent();
+    renderTapPracticeGrid();
     syncScreenHeight();
     applyWallpaper();
     window.addEventListener('resize', syncScreenHeight);

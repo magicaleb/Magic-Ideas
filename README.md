@@ -34,9 +34,32 @@ A single swipe selects the nearest of 12 clock sectors. The orientation is:
 
 Clock positions 10 and 11 do not enter digits.
 
+### Playing-card face
+
+The built-in card face produces a complete playing card in two or three swipes. The first swipe sets the suit:
+
+| Swipe | Suit |
+|---|---|
+| ↑ | ♠️ Spades |
+| → | ♥️ Hearts |
+| ↓ | ♦️ Diamonds |
+| ← | ♣️ Clubs |
+
+For the rank, swipe left once for King. Otherwise, swipe up for the A–4 group, right for 5–8, or down for 9–Q; a final ↑/→/↓/← selects the four values within that group. Settings can copy either compact output such as `A ♥️` or spelled-out output such as `Ace of Hearts`.
+
+### Custom clock faces
+
+Custom faces are reusable 4×4 two-swipe maps. The first direction chooses a row and the second chooses a column; each combination can output any short text. Empty combinations are ignored. Multiple named faces can be saved and selected from the settings dropdown.
+
+### Screen tap zones
+
+Tap-zone mode divides the entire performance screen into a configurable grid. Each region can append a number or custom string, replace the current input, select a card suit or rank, backspace, clear, or submit. The included Home Screen number, playing-card, and blank presets can all be rearranged in Settings.
+
+Practice Mode draws the actual grid over the performance screen for calibration. With Practice Mode off, the grid is completely invisible, so its positions can be aligned with app icons or titles in the uploaded fake Home Screen. Rapid taps are accepted as separate entries; double-tap clear is therefore disabled only in this mode, and Clear/Backspace can be assigned to dedicated zones.
+
 ### Performance controls
 
-- Double-tap → clear the current input
+- Double-tap → clear the current input in swipe modes
 - Quick two-finger tap → submit immediately
 - Two-finger downward swipe → exit to Settings
 - Hold two fingers for about 750 ms → exit fallback
@@ -44,13 +67,13 @@ Clock positions 10 and 11 do not enter digits.
 
 Swipes are not counted as taps, so a fast two-swipe digit cannot accidentally trigger the double-tap clear command. Quick two-finger submit, two-finger downward exit, and two-finger hold-to-exit are also classified separately.
 
-The optional **Practice Mode** setting adds a large current-input display at the center, with the previous value underneath. It is off by default; performance mode otherwise retains only the two small corner peeks.
+The optional **Practice Mode** setting adds a large current-input display at the center, with the previous value underneath. In tap-zone mode it also shows the calibration grid. It is off by default; performance mode otherwise retains only the two small corner peeks.
 
 ### Clipboard and Shortcuts
 
-Automatic clipboard handoff is enabled by default. The app updates the clipboard after each complete digit, while the swipe event still provides browser user activation. The submitted value therefore remains available to paste even when auto-submit happens later.
+Automatic clipboard handoff is enabled by default. The app updates the clipboard after each completed digit, custom output, tap action, or card, while the gesture event still provides browser user activation. The submitted value therefore remains available to paste even when auto-submit happens later.
 
-Clipboard access requires a secure context (HTTPS or localhost) and can still be denied by browser or device permissions. The settings toggle can disable automatic copying. An optional iOS Shortcut can also receive the submitted value as text.
+Clipboard access requires a secure context (HTTPS or localhost) and can still be denied by browser or device permissions. The settings toggle can disable automatic copying. Multiple iOS Shortcut names can be saved in a dropdown; a separate switch controls whether the selected Shortcut receives the submitted value as text.
 
 ### Wallpaper performance mode
 
@@ -64,20 +87,21 @@ Some current iOS 26.5.x and iOS 27 beta releases have a [WebKit regression](http
 
 ### Contained variant
 
-[`contained-swipe.html`](./contained-swipe.html) provides the settings and performance surface in one page. It now uses the same gesture detector, clock math, clipboard behavior, configuration, and wallpaper storage as the main Swipe Input pages.
+[`contained-swipe.html`](./contained-swipe.html) provides the settings and performance surface in one page. It uses the same gesture detector, input profiles, clipboard behavior, configuration, and wallpaper storage as the main Swipe Input pages. Its compact settings can select every input mode; the full custom-face and tap-map editor links to the main Settings page.
 
 ## Gesture demo
 
-Open [`gesture-input-demo.html`](./gesture-input-demo.html) to test both input modes. The demo limits detection to its visible swipe box; the actual performance pages attach the same detector to the full viewport.
+Open [`gesture-input-demo.html`](./gesture-input-demo.html) to test the two numeric swipe modes. The demo limits detection to its visible swipe box; the actual performance pages attach the shared detector to the full viewport.
 
 ## Swipe architecture
 
 | File | Responsibility |
 |---|---|
 | `assets/js/clockInput.js` | Clock orientation, digit mapping, and the two-swipe state machine |
+| `assets/js/inputProfiles.js` | Playing-card state machine, custom faces, tap-grid presets, and screen-region mapping |
 | `assets/js/gestureDetector.js` | Pointer/touch detection and distinct swipe, tap, two-finger tap, hold, and two-finger swipe gestures |
 | `assets/js/gestures.js` | Small compatibility facade used by the performance engine |
-| `assets/js/swipe.js` | Numeric buffer, clipboard syncing, auto-submit, Shortcut routing, and lifecycle |
+| `assets/js/swipe.js` | Shared output buffer, clipboard syncing, auto-submit, Shortcut routing, and lifecycle for every input mode |
 | `assets/js/storage.js` | Local settings plus IndexedDB-backed wallpaper storage |
 | `assets/js/inputModes.js` | Demo-oriented mode wrappers and mode manager |
 
